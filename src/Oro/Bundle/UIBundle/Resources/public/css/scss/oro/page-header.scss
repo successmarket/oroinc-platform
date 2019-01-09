@@ -29,6 +29,10 @@
         font-weight: normal;
     }
 
+    &__entity-title-wrapper {
+        display: inline-block;
+    }
+
     &__icon {
         float: #{$start};
         top: -2px;
@@ -91,6 +95,16 @@
 
     > .navigation {
         @include clearfix();
+    }
+
+    .title-buttons-container {
+        .btn-group {
+            margin-#{$start}: $content-padding-small;
+
+            .btn-group {
+                margin-#{$start}: 0;
+            }
+        }
     }
 }
 

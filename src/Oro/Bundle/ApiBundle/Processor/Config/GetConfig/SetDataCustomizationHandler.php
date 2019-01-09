@@ -52,16 +52,29 @@ class SetDataCustomizationHandler implements ProcessorInterface
      */
     private function setCustomizationHandler(EntityDefinitionConfig $definition, ConfigContext $context)
     {
+        $version = $context->getVersion();
+        $requestType = $context->getRequestType();
         $entityClass = $context->getClassName();
-
         $definition->setPostSerializeHandler(
             new EntityHandler(
                 $this->customizationProcessor,
-                $context->getVersion(),
-                $context->getRequestType(),
+                $version,
+                $requestType,
                 $entityClass,
-                $context->getResult(),
+                $definition,
+                false,
                 $definition->getPostSerializeHandler()
+            )
+        );
+        $definition->setPostSerializeCollectionHandler(
+            new EntityHandler(
+                $this->customizationProcessor,
+                $version,
+                $requestType,
+                $entityClass,
+                $definition,
+                true,
+                $definition->getPostSerializeCollectionHandler()
             )
         );
 
@@ -118,18 +131,36 @@ class SetDataCustomizationHandler implements ProcessorInterface
         string $rootEntityClass,
         string $fieldPath
     ): void {
+        $version = $context->getVersion();
+        $requestType = $context->getRequestType();
+        $definition = $context->getResult();
         /** @var EntityDefinitionConfig $targetEntity */
         $targetEntity = $field->getTargetEntity();
+        $targetEntityClass = $field->getTargetClass();
         $targetEntity->setPostSerializeHandler(
             new AssociationHandler(
                 $this->customizationProcessor,
-                $context->getVersion(),
-                $context->getRequestType(),
+                $version,
+                $requestType,
                 $rootEntityClass,
                 $fieldPath,
-                $field->getTargetClass(),
-                $context->getResult(),
+                $targetEntityClass,
+                $definition,
+                false,
                 $targetEntity->getPostSerializeHandler()
+            )
+        );
+        $targetEntity->setPostSerializeCollectionHandler(
+            new AssociationHandler(
+                $this->customizationProcessor,
+                $version,
+                $requestType,
+                $rootEntityClass,
+                $fieldPath,
+                $targetEntityClass,
+                $definition,
+                true,
+                $targetEntity->getPostSerializeCollectionHandler()
             )
         );
         $this->processAssociations($context, $targetEntity, $rootEntityClass, $fieldPath);

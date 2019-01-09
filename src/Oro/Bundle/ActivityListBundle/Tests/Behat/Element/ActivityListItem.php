@@ -12,7 +12,7 @@ class ActivityListItem extends Element
 {
     public function collapse()
     {
-        $this->find('css', 'a.accordion-toggle')->click();
+        $this->find('css', 'a[data-toggle="collapse"]')->click();
         $this->getDriver()->waitForAjax();
     }
 
@@ -52,7 +52,7 @@ class ActivityListItem extends Element
             throw new \InvalidArgumentException(sprintf('Context "%s" does not exist.', $content));
         }
 
-        $existingContext->find('css', 'i.fa-close')->click();
+        $existingContext->find('css', 'span.fa-close')->click();
     }
 
     public function hasContext($text)

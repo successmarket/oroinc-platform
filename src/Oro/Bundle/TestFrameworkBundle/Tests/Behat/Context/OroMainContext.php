@@ -997,8 +997,15 @@ class OroMainContext extends MinkContext implements
                 parent::pressButton($button);
                 break;
             } catch (ElementNotFoundException $e) {
-                if ($this->getSession()->getPage()->hasLink($button)) {
-                    $this->clickLink($button);
+                $clickLink = $this->spin(function () use ($button) {
+                    if ($this->getSession()->getPage()->hasLink($button)) {
+                        $this->clickLink($button);
+                        return true;
+                    }
+                    return false;
+                }, 1);
+
+                if ($clickLink) {
                     break;
                 }
 
@@ -1325,6 +1332,28 @@ class OroMainContext extends MinkContext implements
                 $this->assertNotNull($opt, sprintf('Options with value|text "%s" not found', $option['Value']));
             }
         }
+    }
+
+    /**
+     * Assert that select field has no options
+     * Example: Then User Address Select has no options
+     *
+     * @When /^(?P<fieldName>[\w\s]*) has no options$/
+     */
+    public function selectHasNoOptions($fieldName)
+    {
+        $field = $this->createElement($fieldName);
+        $this->assertTrue($field->isValid(), sprintf('Select "%s" not found on page', $fieldName));
+
+        $options = $field->findAll('css', 'option');
+        if (count($options) > 0) {
+            $options = array_filter($options, function (NodeElement $option) {
+                $value = $option->getValue();
+
+                return !empty($value);
+            });
+        }
+        $this->assertCount(0, $options);
     }
 
     /**

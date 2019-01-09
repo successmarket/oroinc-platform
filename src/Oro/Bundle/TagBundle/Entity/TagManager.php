@@ -80,9 +80,13 @@ class TagManager
      */
     public function getTagsByEntityIds($entityClassName, array $ids)
     {
+        $user = $this->getUser();
+        if (!$user) {
+            return [];
+        }
         $repository = $this->getTagsRepository();
 
-        return $repository->getTagsByEntityIds($entityClassName, $ids, $this->getUser());
+        return $repository->getTagsByEntityIds($entityClassName, $ids, $user);
     }
 
     /**
@@ -251,7 +255,9 @@ class TagManager
         /** @var Tag $tag */
         foreach ($tags as $tag) {
             $entry = [
-                'name' => $tag->getName()
+                'name' => $tag->getName(),
+                'ownerFirstName' => null,
+                'ownerLastName' => null
             ];
             if ($tag->getId()) {
                 $entry = array_merge(
@@ -286,6 +292,8 @@ class TagManager
                     if ($this->getUser()->getId() == $owner->getId()) {
                         $entry['owner'] = true;
                     }
+                    $entry['ownerFirstName'] = $owner->getFirstName();
+                    $entry['ownerLastName'] = $owner->getLastName();
                 }
             }
 
