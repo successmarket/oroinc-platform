@@ -7,7 +7,8 @@ namespace Oro\Bundle\TestFrameworkBundle\Behat\Processor;
  */
 interface MessageQueueProcessorInterface
 {
-    const TIMEOUT = 300;
+    // Make timeout configurable via command line arguments? See BAP-18237
+    const TIMEOUT = 600;
 
     /**
      * @return void
