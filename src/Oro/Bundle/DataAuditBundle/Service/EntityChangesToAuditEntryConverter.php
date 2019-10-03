@@ -297,6 +297,8 @@ class EntityChangesToAuditEntryConverter
             ->createQueryBuilder('a')
             ->select('a')
             ->where('a.transactionId = :transactionId AND a.objectClass = :objectClass AND a.objectId = :objectId')
+            ->setMaxResults(1)
+            ->orderBy('a.version', 'DESC')
             ->setParameter('transactionId', $transactionId)
             ->setParameter('objectClass', $entityClass)
             ->setParameter('objectId', $entityId)
