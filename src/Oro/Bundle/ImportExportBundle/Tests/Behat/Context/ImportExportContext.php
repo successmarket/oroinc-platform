@@ -2,6 +2,7 @@
 
 namespace Oro\Bundle\ImportExportBundle\Tests\Behat\Context;
 
+use Behat\Behat\Hook\Scope\AfterFeatureScope;
 use Behat\Behat\Hook\Scope\BeforeScenarioScope;
 use Behat\Gherkin\Node\TableNode;
 use Behat\Mink\Element\NodeElement;
@@ -18,9 +19,11 @@ use Oro\Bundle\TestFrameworkBundle\Behat\Element\Element as OroElement;
 use Oro\Bundle\TestFrameworkBundle\Behat\Element\OroPageObjectAware;
 use Oro\Bundle\TestFrameworkBundle\Tests\Behat\Context\OroMainContext;
 use Oro\Bundle\TestFrameworkBundle\Tests\Behat\Context\PageObjectDictionary;
+use PHPUnit\Framework\ExpectationFailedException;
 
 /**
  * @SuppressWarnings(PHPMD.TooManyPublicMethods)
+ * @SuppressWarnings(PHPMD.TooManyMethods)
  * @SuppressWarnings(PHPMD.ExcessiveClassComplexity)
  */
 class ImportExportContext extends OroFeatureContext implements
@@ -45,6 +48,21 @@ class ImportExportContext extends OroFeatureContext implements
     private $oroMainContext;
 
     /**
+     * @var string Path to saved template
+     */
+    protected $template;
+
+    /**
+     * @var string Path to import file
+     */
+    protected $importFile;
+
+    /**
+     * @var string Path to export file
+     */
+    protected static $exportFile;
+
+    /**
      * @param EntityAliasResolver $aliasResolver
      * @param ProcessorRegistry $processorRegistry
      */
@@ -64,14 +82,16 @@ class ImportExportContext extends OroFeatureContext implements
     }
 
     /**
-     * @var string Path to saved template
+     * @AfterFeature
+     * @param AfterFeatureScope $event
      */
-    protected $template;
-
-    /**
-     * @var string Path to import file
-     */
-    protected $importFile;
+    public static function afterFeature(AfterFeatureScope $event)
+    {
+        if (static::$exportFile) {
+            unlink(static::$exportFile);
+            static::$exportFile = null;
+        }
+    }
 
     /**
      * Open specific tab on multi-import modal
@@ -171,10 +191,7 @@ class ImportExportContext extends OroFeatureContext implements
                 'options' => $options
             ]
         ));
-        $this->template = tempnam(
-            $this->getKernel()->getProjectDir().DIRECTORY_SEPARATOR.'var'.DIRECTORY_SEPARATOR.'import_export',
-            'import_template_'
-        );
+        $this->template = $this->getTempFilePath('import_template_');
 
         $cookieJar = $this->getCookieJar($this->getSession());
         $client = new Client([
@@ -185,6 +202,16 @@ class ImportExportContext extends OroFeatureContext implements
         $response = $client->get($url);
 
         self::assertEquals(200, $response->getStatusCode());
+    }
+
+    /**
+     * @When /^(?:|I )run export for "(?P<entity>([\w\s]+))"$/
+     *
+     * @param string $entity
+     */
+    public function iRunExportForEntity(string $entity)
+    {
+        static::$exportFile = $this->performExport($entity, null);
     }
 
     /**
@@ -213,10 +240,10 @@ class ImportExportContext extends OroFeatureContext implements
     //@codingStandardsIgnoreEnd
     public function exportedFileWithProcessorContainsFollowingData($entity, TableNode $expectedEntities, $processorName)
     {
-        $filePath = $this->performExport($entity, $processorName);
+        static::$exportFile = $this->performExport($entity, $processorName);
 
         try {
-            $handler = fopen($filePath, 'rb');
+            $handler = fopen(static::$exportFile, 'rb');
             $headers = fgetcsv($handler, 1000, ',');
             $expectedHeaders = $expectedEntities->getRow(0);
 
@@ -237,7 +264,6 @@ class ImportExportContext extends OroFeatureContext implements
             }
         } finally {
             fclose($handler);
-            unlink($filePath);
         }
 
         static::assertCount($i, $expectedEntities->getRows());
@@ -276,10 +302,10 @@ class ImportExportContext extends OroFeatureContext implements
         TableNode $expectedEntities,
         $processorName
     ) {
-        $filePath = $this->performExport($entity, $processorName);
+        static::$exportFile = $this->performExport($entity, $processorName);
 
         try {
-            $exportedFile = new \SplFileObject($filePath, 'rb');
+            $exportedFile = new \SplFileObject(static::$exportFile, 'rb');
             // Treat file as CSV, skip empty lines.
             $exportedFile->setFlags(\SplFileObject::READ_CSV
                 | \SplFileObject::READ_AHEAD
@@ -289,21 +315,31 @@ class ImportExportContext extends OroFeatureContext implements
             $headers = $exportedFile->current();
             $expectedHeaders = $expectedEntities->getRow(0);
 
+            $errors = [];
             foreach ($exportedFile as $line => $data) {
                 $entityDataFromCsv = array_combine($headers, array_values($data));
                 $expectedEntityData = array_combine($expectedHeaders, array_values($expectedEntities->getRow($line)));
 
                 // Ensure that at least expected data is present.
                 foreach ($expectedEntityData as $property => $value) {
-                    static::assertEquals($value, $entityDataFromCsv[$property]);
+                    try {
+                        static::assertEquals(
+                            $value,
+                            $entityDataFromCsv[$property],
+                            sprintf('Failed asserting that two columns "%s" are equal on row %d', $property, $line)
+                        );
+                    } catch (ExpectationFailedException $exception) {
+                        $errors[] = $exception->getMessage() . $exception->getComparisonFailure()->getDiff();
+                    }
                 }
             }
+
+            static::assertEmpty($errors, implode("\n\n", $errors));
 
             static::assertCount($exportedFile->key(), $expectedEntities->getRows());
         } finally {
             // We have to release SplFileObject before trying to delete the underlying file.
             $exportedFile = null;
-            unlink($filePath);
         }
     }
 
@@ -321,10 +357,10 @@ class ImportExportContext extends OroFeatureContext implements
         $entity,
         TableNode $expectedEntities
     ) {
-        $filePath = $this->performExport($entity, null);
+        static::$exportFile = $this->performExport($entity, null);
 
         try {
-            $exportedFile = new \SplFileObject($filePath, 'rb');
+            $exportedFile = new \SplFileObject(static::$exportFile, 'rb');
             // Treat file as CSV, skip empty lines.
             $exportedFile->setFlags(\SplFileObject::READ_CSV
                 | \SplFileObject::READ_AHEAD
@@ -340,7 +376,6 @@ class ImportExportContext extends OroFeatureContext implements
         } finally {
             // We have to release SplFileObject before trying to delete the underlying file.
             $exportedFile = null;
-            unlink($filePath);
         }
     }
 
@@ -404,6 +439,25 @@ class ImportExportContext extends OroFeatureContext implements
     }
 
     /**
+     * Assert that given columns are present in the downloaded csv template
+     * Example: When I download Data Template file
+     *          And I see the following columns in exact order in the downloaded csv template:
+     *              | sku    |
+     *              | status |
+     *              | type   |
+     *
+     * @Then /^(?:|I )see the following columns in exact order in the downloaded csv template:$/
+     */
+    public function iSeeColumnsInExactOrder(TableNode $table)
+    {
+        $csv = array_map('str_getcsv', file($this->template));
+        $rows = array_column($table->getRows(), 0);
+        foreach ($rows as $i => $row) {
+            self::assertEquals($row, $csv[0][$i] ?? '');
+        }
+    }
+
+    /**
      * Fill downloaded csv file template
      * Example: And I fill template with data:
      *            | Account Customer name | Channel Name        | Opportunity name | Status Id   |
@@ -414,10 +468,7 @@ class ImportExportContext extends OroFeatureContext implements
      */
     public function iFillTemplateWithData(TableNode $table)
     {
-        $this->importFile = tempnam(
-            $this->getKernel()->getProjectDir().DIRECTORY_SEPARATOR.'var'.DIRECTORY_SEPARATOR.'import_export',
-            'import_data_'
-        );
+        $this->importFile = $this->getTempFilePath('import_data_');
         $fp = fopen($this->importFile, 'w');
         $csv = array_map('str_getcsv', file($this->template));
         $headers = array_shift($csv);
@@ -428,9 +479,31 @@ class ImportExportContext extends OroFeatureContext implements
             foreach ($headers as $header) {
                 $value = '';
                 foreach ($row as $rowHeader => $rowValue) {
-                    if (preg_match(sprintf('/^%s$/i', $rowHeader), $header)) {
+                    if ($rowHeader === $header || preg_match(sprintf('/^%s$/i', $rowHeader), $header)) {
                         $value = $rowValue;
                     }
+                }
+
+                $regex = '/\<valueFromExportFile\("(?P<column>(?:[^"]|\\")+)",\s?'
+                    . '"(?P<searchedColumn>(?:[^"]|\\")+)",\s?'
+                    . '"(?P<searchedColumnValue>(?:[^"]|\\")+)"\)\>/i';
+                if (preg_match($regex, $value, $matches)) {
+                    $foundValue = $this->getValueFromExportFile(
+                        $matches['searchedColumn'],
+                        $matches['searchedColumnValue'],
+                        $matches['column']
+                    );
+
+                    self::assertNotNull(
+                        $foundValue,
+                        sprintf(
+                            'Searched value \"%s\" in column \"%s\" not found in export file',
+                            $matches['searchedColumnValue'],
+                            $matches['searchedColumn']
+                        )
+                    );
+
+                    $value = $foundValue;
                 }
 
                 $values[] = $value;
@@ -440,15 +513,88 @@ class ImportExportContext extends OroFeatureContext implements
     }
 
     /**
+     * Fill import csv file
+     * Example: And I fill import file with data:
+     *            | Account Customer name | Channel Name        | Opportunity name | Status Id   |
+     *            | Charlie               | First Sales Channel | Opportunity one  | in_progress |
+     *            | Samantha              | First Sales Channel | Opportunity two  | in_progress |
+     *
+     * @Given /^(?:|I )fill import file with data:$/
+     */
+    public function iFillImportFileWithData(TableNode $table)
+    {
+        $this->importFile = $this->getTempFilePath('import_data_');
+        $fp = fopen($this->importFile, 'w');
+
+        fputcsv($fp, array_keys($table->getRow(0)));
+
+        foreach ($table as $row) {
+            $values = [];
+            foreach ($row as $rowHeader => $rowValue) {
+                $values[] = $rowValue;
+            }
+
+            fputcsv($fp, $values);
+        }
+    }
+
+    /**
+     * Takes from exported file the value of $column from row where $searchedColumn equals $searchedColumnValue
+     *
+     * @param string $searchedColumn
+     * @param string $searchedColumnValue
+     * @param string $column
+     *
+     * @return string|null
+     */
+    private function getValueFromExportFile(
+        string $searchedColumn,
+        string $searchedColumnValue,
+        string $column
+    ): ?string {
+        $export = $this->parseCsv(static::$exportFile);
+
+        self::assertArrayHasKey($column, $export[0], sprintf('Export file does not contain column %s', $column));
+
+        self::assertArrayHasKey(
+            $searchedColumn,
+            $export[0],
+            sprintf('Export file does not contain searched column %s', $searchedColumn)
+        );
+
+        $foundValue = null;
+        foreach ($export as $exportRow) {
+            if ($exportRow[$searchedColumn] === $searchedColumnValue) {
+                $foundValue = $exportRow[$column];
+                break;
+            }
+        }
+
+        return $foundValue;
+    }
+
+    /**
+     * @param string $csvFilePath
+     *
+     * @return array
+     */
+    private function parseCsv(string $csvFilePath): array
+    {
+        $csvData = array_map('str_getcsv', file($csvFilePath));
+        array_walk($csvData, static function (&$row) use ($csvData) {
+            $row = array_combine($csvData[0], $row);
+        });
+        array_shift($csvData);
+
+        return $csvData;
+    }
+
+    /**
      * @When /^(?:|I )save import file with BOM/
      */
     public function iSaveImportFileWithBOM()
     {
-        $newImportFile = tempnam(
-            $this->getKernel()->getProjectDir() . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'import_export',
-            'import_data_'
-        );
-
+        $newImportFile = $this->getTempFilePath('import_data_');
         file_put_contents($newImportFile, pack('H*', 'EFBBBF'));
 
         $readTheFile = function ($path) {
@@ -665,5 +811,18 @@ class ImportExportContext extends OroFeatureContext implements
         static::assertTrue($jobResult->isSuccessful());
 
         return $filePath;
+    }
+
+    /**
+     * @param string $prefix
+     *
+     * @return string
+     */
+    private function getTempFilePath(string $prefix): string
+    {
+        return tempnam(
+            $this->getKernel()->getProjectDir().DIRECTORY_SEPARATOR.'var'.DIRECTORY_SEPARATOR.'import_export',
+            $prefix
+        ) . '.csv';
     }
 }

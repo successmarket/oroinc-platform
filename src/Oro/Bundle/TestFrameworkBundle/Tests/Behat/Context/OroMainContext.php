@@ -11,6 +11,7 @@ use Behat\Gherkin\Node\TableNode;
 use Behat\Mink\Driver\Selenium2Driver;
 use Behat\Mink\Element\NodeElement;
 use Behat\Mink\Exception\ElementNotFoundException;
+use Behat\Mink\Session;
 use Behat\MinkExtension\Context\MinkContext;
 use Behat\Symfony2Extension\Context\KernelAwareContext;
 use Behat\Symfony2Extension\Context\KernelDictionary;
@@ -121,27 +122,17 @@ class OroMainContext extends MinkContext implements
         }
 
         $session = $this->getMink()->getSession();
-
-        /** @var OroSelenium2Driver $driver */
-        $driver = $session->getDriver();
-        try {
-            $url = $session->getCurrentUrl();
-        } catch (\Exception $e) {
-            // there is some age cases when url is not reachable
+        if (!$this->isSupportedUrl($session)) {
             return;
         }
 
-        if (1 === preg_match('/[\S]*\/user\/(login|two-factor-auth)\/?(\?_rand=[0-9\.]+)?$/i', $url)) {
-            return;
-        } elseif (0 === preg_match('/^https?:\/\//', $url)) {
-            return;
-        } elseif (0 !== strpos($url, $this->getMinkParameter('base_url'))) {
-            return;
-        } elseif (preg_match(self::SKIP_WAIT_PATTERN, $scope->getStep()->getText())) {
+        if (preg_match(self::SKIP_WAIT_PATTERN, $scope->getStep()->getText())) {
             // Don't wait when we need assert the flash message, because it can disappear until ajax in process
             return;
         }
 
+        /** @var OroSelenium2Driver $driver */
+        $driver = $session->getDriver();
         $driver->waitPageToLoad();
     }
 
@@ -158,36 +149,66 @@ class OroMainContext extends MinkContext implements
         }
 
         $session = $this->getMink()->getSession();
+        if (!$this->isSupportedUrl($session)) {
+            return;
+        }
 
         /** @var OroSelenium2Driver $driver */
         $driver = $session->getDriver();
+        $driver->waitForAjax();
+
+        $this->checkForUnexpectedErrors($scope);
+    }
+
+    /**
+     * @param Session $session
+     * @return bool
+     */
+    protected function isSupportedUrl(Session $session): bool
+    {
         try {
             $url = $session->getCurrentUrl();
         } catch (\Exception $e) {
-            // there is some age cases when url is not reachable
-            return;
+            // there is some edge cases when url is not reachable
+            return false;
         }
 
         if (1 === preg_match('/[\S]*\/user\/(login|two-factor-auth)\/?(\?_rand=[0-9\.]+)?$/i', $url)) {
-            return;
-        } elseif (0 === preg_match('/^https?:\/\//', $url)) {
-            return;
-        } elseif (0 !== strpos($url, $this->getMinkParameter('base_url'))) {
-            return;
+            return false;
         }
 
-        $driver->waitForAjax();
+        if (0 === preg_match('/^https?:\/\//', $url)) {
+            return false;
+        }
 
-        // Check for unforeseen 500 errors
-        $error = $this->elementFactory->findElementContains(
+        if (0 !== strpos($url, $this->getMinkParameter('base_url'))) {
+            return false;
+        }
+
+        return true;
+    }
+
+    protected function checkForUnexpectedErrors(AfterStepScope $scope): void
+    {
+        $errorNotifyElements = [
             'Alert Error Message',
-            'There was an error performing the requested operation. Please try again or contact us for assistance.'
-        );
+            'Alert Error Flash Message'
+        ];
+        $errors = [
+            'There was an error performing the requested operation. Please try again or contact us for assistance.',
+            'Error occurred during layout update. Please contact system administrator.'
+        ];
 
-        if ($error->isIsset()) {
-            self::fail(
-                sprintf('There is an error message "%s" found on the page, something went wrong', $error->getText())
-            );
+        foreach ($errorNotifyElements as $element) {
+            foreach ($errors as $error) {
+                $error = $this->elementFactory->findElementContains($element, $error);
+                if ($error->isIsset()) {
+                    self::fail(sprintf(
+                        'There is an error message "%s" found on the page, something went wrong',
+                        $error->getText()
+                    ));
+                }
+            }
         }
     }
 
@@ -611,7 +632,18 @@ class OroMainContext extends MinkContext implements
      */
     public function closeUiDialog()
     {
-        $this->getSession()->getPage()->find('css', 'button.ui-dialog-titlebar-close')->press();
+        $buttons = $this->getSession()->getPage()->findAll('css', 'button.ui-dialog-titlebar-close');
+        /**
+         * The last dialog window in most cases will be visible,
+         * because dialog adds one after another to HTML tree
+         */
+        rsort($buttons);
+        foreach ($buttons as $button) {
+            if ($button->isVisible()) {
+                $button->press();
+                break;
+            }
+        }
     }
 
     /**
@@ -1843,11 +1875,13 @@ JS;
      * Expand node of JS Tree detected by given title
      * Example: When I expand "Retail Supplies" in tree
      *
-     * @When /^(?:|I )expand "(?P<nodeTitle>[\w\s]+)" in tree$/
+     * @When /^(?:|I )expand "(?P<nodeTitle>(?:[^"]|\\")+)" in tree$/
      * @param string $nodeTitle
      */
     public function iExpandNodeInTree($nodeTitle)
     {
+        $nodeTitle = $this->fixStepArgument($nodeTitle);
+
         $page = $this->getSession()->getPage();
         $nodeStateControl = $page->find(
             'xpath',
@@ -1863,12 +1897,15 @@ JS;
      * Check that some JS Tree node located right after another one node
      * Example: Then I see "By Brand" after "New Arrivals" in tree
      *
-     * @Then /^(?:|I )should see "(?P<nodeTitle>[\w\s]+)" after "(?P<anotherNodeTitle>[\w\s]+)" in tree$/
+     * @Then /^(?:|I )should see "(?P<nodeTitle>(?:[^"]|\\")+)" after "(?P<anotherNodeTitle>(?:[^"]|\\")+)" in tree$/
      * @param string $nodeTitle
      * @param string $anotherNodeTitle
      */
     public function iSeeNodeAfterAnotherOneInTree($nodeTitle, $anotherNodeTitle)
     {
+        $nodeTitle = $this->fixStepArgument($nodeTitle);
+        $anotherNodeTitle = $this->fixStepArgument($anotherNodeTitle);
+
         $page = $this->getSession()->getPage();
         $resultElement = $page->find(
             'xpath',
@@ -1883,8 +1920,35 @@ JS;
         ));
     }
 
+    //@codingStandardsIgnoreStart
     /**
-     * @Then /^Page title equals to "(?P<pageTitle>[\w\W\s-]+)"$/
+     * Check that some JS Tree node belongs to another one node
+     * Example: Then I should see "By Brand" belongs to "New Arrivals" in tree
+     *
+     * @Then /^(?:|I )should see "(?P<nodeTitle>(?:[^"]|\\")+)" belongs to "(?P<anotherNodeTitle>(?:[^"]|\\")+)" in tree$/
+     * @param string $nodeTitle
+     * @param string $anotherNodeTitle
+     */
+    //@codingStandardsIgnoreEnd
+    public function iSeeNodeBelongsAnotherOneInTree($nodeTitle, $anotherNodeTitle)
+    {
+        $page = $this->getSession()->getPage();
+        $resultElement = $page->find(
+            'xpath',
+            '//a[contains(., "' . $nodeTitle . '")]/parent::li[contains(@class, "jstree-node")]'
+            . '/parent::ul[contains(@class, "jstree-children")]/parent::li[contains(@class, "jstree-node")]'
+            . '/a[contains(., "' . $anotherNodeTitle . '")]'
+        );
+
+        self::assertNotNull($resultElement, sprintf(
+            'Node "%s" does not belong to "%s" in tree.',
+            $nodeTitle,
+            $anotherNodeTitle
+        ));
+    }
+
+    /**
+     * @Then /^Page title equals to "(?P<pageTitle>[\w\W\s\-]+)"$/
      *
      * @param string $pageTitle
      */
@@ -2057,6 +2121,38 @@ JS;
         self::assertTrue($childElement->isVisible(), sprintf(
             'Element "%s" found inside iframe, but it\'s not visible',
             $childElementName,
+            $iframeName
+        ));
+
+        $driver->switchToWindow();
+    }
+
+    /**
+     * Example: Then I should see "sample text" inside "Default Addresses" iframe
+     *
+     * @Then /^(?:|I )should see "(?P<text>[^\"]+)" inside "(?P<iframeName>(?:[^"]|\\")*)" iframe$/
+     *
+     * @param string $text
+     * @param string $iframeName
+     */
+    public function iShouldSeeTextInsideIframe(string $text, string $iframeName)
+    {
+        $iframeElement = $this->createElement($iframeName);
+        self::assertTrue($iframeElement->isIsset() && $iframeElement->isVisible(), sprintf(
+            'Iframe element "%s" not found on page',
+            $iframeName
+        ));
+
+        /** @var OroSelenium2Driver $driver */
+        $driver = $this->getSession()->getDriver();
+        $driver->switchToIFrameByElement($iframeElement);
+
+        $iframeBody = $this->getSession()->getPage()->find('css', 'body');
+        $element = $iframeBody->find('named', ['content', $text]);
+        self::assertNotNull($element, sprintf('Text "%s" not found inside iframe "%s"', $text, $iframeName));
+        self::assertTrue($element->isVisible(), sprintf(
+            'Text "%s" found inside iframe "%s", but it\'s not visible',
+            $text,
             $iframeName
         ));
 
@@ -2304,5 +2400,47 @@ JS;
         } catch (\Exception $e) {
             throw $e;
         }
+    }
+
+    /**
+     * Returns fixed step argument (\\" replaced back to ", \\# replaced back to #)
+     *
+     * @param string $argument
+     *
+     * @return string
+     */
+    protected function fixStepArgument($argument)
+    {
+        return str_replace(['\\"', '\\#'], ['"', '#'], $argument);
+    }
+
+    /**
+     * @Then /^"(?P<element>[^"]*)" element "(?P<attribute>[^"]*)" attribute should contain "(?P<value>[^"]*)"$/
+     *
+     * @param string $element
+     * @param string $attribute
+     * @param string $value
+     */
+    public function elementAttributeContains($element, $attribute, $value)
+    {
+        $element = $this->createElement($element);
+        $this->assertNotNull($element);
+        $this->assertTrue($element->isValid());
+        $this->assertContains($value, $element->getAttribute($attribute));
+    }
+
+    /**
+     * @Then /^"(?P<element>[^"]*)" element "(?P<attribute>[^"]*)" attribute should not contain "(?P<value>[^"]*)"$/
+     *
+     * @param string $element
+     * @param string $attribute
+     * @param string $value
+     */
+    public function elementAttributeNotContains($element, $attribute, $value)
+    {
+        $element = $this->createElement($element);
+        $this->assertNotNull($element);
+        $this->assertTrue($element->isValid());
+        $this->assertNotContains($value, $element->getAttribute($attribute));
     }
 }

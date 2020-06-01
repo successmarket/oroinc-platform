@@ -3,9 +3,20 @@
 namespace Oro\Bundle\UIBundle\Twig;
 
 use Oro\Bundle\UIBundle\Formatter\FormatterManager;
+use Oro\Bundle\UIBundle\Provider\UrlWithoutFrontControllerProvider;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Translation\TranslatorInterface;
 
+/**
+ * Provides Twig functions to render files:
+ *   - asset_path
+ *   - oro_format_filename
+ *
+ * Provides Twig filters for content formatting:
+ *   - oro_format
+ *   - age
+ *   - age_string
+ */
 class FormatExtension extends \Twig_Extension
 {
     /** @var ContainerInterface */
@@ -33,6 +44,14 @@ class FormatExtension extends \Twig_Extension
     protected function getFormatterManager()
     {
         return $this->container->get('oro_ui.formatter');
+    }
+
+    /**
+     * @return UrlWithoutFrontControllerProvider
+     */
+    protected function getUrlWithoutFrontControllerProvider()
+    {
+        return $this->container->get('oro_ui.provider.url_without_front_controller');
     }
 
     /**
@@ -85,17 +104,7 @@ class FormatExtension extends \Twig_Extension
      */
     public function generateUrlWithoutFrontController($name, $parameters = [])
     {
-        $router = $this->container->get('router');
-
-        $prevBaseUrl = $router->getContext()->getBaseUrl();
-        $baseUrlWithoutFrontController = preg_replace('/\/[\w_]+\.php$/', '', $prevBaseUrl);
-        $router->getContext()->setBaseUrl($baseUrlWithoutFrontController);
-
-        $url = $router->generate($name, $parameters);
-
-        $router->getContext()->setBaseUrl($prevBaseUrl);
-
-        return $url;
+        return $this->getUrlWithoutFrontControllerProvider()->generate($name, $parameters);
     }
 
     /**
@@ -155,7 +164,7 @@ class FormatExtension extends \Twig_Extension
         }
         $dateDiff = $this->getDateDiff($date, $options);
         if ($dateDiff->invert) {
-            return isset($options['default']) ? $options['default'] : '';
+            return $options['default'] ?? '';
         }
 
         $age = $dateDiff->y;
