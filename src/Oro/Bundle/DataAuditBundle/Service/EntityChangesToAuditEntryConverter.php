@@ -204,8 +204,10 @@ class EntityChangesToAuditEntryConverter
 
             $entityClass = $entityChange['entity_class'];
             $entityId = $entityChange['entity_id'];
-            if (\is_a($entityClass, AbstractEnumValue::class, true) ||
-                !$this->configProvider->isAuditableEntity($entityClass)) {
+            if (
+                \is_a($entityClass, AbstractEnumValue::class, true) ||
+                !$this->configProvider->isAuditableEntity($entityClass)
+            ) {
                 continue;
             }
 
@@ -247,10 +249,10 @@ class EntityChangesToAuditEntryConverter
         }
 
         if ($audit->getVersion() < 2) {
-            return $defaultAction ? : AbstractAudit::ACTION_CREATE;
+            return $defaultAction ?: AbstractAudit::ACTION_CREATE;
         }
 
-        return $defaultAction ? : AbstractAudit::ACTION_UPDATE;
+        return $defaultAction ?: AbstractAudit::ACTION_UPDATE;
     }
 
     /**
@@ -305,6 +307,8 @@ class EntityChangesToAuditEntryConverter
                 'a.objectClass = :objectClass',
                 'a.objectId = :objectId OR a.entityId = :entityId'
             )
+            ->setMaxResults(1)
+            ->orderBy('a.version', 'DESC')
             ->setParameter('transactionId', $transactionId)
             ->setParameter('objectClass', $entityClass)
             ->setParameter('objectId', (int) $entityId)
