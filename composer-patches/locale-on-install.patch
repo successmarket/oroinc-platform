@@ -1,0 +1,44 @@
+diff --git ./src/Oro/Bundle/LocaleBundle/Command/UpdateLocalizationCommand.php ./src/Oro/Bundle/LocaleBundle/Command/UpdateLocalizationCommand.php
+index a9ae44b540..2facb8f295 100644
+--- ./src/Oro/Bundle/LocaleBundle/Command/UpdateLocalizationCommand.php
++++ ./src/Oro/Bundle/LocaleBundle/Command/UpdateLocalizationCommand.php
+@@ -67,8 +67,8 @@ EOD;
+      */
+     protected function execute(InputInterface $input, OutputInterface $output)
+     {
+-        $languageCode = (string)$input->getOption(self::OPTION_LANGUAGE);
+-        $formattingCode = (string)$input->getOption(self::OPTION_FORMATTING_CODE);
++        $languageCode = (string) $input->getOption(self::OPTION_LANGUAGE);
++        $formattingCode = (string) $input->getOption(self::OPTION_FORMATTING_CODE);
+ 
+         if ($languageCode === Translator::DEFAULT_LOCALE && $formattingCode === Translator::DEFAULT_LOCALE) {
+             return;
+@@ -107,14 +107,21 @@ EOD;
+         /** @var EntityManager $em */
+         $em = $this->getManager(Language::class);
+ 
+-        $language = new Language();
+-        $language->setCode($languageCode)
+-            ->setEnabled(true)
+-            ->setOwner($defaultLanguage->getOwner())
+-            ->setOrganization($defaultLanguage->getOrganization());
++        $language = $em->getRepository(Language::class)->findOneBy(["code" => $languageCode]);
+ 
+-        $em->persist($language);
+-        $em->flush($language);
++        if (!$language) {
++            echo "Creating new Language" . PHP_EOL;
++            $language = new Language();
++            $language->setCode($languageCode)
++                ->setEnabled(true)
++                ->setOwner($defaultLanguage->getOwner())
++                ->setOrganization($defaultLanguage->getOrganization());
++
++            $em->persist($language);
++            $em->flush($language);
++        } else {
++            echo "Language already exists" . PHP_EOL;
++        }
+ 
+         return $language;
+     }
