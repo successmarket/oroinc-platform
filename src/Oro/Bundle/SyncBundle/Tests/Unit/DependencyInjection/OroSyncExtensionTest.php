@@ -10,14 +10,13 @@ class OroSyncExtensionTest extends \PHPUnit\Framework\TestCase
     /**
      * @dataProvider loadExceptionProvider
      *
-     * @expectedException \Symfony\Component\Config\Definition\Exception\InvalidConfigurationException
-     *
      * @param string $param
      * @param mixed $value
      * @param string $expected
      */
     public function testLoadException(string $param, $value, string $expected)
     {
+        $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);
         $this->expectExceptionMessage($expected);
 
         $container = new ContainerBuilder();
@@ -62,6 +61,7 @@ class OroSyncExtensionTest extends \PHPUnit\Framework\TestCase
     public function testLoad(array $params, array $expected)
     {
         $container = new ContainerBuilder();
+        $container->setParameter('kernel.bundles', ['MonologBundle']);
 
         foreach ($params as $name => $value) {
             $container->setParameter($name, $value);

@@ -23,7 +23,7 @@ use Oro\Bundle\DataGridBundle\Datasource\Orm\OrmDatasource;
 use Oro\Bundle\DataGridBundle\Datasource\ResultRecord;
 use Oro\Bundle\DataGridBundle\Extension\Action\ActionExtension;
 use Oro\Bundle\EntityBundle\ORM\EntityClassResolver;
-use Symfony\Bridge\Twig\Tests\Extension\Fixtures\StubTranslator;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 class DatagridActionButtonProviderTest extends \PHPUnit\Framework\TestCase
 {
@@ -45,7 +45,7 @@ class DatagridActionButtonProviderTest extends \PHPUnit\Framework\TestCase
     /**
      * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->buttonProvider = $this->createMock(ButtonProvider::class);
         $this->entityClassResolver = $this->createMock(EntityClassResolver::class);
@@ -93,13 +93,22 @@ class DatagridActionButtonProviderTest extends \PHPUnit\Framework\TestCase
                 ],
             ]);
 
+        $translator = $this->createMock(TranslatorInterface::class);
+        $translator->expects($this->any())
+            ->method('trans')
+            ->willReturnCallback(
+                static function ($key) {
+                    return sprintf('[trans]%s[/trans]', $key);
+                }
+            );
+
         $this->provider = new DatagridActionButtonProvider(
             $this->buttonProvider,
             $contextHelper,
             $this->massActionProviderRegistry,
             $optionsHelper,
             $this->entityClassResolver,
-            new StubTranslator()
+            $translator
         );
     }
 
@@ -124,7 +133,7 @@ class DatagridActionButtonProviderTest extends \PHPUnit\Framework\TestCase
             $this->provider->applyActions($config);
             $options = $config->offsetGetOr('options');
 
-            $this->assertInternalType('array', $options);
+            $this->assertIsArray($options);
             $this->assertArrayHasKey('urlParams', $options);
             $this->assertArrayHasKey('originalRoute', $options['urlParams']);
             $this->assertEquals(self::TEST_ROUTE, $options['urlParams']['originalRoute']);
@@ -239,7 +248,7 @@ class DatagridActionButtonProviderTest extends \PHPUnit\Framework\TestCase
                         $this->createOperationButton(
                             'action3',
                             true,
-                            ['data' => ['key1' => 'value1']],
+                            ['data' => ['key1' => 'value1'], 'aria_label' => 'test_aria_label'],
                             'Action 3 label'
                         )
                     ]
@@ -278,7 +287,7 @@ class DatagridActionButtonProviderTest extends \PHPUnit\Framework\TestCase
                         $this->createOperationButton(
                             'test_operation',
                             true,
-                            ['label' => 'test_mass_action_label']
+                            ['label' => 'test_mass_action_label', 'aria_label' => 'test_aria_label']
                         )
                     ]
                 ),
@@ -518,6 +527,7 @@ class DatagridActionButtonProviderTest extends \PHPUnit\Framework\TestCase
         return array_merge([
             'type' => 'button-widget',
             'label' => $label,
+            'ariaLabel' => 'test_aria_label',
             'rowAction' => false,
             'link' => '#',
             'icon' => 'pencil-square-o',

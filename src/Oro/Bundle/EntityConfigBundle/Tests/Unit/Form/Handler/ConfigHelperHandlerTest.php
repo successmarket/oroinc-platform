@@ -70,7 +70,7 @@ class ConfigHelperHandlerTest extends \PHPUnit\Framework\TestCase
      */
     private $translator;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->formFactory = $this->getMockBuilder(FormFactory::class)
             ->disableOriginalConstructor()
@@ -288,7 +288,7 @@ class ConfigHelperHandlerTest extends \PHPUnit\Framework\TestCase
         $modules = ['somemodule'];
         $this->configHelper
             ->expects($this->once())
-            ->method('getExtendRequireJsModules')
+            ->method('getExtendJsModules')
             ->willReturn($modules);
 
         $nonExtendedEntities = ['first', 'second'];
@@ -303,7 +303,7 @@ class ConfigHelperHandlerTest extends \PHPUnit\Framework\TestCase
             'field' => $fieldConfigModel,
             'form' => $formView,
             'formAction' => $formAction,
-            'require_js' => $modules,
+            'jsmodules' => $modules,
             'non_extended_entities_classes' => $nonExtendedEntities,
         ];
 

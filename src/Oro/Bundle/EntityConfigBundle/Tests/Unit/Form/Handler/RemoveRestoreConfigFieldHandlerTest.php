@@ -58,7 +58,7 @@ class RemoveRestoreConfigFieldHandlerTest extends \PHPUnit\Framework\TestCase
     /** @var ManagerRegistry|\PHPUnit\Framework\MockObject\MockObject */
     private $registry;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->configManager = $this->createMock(ConfigManager::class);
         $this->validationHelper = $this->createMock(FieldNameValidationHelper::class);
@@ -450,6 +450,17 @@ class RemoveRestoreConfigFieldHandlerTest extends \PHPUnit\Framework\TestCase
      */
     protected function prepareConfigMocksForRestoreCalls($entityClassName, $expectedState)
     {
+        $flashBag = $this->createMock(FlashBagInterface::class);
+        $flashBag
+            ->expects($this->once())
+            ->method('add')
+            ->with('success', self::SAMPLE_SUCCESS_MESSAGE);
+
+        $this->session
+            ->expects($this->once())
+            ->method('getFlashBag')
+            ->willReturn($flashBag);
+
         $this->validationHelper
             ->expects($this->once())
             ->method('canFieldBeRestored')

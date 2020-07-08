@@ -28,7 +28,7 @@ class EntityFieldManagerTest extends \PHPUnit\Framework\TestCase
     /** @var \PHPUnit\Framework\MockObject\MockObject */
     protected $validator;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->registry = $this->getMockBuilder('Doctrine\Bundle\DoctrineBundle\Registry')
             ->disableOriginalConstructor()->getMock();
@@ -56,8 +56,6 @@ class EntityFieldManagerTest extends \PHPUnit\Framework\TestCase
             ->getMockBuilder('Oro\Bundle\EntityBundle\Entity\Manager\Field\EntityFieldValidator')
             ->disableOriginalConstructor()
             ->getMock();
-
-
 
         $this->manager = new EntityFieldManager(
             $this->registry,
@@ -101,11 +99,9 @@ class EntityFieldManagerTest extends \PHPUnit\Framework\TestCase
         ]);
     }
 
-    /**
-     * @expectedException \Oro\Bundle\EntityBundle\Exception\FieldUpdateAccessException
-     */
     public function testBlockedFieldNameUpdate()
     {
+        $this->expectException(\Oro\Bundle\EntityBundle\Exception\FieldUpdateAccessException::class);
         $entityManager = $this->getMockBuilder('\Doctrine\Common\Persistence\ObjectManager')
             ->disableOriginalConstructor()
             ->getMock();
@@ -178,7 +174,7 @@ class EntityFieldManagerTest extends \PHPUnit\Framework\TestCase
 
         if (array_key_exists('getFieldMapping', $options)) {
             $metadata->expects($this->any())
-                ->method('hasField')
+                ->method('getFieldMapping')
                 ->willReturn($options['getFieldMapping']);
         }
 

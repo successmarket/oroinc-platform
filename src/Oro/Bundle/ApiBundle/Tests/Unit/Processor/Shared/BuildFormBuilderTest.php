@@ -12,6 +12,7 @@ use Oro\Bundle\ApiBundle\Tests\Unit\Fixtures\Entity\User;
 use Oro\Bundle\ApiBundle\Tests\Unit\Fixtures\Entity\UserProfile;
 use Oro\Bundle\ApiBundle\Tests\Unit\Processor\FormProcessorTestCase;
 use Oro\Bundle\ApiBundle\Util\ConfigUtil;
+use Oro\Bundle\ApiBundle\Util\DoctrineHelper;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Form\Extension\Core\DataMapper\PropertyPathMapper;
@@ -26,17 +27,21 @@ class BuildFormBuilderTest extends FormProcessorTestCase
     /** @var \PHPUnit\Framework\MockObject\MockObject|FormFactoryInterface */
     private $formFactory;
 
+    /** @var \PHPUnit\Framework\MockObject\MockObject|DoctrineHelper */
+    private $doctrineHelper;
+
     /** @var \PHPUnit\Framework\MockObject\MockObject|ContainerInterface */
     private $container;
 
     /** @var BuildFormBuilder */
     private $processor;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
         $this->formFactory = $this->createMock(FormFactoryInterface::class);
+        $this->doctrineHelper = $this->createMock(DoctrineHelper::class);
         $this->container = $this->createMock(ContainerInterface::class);
 
         $this->processor = new BuildFormBuilder(
@@ -44,7 +49,8 @@ class BuildFormBuilderTest extends FormProcessorTestCase
                 $this->formFactory,
                 $this->createMock(PropertyAccessorInterface::class),
                 $this->container
-            )
+            ),
+            $this->doctrineHelper
         );
     }
 
@@ -93,12 +99,13 @@ class BuildFormBuilderTest extends FormProcessorTestCase
         self::assertSame($form, $this->context->getForm());
     }
 
-    /**
-     * @expectedException \Oro\Bundle\ApiBundle\Exception\RuntimeException
-     * @expectedExceptionMessage The entity object must be added to the context before creation of the form builder.
-     */
     public function testProcessWhenNoEntity()
     {
+        $this->expectException(\Oro\Bundle\ApiBundle\Exception\RuntimeException::class);
+        $this->expectExceptionMessage(
+            'The entity object must be added to the context before creation of the form builder.'
+        );
+
         $this->formFactory->expects(self::never())
             ->method('createNamedBuilder');
 
@@ -232,6 +239,11 @@ class BuildFormBuilderTest extends FormProcessorTestCase
 
         $metadata = new EntityMetadata();
         $metadata->addField($this->createFieldMetadata('field1'));
+
+        $this->doctrineHelper->expects(self::once())
+            ->method('getClass')
+            ->with(self::identicalTo($data))
+            ->willReturn($parentEntityClass);
 
         $this->formFactory->expects(self::once())
             ->method('createNamedBuilder')
@@ -702,6 +714,7 @@ class BuildFormBuilderTest extends FormProcessorTestCase
                 $this->createMock(PropertyAccessorInterface::class),
                 $this->container
             ),
+            $this->doctrineHelper,
             true
         );
         $this->processor->process($this->context);
@@ -737,6 +750,151 @@ class BuildFormBuilderTest extends FormProcessorTestCase
         $this->context->setClassName($entityClass);
         $this->context->setConfig(new EntityDefinitionConfig());
         $this->context->setMetadata(new EntityMetadata());
+        $this->context->setResult($data);
+        $this->processor->process($this->context);
+        self::assertSame($formBuilder, $this->context->getFormBuilder());
+    }
+
+    public function testProcessForAssociationThatRepresentedAsField()
+    {
+        $entityClass = 'Test\Entity';
+        $data = new \stdClass();
+        $formBuilder = $this->createMock(FormBuilderInterface::class);
+
+        $config = new EntityDefinitionConfig();
+        $configAssociation = $config->addField('association');
+        $configAssociation->setDataType('object');
+        $configAssociation->setFormOptions(['trim' => false]);
+
+        $metadata = new EntityMetadata();
+        $metadata->addAssociation($this->createAssociationMetadata('association'));
+
+        $this->formFactory->expects(self::once())
+            ->method('createNamedBuilder')
+            ->with(
+                null,
+                FormType::class,
+                $data,
+                [
+                    'data_class'             => $entityClass,
+                    'validation_groups'      => ['Default', 'api'],
+                    'extra_fields_message'   => FormHelper::EXTRA_FIELDS_MESSAGE,
+                    'enable_validation'      => false,
+                    'enable_full_validation' => false,
+                    'api_context'            => $this->context
+                ]
+            )
+            ->willReturn($formBuilder);
+
+        $formBuilder->expects(self::once())
+            ->method('setDataMapper')
+            ->with(self::isInstanceOf(PropertyPathMapper::class));
+        $formBuilder->expects(self::once())
+            ->method('add')
+            ->withConsecutive(
+                ['association', null, []]
+            );
+
+        $this->context->setClassName($entityClass);
+        $this->context->setConfig($config);
+        $this->context->setMetadata($metadata);
+        $this->context->setResult($data);
+        $this->processor->process($this->context);
+        self::assertSame($formBuilder, $this->context->getFormBuilder());
+    }
+
+    public function testProcessForAssociationThatRepresentedAsFieldWithCustomFormType()
+    {
+        $entityClass = 'Test\Entity';
+        $data = new \stdClass();
+        $formBuilder = $this->createMock(FormBuilderInterface::class);
+
+        $config = new EntityDefinitionConfig();
+        $configAssociation = $config->addField('association');
+        $configAssociation->setDataType('object');
+        $configAssociation->setFormType('text');
+        $configAssociation->setFormOptions(['trim' => false]);
+
+        $metadata = new EntityMetadata();
+        $metadata->addAssociation($this->createAssociationMetadata('association'));
+
+        $this->formFactory->expects(self::once())
+            ->method('createNamedBuilder')
+            ->with(
+                null,
+                FormType::class,
+                $data,
+                [
+                    'data_class'             => $entityClass,
+                    'validation_groups'      => ['Default', 'api'],
+                    'extra_fields_message'   => FormHelper::EXTRA_FIELDS_MESSAGE,
+                    'enable_validation'      => false,
+                    'enable_full_validation' => false,
+                    'api_context'            => $this->context
+                ]
+            )
+            ->willReturn($formBuilder);
+
+        $formBuilder->expects(self::once())
+            ->method('setDataMapper')
+            ->with(self::isInstanceOf(PropertyPathMapper::class));
+        $formBuilder->expects(self::once())
+            ->method('add')
+            ->withConsecutive(
+                ['association', 'text', ['trim' => false]]
+            );
+
+        $this->context->setClassName($entityClass);
+        $this->context->setConfig($config);
+        $this->context->setMetadata($metadata);
+        $this->context->setResult($data);
+        $this->processor->process($this->context);
+        self::assertSame($formBuilder, $this->context->getFormBuilder());
+    }
+
+    public function testProcessForAssociationThatRepresentedAsFieldAndMappedOptionIsFalse()
+    {
+        $entityClass = 'Test\Entity';
+        $data = new \stdClass();
+        $formBuilder = $this->createMock(FormBuilderInterface::class);
+
+        $config = new EntityDefinitionConfig();
+        $configAssociation = $config->addField('association');
+        $configAssociation->setDataType('object');
+        $configAssociation->setFormOptions(['trim' => false, 'mapped' => false]);
+
+        $metadata = new EntityMetadata();
+        $metadata->addAssociation($this->createAssociationMetadata('association'));
+
+        $this->formFactory->expects(self::once())
+            ->method('createNamedBuilder')
+            ->with(
+                null,
+                FormType::class,
+                $data,
+                [
+                    'data_class'             => $entityClass,
+                    'validation_groups'      => ['Default', 'api'],
+                    'extra_fields_message'   => FormHelper::EXTRA_FIELDS_MESSAGE,
+                    'enable_validation'      => false,
+                    'enable_full_validation' => false,
+                    'api_context'            => $this->context
+                ]
+            )
+            ->willReturn($formBuilder);
+
+        $formBuilder->expects(self::once())
+            ->method('setDataMapper')
+            ->with(self::isInstanceOf(PropertyPathMapper::class));
+        $formBuilder->expects(self::once())
+            ->method('add')
+            ->withConsecutive(
+                ['association', null, ['trim' => false, 'mapped' => false]]
+            );
+
+        $this->context->setClassName($entityClass);
+        $this->context->setConfig($config);
+        $this->context->setMetadata($metadata);
         $this->context->setResult($data);
         $this->processor->process($this->context);
         self::assertSame($formBuilder, $this->context->getFormBuilder());

@@ -72,10 +72,10 @@ To add a new entity to be displayed within a widget, register a service that imp
     oro_calendar.activity_list.provider:
         class: Oro\Bundle\CalendarBundle\Provider\CalendarEventActivityListProvider
         arguments:
-           - @oro_entity.doctrine_helper
-           - @doctrine
+           - '@oro_entity.doctrine_helper'
+           - '@doctrine'
         tags:
-           - {name: oro_activity_list.provider, priority: 50}
+           - { name: oro_activity_list.provider, class: Oro\Bundle\CalendarBundle\Entity\CalendarEvent, priority: 50 }
 ```
 This will add your provider class into a bunch of providers (**ActivityListChainProvider**) that will be invoked to fetch data ordering by priority (added in service definition). Priority may be useful in future implementations, or in case of overriding some existing providers in 3rd party bundles.
 

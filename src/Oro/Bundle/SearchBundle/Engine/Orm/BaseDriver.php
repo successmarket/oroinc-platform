@@ -7,7 +7,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Platforms\PostgreSqlPlatform;
-use Doctrine\DBAL\Types\Type;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Query\Expr\Join;
@@ -23,6 +23,8 @@ use Oro\Component\DoctrineUtils\ORM\QueryBuilderUtil;
  * Abstract DB driver used to run search queries for ORM search engine
  *
  * @SuppressWarnings(PHPMD.ExcessiveClassComplexity)
+ * @SuppressWarnings(PHPMD.ExcessiveClassLength)
+ * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 abstract class BaseDriver implements DBALPersisterInterface
 {
@@ -203,6 +205,42 @@ abstract class BaseDriver implements DBALPersisterInterface
     }
 
     /**
+     * @param Query $query
+     *
+     * @return array
+     * [
+     *      <entityFQCN> => <documentsCount>
+     * ]
+     */
+    public function getDocumentsCountGroupByEntityFQCN(Query $query): array
+    {
+        $qb = $this->getRequestQB($query, false);
+
+        /**
+         * Prepare query builder for getting aggregation data
+         */
+        $qb->resetDQLPart('select');
+        $qb->resetDQLPart('groupBy');
+        $qb->setFirstResult(null);
+        $qb->setMaxResults(null);
+
+        $qb->select([
+            'search.entity',
+            sprintf('%s as count', $qb->expr()->count('search.entity'))
+        ]);
+        $qb->groupBy('search.entity');
+
+        $result = $qb->getQuery()->getArrayResult();
+
+        return \array_combine(
+            \array_column($result, 'entity'),
+            \array_column($result, 'count')
+        );
+    }
+
+    /**
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     *
      * @param Query $query
      * @return array
      */
@@ -843,25 +881,25 @@ abstract class BaseDriver implements DBALPersisterInterface
         if (!$this->writeableItemTypes) {
             $this->writeableItemTypes = [
                 'insert' => [
-                    Type::STRING,
-                    Type::STRING,
-                    Type::INTEGER,
-                    Type::STRING,
-                    Type::DECIMAL,
-                    Type::BOOLEAN,
-                    Type::DATETIME,
-                    Type::DATETIME,
+                    Types::STRING,
+                    Types::STRING,
+                    Types::INTEGER,
+                    Types::STRING,
+                    Types::DECIMAL,
+                    Types::BOOLEAN,
+                    Types::DATETIME_MUTABLE,
+                    Types::DATETIME_MUTABLE,
                 ],
                 'update' => [
-                    Type::INTEGER,
-                    Type::STRING,
-                    Type::STRING,
-                    Type::INTEGER,
-                    Type::STRING,
-                    Type::DECIMAL,
-                    Type::BOOLEAN,
-                    Type::DATETIME,
-                    Type::DATETIME,
+                    Types::INTEGER,
+                    Types::STRING,
+                    Types::STRING,
+                    Types::INTEGER,
+                    Types::STRING,
+                    Types::DECIMAL,
+                    Types::BOOLEAN,
+                    Types::DATETIME_MUTABLE,
+                    Types::DATETIME_MUTABLE,
                 ],
             ];
         }
@@ -911,10 +949,10 @@ abstract class BaseDriver implements DBALPersisterInterface
             $this->indexUpdateData[$table] = [
                 'data'  => [],
                 'types' => [
-                    Type::INTEGER,
-                    Type::STRING,
+                    Types::INTEGER,
+                    Types::STRING,
                     $type,
-                    Type::INTEGER,
+                    Types::INTEGER,
                 ],
             ];
             $this->indexInsertData[$table] = [
@@ -947,9 +985,9 @@ abstract class BaseDriver implements DBALPersisterInterface
 
                 array_push(
                     $this->indexInsertData[$table]['types'],
-                    Type::STRING,
+                    Types::STRING,
                     $type,
-                    Type::INTEGER
+                    Types::INTEGER
                 );
             }
         }

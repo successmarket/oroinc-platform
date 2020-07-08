@@ -163,14 +163,10 @@ class PlatformUpdateCommand extends AbstractCommand
 
             $commandExecutor
                 ->runCommand('assets:install', $assetsOptions)
-                ->runCommand('oro:assets:build', ['--npm-install' => true])
                 ->runCommand('fos:js-routing:dump', ['--process-isolation' => true])
                 ->runCommand('oro:localization:dump', ['--process-isolation' => true])
                 ->runCommand('oro:translation:dump', ['--process-isolation' => true])
-                ->runCommand(
-                    'oro:requirejs:build',
-                    ['--ignore-errors' => true, '--process-isolation' => true]
-                );
+                ->runCommand('oro:assets:build', ['--npm-install' => true]);
         }
 
         return $this;
@@ -198,7 +194,7 @@ class PlatformUpdateCommand extends AbstractCommand
     {
         $minimalSuggestedMemory = 1 * pow(1024, 3);
         $memoryLimit = PhpIniUtil::parseBytes(ini_get('memory_limit'));
-        if ($memoryLimit !== -1 && $memoryLimit < $minimalSuggestedMemory) {
+        if ($memoryLimit !== -1.0 && $memoryLimit < $minimalSuggestedMemory) {
             $output->writeln('<comment>It\'s recommended at least 1Gb to be available for PHP CLI</comment>');
         }
     }

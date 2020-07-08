@@ -6,7 +6,13 @@ use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Event\LifecycleEventArgs;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Mapping\ClassMetadata;
+use Doctrine\ORM\PersistentCollection;
 use Oro\Bundle\AttachmentBundle\Entity\File;
+use Oro\Bundle\AttachmentBundle\Entity\FileItem;
+use Oro\Bundle\AttachmentBundle\Helper\FieldConfigHelper;
+use Oro\Bundle\EntityConfigBundle\Config\Config;
+use Oro\Bundle\EntityConfigBundle\Config\ConfigManager;
+use Oro\Bundle\EntityConfigBundle\Config\Id\FieldConfigId;
 use Symfony\Component\PropertyAccess\Exception\NoSuchPropertyException;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\Security\Acl\Util\ClassUtils;
@@ -19,15 +25,20 @@ class SetsParentEntityOnFlushListener
     /** @var PropertyAccessorInterface */
     private $propertyAccessor;
 
+    /** @var ConfigManager */
+    private $configManager;
+
     /** @var \SplObjectStorage */
     private $scheduledForUpdate;
 
     /**
      * @param PropertyAccessorInterface $propertyAccessor
+     * @param ConfigManager $configManager
      */
-    public function __construct(PropertyAccessorInterface $propertyAccessor)
+    public function __construct(PropertyAccessorInterface $propertyAccessor, ConfigManager $configManager)
     {
         $this->propertyAccessor = $propertyAccessor;
+        $this->configManager = $configManager;
         $this->scheduledForUpdate = new \SplObjectStorage();
     }
 
@@ -39,9 +50,14 @@ class SetsParentEntityOnFlushListener
     public function onFlush(OnFlushEventArgs $event): void
     {
         $entityManager = $event->getEntityManager();
+        $metadataFactory = $entityManager->getMetadataFactory();
+        if (!$metadataFactory->hasMetadataFor(File::class)) {
+            return;
+        }
+
         $unitOfWork = $entityManager->getUnitOfWork();
         $entities = $unitOfWork->getScheduledEntityUpdates();
-        $fileClassMetadata = $entityManager->getClassMetadata(File::class);
+        $fileClassMetadata = $metadataFactory->getMetadataFor(File::class);
 
         foreach ($entities as $entity) {
             $entityClass = ClassUtils::getRealClass($entity);
@@ -77,6 +93,58 @@ class SetsParentEntityOnFlushListener
                 }
             );
         }
+
+        $this->onFlushCollections($event);
+    }
+
+    /**
+     * @param OnFlushEventArgs $event
+     */
+    private function onFlushCollections(OnFlushEventArgs $event)
+    {
+        $entityManager = $event->getEntityManager();
+        $unitOfWork = $entityManager->getUnitOfWork();
+        $fileClassMetadata = $entityManager->getClassMetadata(File::class);
+
+        foreach ($unitOfWork->getScheduledCollectionUpdates() as $collection) {
+            /* @var $collection PersistentCollection */
+            $entity = $collection->getOwner();
+
+            $entityClass = ClassUtils::getRealClass($entity);
+            $entityId = $this->getEntityId($entityManager, $entity);
+            if (!$entityId) {
+                continue;
+            }
+
+            /* @var $fieldConfigs Config[] */
+            $fieldConfigs = $this->configManager->getConfigs('extend', $entityClass);
+            foreach ($fieldConfigs as $fieldConfig) {
+                /* @var $fieldConfigId FieldConfigId */
+                $fieldConfigId = $fieldConfig->getId();
+                if (!FieldConfigHelper::isMultiField($fieldConfigId)) {
+                    continue;
+                }
+
+                $fieldName = $fieldConfigId->getFieldName();
+                if ($this->propertyAccessor->getValue($entity, $fieldName) !== $collection) {
+                    continue;
+                }
+
+                foreach ($collection as $fileItem) {
+                    /* @var $fileItem FileItem */
+                    $file = $fileItem->getFile();
+                    if ($file->getId()) {
+                        continue;
+                    }
+
+                    $file->setParentEntityClass($entityClass)
+                        ->setParentEntityId($entityId)
+                        ->setParentEntityFieldName($fieldName);
+
+                    $unitOfWork->recomputeSingleEntityChangeSet($fileClassMetadata, $file);
+                }
+            }
+        }
     }
 
     /**
@@ -93,8 +161,7 @@ class SetsParentEntityOnFlushListener
         }
 
         foreach ($classMetadata->getAssociationMappings() as $mapping) {
-            // Skips field if it does not target to File entity.
-            if (!$mapping['isOwningSide'] || $mapping['targetEntity'] !== File::class) {
+            if ($entity instanceof FileItem || !$this->isMetadataAcceptable($mapping)) {
                 continue;
             }
 
@@ -115,6 +182,16 @@ class SetsParentEntityOnFlushListener
 
             $callback($entity, $mapping['fieldName'], $fileEntities);
         }
+    }
+
+    /**
+     * @param array $mapping
+     * @return bool
+     */
+    private function isMetadataAcceptable(array $mapping): bool
+    {
+        return ($mapping['isOwningSide'] && $mapping['targetEntity'] === File::class) ||
+            (!$mapping['isOwningSide'] && $mapping['targetEntity'] === FileItem::class);
     }
 
     /**
@@ -189,7 +266,12 @@ class SetsParentEntityOnFlushListener
 
         if ($associationType & ClassMetadata::TO_MANY) {
             // Field value is Collection of File entities.
-            $value = $value->toArray();
+            $value = array_map(
+                static function ($obj) {
+                    return $obj instanceof FileItem ? $obj->getFile() : $obj;
+                },
+                $value->toArray()
+            );
         } else {
             $value = $value ? [$value] : [];
         }

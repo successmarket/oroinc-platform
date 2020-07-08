@@ -5,7 +5,7 @@ namespace Oro\Bundle\FormBundle\Tests\Unit\Validator\Constraints;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\UnitOfWork;
-use Oro\Bundle\ApiBundle\Util\DoctrineHelper;
+use Oro\Bundle\EntityBundle\ORM\DoctrineHelper;
 use Oro\Bundle\FormBundle\Tests\Unit\Fixtures\Entity\Contact as TestTargetEntity;
 use Oro\Bundle\FormBundle\Tests\Unit\Fixtures\Entity\ContactEmail as TestEntity;
 use Oro\Bundle\FormBundle\Validator\Constraints\UnchangeableField;
@@ -20,7 +20,7 @@ class UnchangeableFieldValidatorTest extends ConstraintValidatorTestCase
     /** @var EntityManagerInterface|\PHPUnit\Framework\MockObject\MockObject */
     private $em;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->doctrineHelper = $this->createMock(DoctrineHelper::class);
         $this->em = $this->createMock(EntityManagerInterface::class);

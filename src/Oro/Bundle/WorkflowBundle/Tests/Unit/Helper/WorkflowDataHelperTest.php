@@ -4,6 +4,7 @@ namespace Oro\Bundle\WorkflowBundle\Tests\Unit\Helper;
 
 use Oro\Bundle\ActionBundle\Model\Attribute;
 use Oro\Bundle\EntityBundle\ORM\DoctrineHelper;
+use Oro\Bundle\SecurityBundle\Acl\Group\AclGroupProviderInterface;
 use Oro\Bundle\WorkflowBundle\Acl\AclManager;
 use Oro\Bundle\WorkflowBundle\Entity\WorkflowDefinition;
 use Oro\Bundle\WorkflowBundle\Entity\WorkflowItem;
@@ -32,17 +33,25 @@ class WorkflowDataHelperTest extends \PHPUnit\Framework\TestCase
     /** @var UrlGeneratorInterface|\PHPUnit\Framework\MockObject\MockObject */
     protected $router;
 
+    /** @var AclGroupProviderInterface|\PHPUnit\Framework\MockObject\MockObject */
+    private $aclGroupProvider;
+
     /** @var WorkflowDataHelper */
     protected $workflowDataHelper;
 
     /**
      * {@inheritdoc}
      */
-    public function setUp()
+    protected function setUp(): void
     {
         $this->authorizationChecker = $this->createMock(AuthorizationCheckerInterface::class);
         $this->translator = $this->createMock(TranslatorInterface::class);
         $this->router = $this->createMock(UrlGeneratorInterface::class);
+        $this->aclGroupProvider = $this->createMock(AclGroupProviderInterface::class);
+
+        $this->aclGroupProvider->expects($this->any())
+            ->method('getGroup')
+            ->willReturn(AclGroupProviderInterface::DEFAULT_SECURITY_GROUP);
 
         $this->authorizationChecker->expects($this->any())
             ->method('isGranted')
@@ -199,7 +208,8 @@ class WorkflowDataHelperTest extends \PHPUnit\Framework\TestCase
             $this->getWorkflowManager($entity, $workflowsData),
             $this->authorizationChecker,
             $this->translator,
-            $this->router
+            $this->router,
+            $this->aclGroupProvider
         );
 
         $this->assertEquals($expected, $workflowDataHelper->getEntityWorkflowsData($entity));

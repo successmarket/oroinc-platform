@@ -23,14 +23,13 @@ use Oro\Bundle\EntityConfigBundle\Provider\ConfigProvider;
 use Oro\Bundle\SecurityBundle\Annotation\AclAncestor;
 use Oro\Bundle\SecurityBundle\Annotation\CsrfProtection;
 use Oro\Component\MessageQueue\Client\MessageProducer;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Method;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 /**
@@ -44,8 +43,7 @@ use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 class EmailController extends Controller
 {
     /**
-     * @Route("/check-smtp-connection", name="oro_email_check_smtp_connection")
-     * @Method("POST")
+     * @Route("/check-smtp-connection", name="oro_email_check_smtp_connection", methods={"POST"})
      * @CsrfProtection()
      *
      * @param Request $request
@@ -62,8 +60,26 @@ class EmailController extends Controller
     }
 
     /**
-     * @Route("/purge-emails-attachments", name="oro_email_purge_emails_attachments")
-     * @Method("POST")
+     * @Route("/check-saved-smtp-connection", name="oro_email_check_saved_smtp_connection", methods={"GET"})
+     * @CsrfProtection()
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function checkSavedSmtpConnectionAction(Request $request)
+    {
+        $scopeIdentifier = $this->getScopeIdentifier($request);
+        $settingsProvider = $this->get('oro_email.provider.smtp_settings');
+        $smtpSettings = $settingsProvider->getSmtpSettings($scopeIdentifier);
+        $smtpSettingsChecker = $this->get('oro_email.mailer.checker.smtp_settings');
+
+        return new JsonResponse(
+            $smtpSettingsChecker->checkConnection($smtpSettings)
+        );
+    }
+
+    /**
+     * @Route("/purge-emails-attachments", name="oro_email_purge_emails_attachments", methods={"POST"})
      * @CsrfProtection()
      * @AclAncestor("oro_config_system")
      */
@@ -583,9 +599,8 @@ class EmailController extends Controller
     /**
      * Link attachment to entity
      *
-     * @Route("/attachment/{id}/link", name="oro_email_attachment_link", requirements={"id"="\d+"})
+     * @Route("/attachment/{id}/link", name="oro_email_attachment_link", requirements={"id"="\d+"}, methods={"POST"})
      * @AclAncestor("oro_email_email_user_edit")
-     * @Method("POST")
      * @CsrfProtection()
      *
      * @param Request $request
@@ -656,9 +671,8 @@ class EmailController extends Controller
     }
 
     /**
-     * @Route("/user-sync-emails", name="oro_email_user_sync_emails")
+     * @Route("/user-sync-emails", name="oro_email_user_sync_emails", methods={"POST"})
      * @AclAncestor("oro_email_email_view")
-     * @Method("POST")
      * @CsrfProtection()
      */
     public function userEmailsSyncAction()
@@ -683,9 +697,8 @@ class EmailController extends Controller
     /**
      * Togle user emails seen status
      *
-     * @Route("/toggle-seen/{id}", name="oro_email_toggle_seen", requirements={"id"="\d+"})
+     * @Route("/toggle-seen/{id}", name="oro_email_toggle_seen", requirements={"id"="\d+"}, methods={"POST"})
      * @AclAncestor("oro_email_email_user_edit")
-     * @Method({"POST"})
      * @CsrfProtection()
      *
      * @param EmailUser $emailUser
@@ -705,10 +718,10 @@ class EmailController extends Controller
      *      "/mark-seen/{id}/{status}/{checkThread}",
      *      name="oro_email_mark_seen",
      *      requirements={"id"="\d+", "status"="\d+", "checkThread"="\d+"},
-     *      defaults={"checkThread"=true}
+     *      defaults={"checkThread"=true},
+     *      methods={"POST"}
      * )
      * @AclAncestor("oro_email_email_user_edit")
-     * @Method("POST")
      * @CsrfProtection()
      *
      * @param Email $email
@@ -726,9 +739,8 @@ class EmailController extends Controller
     /**
      * Mark all user emails as seen
      *
-     * @Route("/mark_all_as_seen", name="oro_email_mark_all_as_seen")
+     * @Route("/mark_all_as_seen", name="oro_email_mark_all_as_seen", methods={"POST"})
      * @AclAncestor("oro_email_email_user_edit")
-     * @Method("POST")
      * @CsrfProtection()
      * @return JsonResponse
      */
@@ -1006,5 +1018,21 @@ class EmailController extends Controller
     private function getMessageProducer()
     {
         return $this->get('oro_message_queue.message_producer');
+    }
+
+    /**
+     * @param Request $request
+     * @return object|null
+     */
+    private function getScopeIdentifier(Request $request)
+    {
+        $scopeClass = $request->get('scopeClass');
+        $scopeId = $request->get('scopeId');
+        $scopeIdentifier = null;
+        if ($scopeClass && $scopeId) {
+            $scopeIdentifier = $this->get('oro_entity.doctrine_helper')->getEntity($scopeClass, $scopeId);
+        }
+
+        return $scopeIdentifier;
     }
 }

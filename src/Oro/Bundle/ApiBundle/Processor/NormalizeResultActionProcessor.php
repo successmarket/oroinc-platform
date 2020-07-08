@@ -67,12 +67,7 @@ class NormalizeResultActionProcessor extends ActionProcessor implements LoggerAw
                 $this->handleErrors($context, $processorId, $group);
             }
         } catch (\Error $e) {
-            $this->handleException(
-                new \ErrorException($e->getMessage(), $e->getCode(), E_ERROR, $e->getFile(), $e->getLine()),
-                $context,
-                $processorId,
-                $group
-            );
+            $this->handlePhpError($e, $context, $processorId, $group);
         } catch (\Exception $e) {
             $this->handleException($e, $context, $processorId, $group);
         }
@@ -89,8 +84,8 @@ class NormalizeResultActionProcessor extends ActionProcessor implements LoggerAw
     {
         if (null !== $this->logger) {
             $this->logger->info(
-                \sprintf('Error(s) occurred in "%s" processor.', $processorId),
-                \array_merge(
+                sprintf('Error(s) occurred in "%s" processor.', $processorId),
+                array_merge(
                     ['errors' => $this->getErrorsForLog($context->getErrors())],
                     $this->getLogContext($context)
                 )
@@ -103,6 +98,24 @@ class NormalizeResultActionProcessor extends ActionProcessor implements LoggerAw
         } elseif (!$context->isSoftErrorsHandling()) {
             throw new UnhandledErrorsException($context->getErrors());
         }
+    }
+
+    /**
+     * @param \Error                 $e
+     * @param NormalizeResultContext $context
+     * @param string                 $processorId
+     * @param string|null            $group
+     *
+     * @throws \Exception if the soft handling of errors was not requested
+     */
+    protected function handlePhpError(\Error $e, NormalizeResultContext $context, $processorId, $group)
+    {
+        $this->handleException(
+            new \ErrorException($e->getMessage(), $e->getCode(), E_ERROR, $e->getFile(), $e->getLine()),
+            $context,
+            $processorId,
+            $group
+        );
     }
 
     /**
@@ -122,7 +135,7 @@ class NormalizeResultActionProcessor extends ActionProcessor implements LoggerAw
         if (ApiActionGroup::NORMALIZE_RESULT === $group || !$this->isNormalizeResultEnabled($context)) {
             // rethrow an exception occurred in any processor from the "normalize_result" group
             // or if the "normalize_result" group is disabled,
-            // this is required to prevent circular handling of such exception
+            // it is required to prevent circular handling of such exception
             if (!$context->isSoftErrorsHandling()) {
                 throw $e;
             }
@@ -144,23 +157,28 @@ class NormalizeResultActionProcessor extends ActionProcessor implements LoggerAw
     protected function logException(\Exception $e, string $processorId, NormalizeResultContext $context)
     {
         $underlyingException = ExceptionUtil::getProcessorUnderlyingException($e);
-        if ($context->isSoftErrorsHandling() || $this->isSafeException($underlyingException)) {
+        if ($this->isSafeException($underlyingException)) {
             $this->logger->info(
-                \sprintf('An exception occurred in "%s" processor.', $processorId),
-                \array_merge(['exception' => $e], $this->getLogContext($context))
+                sprintf('An exception occurred in "%s" processor.', $processorId),
+                array_merge(['exception' => $e], $this->getLogContext($context))
             );
         } elseif ($underlyingException instanceof UnhandledErrorsException) {
             $this->logger->error(
-                \sprintf('Unhandled error(s) occurred in "%s" processor.', $processorId),
-                \array_merge(
+                sprintf('Unhandled error(s) occurred in "%s" processor.', $processorId),
+                array_merge(
                     ['errors' => $this->getErrorsForLog($underlyingException->getErrors())],
                     $this->getLogContext($context)
                 )
             );
-        } elseif (!$e instanceof AuthenticationException) {
+        } elseif ($context->isSoftErrorsHandling()) {
             $this->logger->error(
-                \sprintf('The execution of "%s" processor is failed.', $processorId),
-                \array_merge(['exception' => $e], $this->getLogContext($context))
+                sprintf('An exception occurred in "%s" processor.', $processorId),
+                array_merge(['exception' => $e], $this->getLogContext($context))
+            );
+        } else {
+            $this->logger->error(
+                sprintf('The execution of "%s" processor is failed.', $processorId),
+                array_merge(['exception' => $e], $this->getLogContext($context))
             );
         }
     }
@@ -183,14 +201,11 @@ class NormalizeResultActionProcessor extends ActionProcessor implements LoggerAw
         if ($e instanceof HttpExceptionInterface) {
             return $e->getStatusCode() < Response::HTTP_INTERNAL_SERVER_ERROR;
         }
-        if ($e instanceof AccessDeniedException) {
-            return true;
-        }
-        if ($e instanceof ValidationExceptionInterface) {
-            return true;
-        }
 
-        return false;
+        return
+            $e instanceof AccessDeniedException
+            || $e instanceof AuthenticationException
+            || $e instanceof ValidationExceptionInterface;
     }
 
     /**
@@ -222,8 +237,8 @@ class NormalizeResultActionProcessor extends ActionProcessor implements LoggerAw
             } catch (\Exception $e) {
                 if (null !== $this->logger && !$e instanceof AuthenticationException) {
                     $this->logger->error(
-                        \sprintf('The execution of "%s" processor is failed.', $processors->getProcessorId()),
-                        \array_merge(['exception' => $e], $this->getLogContext($context))
+                        sprintf('The execution of "%s" processor is failed.', $processors->getProcessorId()),
+                        array_merge(['exception' => $e], $this->getLogContext($context))
                     );
                 }
 
@@ -261,7 +276,7 @@ class NormalizeResultActionProcessor extends ActionProcessor implements LoggerAw
      */
     private function getErrorsForLog(array $errors): array
     {
-        return \array_map(
+        return array_map(
             function (Error $error) {
                 return $this->getErrorForLog($error);
             },
@@ -295,11 +310,11 @@ class NormalizeResultActionProcessor extends ActionProcessor implements LoggerAw
         }
         $exception = $error->getInnerException();
         if (null !== $exception) {
-            $result['exception'] = \sprintf('%s: %s', get_class($exception), $exception->getMessage());
+            $result['exception'] = sprintf('%s: %s', get_class($exception), $exception->getMessage());
         }
         $source = $error->getSource();
         if (null !== $source) {
-            $result = \array_merge($result, $this->getErrorSourceForLog($source));
+            $result = array_merge($result, $this->getErrorSourceForLog($source));
         }
 
         return $result;

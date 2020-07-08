@@ -4,17 +4,18 @@ namespace Oro\Bundle\QueryDesignerBundle\Tests\Functional\QueryDesigner;
 
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Query;
-use Oro\Bundle\QueryDesignerBundle\QueryDesigner\SqlWalker;
 use Oro\Bundle\QueryDesignerBundle\QueryDesigner\SubQueryLimitHelper;
+use Oro\Bundle\QueryDesignerBundle\QueryDesigner\SubQueryLimitOutputResultModifier;
 use Oro\Bundle\TestFrameworkBundle\Entity\WorkflowAwareEntity;
 use Oro\Bundle\TestFrameworkBundle\Test\WebTestCase;
+use Oro\Component\DoctrineUtils\ORM\Walker\SqlWalker;
 
 class SubQueryLimitHelperTest extends WebTestCase
 {
     /** @var SubQueryLimitHelper */
     private $helper;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->initClient();
         $this->helper = new SubQueryLimitHelper();
@@ -29,11 +30,17 @@ class SubQueryLimitHelperTest extends WebTestCase
 
         $testQb = $this->helper->setLimit($testQb, 777, 'id');
         $this->assertEquals(SqlWalker::class, $testQb->getQuery()->getHint(Query::HINT_CUSTOM_OUTPUT_WALKER));
-        $this->assertEquals(777, $testQb->getQuery()->getHint(SqlWalker::WALKER_HOOK_LIMIT_VALUE));
-        $this->assertEquals('id', $testQb->getQuery()->getHint(SqlWalker::WALKER_HOOK_LIMIT_ID));
-        $this->assertContains(
-            SqlWalker::WALKER_HOOK_LIMIT_KEY,
-            $testQb->getQuery()->getHint(SqlWalker::WALKER_HOOK_LIMIT_KEY)
+        $this->assertEquals(
+            777,
+            $testQb->getQuery()->getHint(SubQueryLimitOutputResultModifier::WALKER_HOOK_LIMIT_VALUE)
+        );
+        $this->assertEquals(
+            'id',
+            $testQb->getQuery()->getHint(SubQueryLimitOutputResultModifier::WALKER_HOOK_LIMIT_ID)
+        );
+        static::assertStringContainsString(
+            SubQueryLimitOutputResultModifier::WALKER_HOOK_LIMIT_KEY,
+            $testQb->getQuery()->getHint(SubQueryLimitOutputResultModifier::WALKER_HOOK_LIMIT_KEY)
         );
     }
 

@@ -21,7 +21,7 @@ class IncludeProcessorTest extends \PHPUnit\Framework\TestCase
     /**
      * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->kernel = $this->createMock(KernelInterface::class);
 
@@ -37,7 +37,7 @@ class IncludeProcessorTest extends \PHPUnit\Framework\TestCase
     /**
      * {@inheritdoc}
      */
-    protected function tearDown()
+    protected function tearDown(): void
     {
         unset($this->parser);
     }
@@ -53,7 +53,7 @@ class IncludeProcessorTest extends \PHPUnit\Framework\TestCase
         if ($expectsKernelCallWith) {
             $this->kernel->expects($this->once())
                 ->method('locateResource')
-                ->with($expectsKernelCallWith, null, true)
+                ->with($expectsKernelCallWith)
                 ->willReturn(__DIR__ . '/OroStubBundle/Tests/Behat/Features/Fixtures/test_include.yml');
         } else {
             $this->kernel->expects($this->never())->method('locateResource');

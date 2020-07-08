@@ -5,10 +5,10 @@ namespace Oro\Bundle\ApiBundle\Tests\Unit\Provider;
 use Oro\Bundle\ApiBundle\Provider\ConfigCache;
 use Oro\Bundle\ApiBundle\Provider\ConfigCacheFactory;
 use Oro\Bundle\ApiBundle\Provider\ConfigCacheWarmer;
+use Oro\Bundle\ApiBundle\Tests\Unit\Stub\ResourceStub;
 use Oro\Component\Testing\TempDirExtension;
 use Symfony\Component\Config\ConfigCache as SymfonyConfigCache;
 use Symfony\Component\Config\ConfigCacheInterface;
-use Symfony\Component\Config\Tests\Resource\ResourceStub;
 
 class ConfigCacheTest extends \PHPUnit\Framework\TestCase
 {
@@ -23,7 +23,7 @@ class ConfigCacheTest extends \PHPUnit\Framework\TestCase
     /** @var \PHPUnit\Framework\MockObject\MockObject|ConfigCacheWarmer */
     private $configCacheWarmer;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->configKey = 'test';
         $this->configCacheFactory = $this->createMock(ConfigCacheFactory::class);

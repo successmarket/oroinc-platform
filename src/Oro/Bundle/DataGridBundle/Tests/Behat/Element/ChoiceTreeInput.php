@@ -4,6 +4,7 @@ namespace Oro\Bundle\DataGridBundle\Tests\Behat\Element;
 
 use Behat\Mink\Element\NodeElement;
 use Oro\Bundle\TestFrameworkBundle\Behat\Element\Element;
+use WebDriver\Key;
 
 class ChoiceTreeInput extends Element
 {
@@ -30,7 +31,13 @@ class ChoiceTreeInput extends Element
 
         foreach ($values as $value) {
             $this->type($value);
-            $searchResults = $this->getSearchResults();
+            $searchResults = array_filter(
+                $this->getSearchResults(),
+                static function ($element) {
+                    return !empty(trim($element->getText()));
+                }
+            );
+
             self::assertCount(
                 1,
                 $searchResults,
@@ -44,6 +51,38 @@ class ChoiceTreeInput extends Element
             self::assertNotEquals('No matches found', $result->getText(), sprintf('No matches found for "%s"', $value));
             $result->click();
         }
+    }
+
+    /**
+     * Check that the item exists/not exists in results
+     *
+     * @param string $value
+     * @param bool $isShouldSee
+     */
+    public function checkValue(string $value, bool $isShouldSee): void
+    {
+        $this->focus();
+        $this->type($value);
+        $this->getDriver()->waitForAjax();
+        $searchResults = $this->getSearchResults();
+
+        if ($isShouldSee === true) {
+            foreach ($searchResults as $searchResult) {
+                static::assertStringContainsString(
+                    $value,
+                    $searchResult->getText()
+                );
+            }
+        } else {
+            foreach ($searchResults as $searchResult) {
+                static::assertStringNotContainsString(
+                    $value,
+                    $searchResult->getText()
+                );
+            }
+        }
+
+        $this->getDriver()->typeIntoInput($this->getXpath(), Key::ESCAPE);
     }
 
     /**

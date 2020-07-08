@@ -19,7 +19,6 @@ services:
 
     Oro\Bundle\EntityExtendBundle\Command\CacheClearCommand:
         parent: 'Oro\Bundle\EntityExtendBundle\Command\CacheCommand'
-        class: Oro\Bundle\EntityExtendBundle\Command\CacheClearCommand
         public: false
         tags:
             - { name: console.command }
@@ -27,7 +26,6 @@ services:
 
     Oro\Bundle\EntityExtendBundle\Command\CacheWarmupCommand:
         parent: 'Oro\Bundle\EntityExtendBundle\Command\CacheCommand'
-        class: Oro\Bundle\EntityExtendBundle\Command\CacheWarmupCommand
         public: false
         tags:
             - { name: console.command }
@@ -60,5 +58,11 @@ services:
             - '@doctrine'
             - '@oro_entity_config.provider.extend_entity_config_provider'
             - '@oro_entity_extend.enum_synchronizer'
+        tags:
+            - { name: console.command }
+
+    Oro\Bundle\EntityExtendBundle\Command\UpdateCommand:
+        arguments:
+            - '@oro_entity_extend.extend.update_processor'
         tags:
             - { name: console.command }

@@ -24,7 +24,7 @@ class ProcessorTest extends \PHPUnit\Framework\TestCase
      */
     private $mailProcessor;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->user = new User();
         $this->user
@@ -65,22 +65,6 @@ class ProcessorTest extends \PHPUnit\Framework\TestCase
             ->willReturn($returnValue);
 
         self::assertEquals($returnValue, $this->mailProcessor->sendResetPasswordEmail($this->user));
-    }
-
-    public function testSendResetPasswordAsAdminEmail(): void
-    {
-        $returnValue = 1;
-        $this->userTemplateEmailSender
-            ->expects($this->once())
-            ->method('sendUserTemplateEmail')
-            ->with(
-                $this->user,
-                Processor::TEMPLATE_USER_RESET_PASSWORD_AS_ADMIN,
-                ['entity' => $this->user]
-            )
-            ->willReturn($returnValue);
-
-        self::assertEquals($returnValue, $this->mailProcessor->sendResetPasswordAsAdminEmail($this->user));
     }
 
     public function testSendForcedResetPasswordAsAdminEmail(): void

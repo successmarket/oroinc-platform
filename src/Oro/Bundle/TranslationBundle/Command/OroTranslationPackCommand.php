@@ -2,8 +2,8 @@
 
 namespace Oro\Bundle\TranslationBundle\Command;
 
-use Oro\Bundle\TranslationBundle\DependencyInjection\Compiler\TranslationAdaptersCollection;
 use Oro\Bundle\TranslationBundle\Provider\APIAdapterInterface;
+use Oro\Bundle\TranslationBundle\Provider\TranslationAdaptersCollection;
 use Oro\Bundle\TranslationBundle\Provider\TranslationPackageProvider;
 use Oro\Bundle\TranslationBundle\Provider\TranslationPackDumper;
 use Oro\Bundle\TranslationBundle\Provider\TranslationServiceProvider;
@@ -67,7 +67,7 @@ class OroTranslationPackCommand extends Command
      */
     protected function configure()
     {
-        $this->setName(self::$defaultName)
+        $this
             ->setDescription('Dump translation messages and optionally upload them to third-party service')
             ->setDefinition(
                 [

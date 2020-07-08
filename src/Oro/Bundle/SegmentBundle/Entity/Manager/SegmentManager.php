@@ -10,46 +10,56 @@ use Doctrine\ORM\Query\Parameter;
 use Doctrine\ORM\QueryBuilder;
 use Oro\Bundle\QueryDesignerBundle\Exception\InvalidConfigurationException;
 use Oro\Bundle\QueryDesignerBundle\QueryDesigner\SubQueryLimitHelper;
+use Oro\Bundle\SecurityBundle\ORM\Walker\AclHelper;
 use Oro\Bundle\SegmentBundle\Entity\Segment;
 use Oro\Bundle\SegmentBundle\Entity\SegmentType;
 use Oro\Bundle\SegmentBundle\Query\SegmentQueryBuilderRegistry;
 use Psr\Log\LoggerInterface;
 
+/**
+ * Provides useful methods to work with Segment entities.
+ */
 class SegmentManager
 {
     const PER_PAGE = 20;
 
     /** @var EntityManager */
-    protected $em;
+    private $em;
 
     /** @var SegmentQueryBuilderRegistry */
-    protected $builderRegistry;
+    private $builderRegistry;
 
     /** @var LoggerInterface */
-    protected $logger;
+    private $logger;
 
     /** @var SubQueryLimitHelper */
-    protected $subqueryLimitHelper;
+    private $subqueryLimitHelper;
 
     /** @var Cache */
-    protected $cache;
+    private $cache;
+
+    /** @var AclHelper */
+    private $aclHelper;
 
     /**
      * @param EntityManager $em
      * @param SegmentQueryBuilderRegistry $builderRegistry
      * @param SubQueryLimitHelper $subQueryLimitHelper
      * @param Cache $cache
+     * @param AclHelper $aclHelper
      */
     public function __construct(
         EntityManager $em,
         SegmentQueryBuilderRegistry $builderRegistry,
         SubQueryLimitHelper $subQueryLimitHelper,
-        Cache $cache
+        Cache $cache,
+        AclHelper $aclHelper
     ) {
         $this->em = $em;
         $this->builderRegistry = $builderRegistry;
         $this->subqueryLimitHelper = $subQueryLimitHelper;
         $this->cache = $cache;
+        $this->aclHelper = $aclHelper;
     }
 
     /**
@@ -105,12 +115,11 @@ class SegmentManager
                 ->setParameter('skippedSegment', $skippedSegment);
         }
 
-        $segments = $queryBuilder
+        $queryBuilder
             ->setFirstResult($this->getOffset($page))
             ->setMaxResults(self::PER_PAGE + 1)
-            ->orderBy('segment.id')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('segment.id');
+        $segments = $this->aclHelper->apply($queryBuilder)->getResult();
 
         $result = [
             'results' => [],
@@ -204,8 +213,12 @@ class SegmentManager
 
         $params = $segmentQueryBuilder->getParameters();
 
-        foreach ($params as $param) {
-            $queryBuilder->setParameter($param->getName(), $param->getValue(), $param->getType());
+        foreach ($params as $parameter) {
+            $queryBuilder->setParameter(
+                $parameter->getName(),
+                $parameter->getValue(),
+                $parameter->typeWasSpecified() ? $parameter->getType() : null
+            );
         }
     }
 
@@ -275,6 +288,7 @@ class SegmentManager
         $queryBuilder = null;
         $cacheKey = $this->getQBCacheKey($segment);
         if ($this->cache->contains($cacheKey)) {
+            /** @var QueryBuilder $queryBuilder */
             $queryBuilder = clone $this->cache->fetch($cacheKey);
         }
 
@@ -310,8 +324,12 @@ class SegmentManager
 
         /** @var Parameter[] $params */
         $params = $queryBuilder->getParameters();
-        foreach ($params as $param) {
-            $externalQueryBuilder->setParameter($param->getName(), $param->getValue(), $param->getType());
+        foreach ($params as $parameter) {
+            $externalQueryBuilder->setParameter(
+                $parameter->getName(),
+                $parameter->getValue(),
+                $parameter->typeWasSpecified() ? $parameter->getType() : null
+            );
         }
 
         return $subQuery;

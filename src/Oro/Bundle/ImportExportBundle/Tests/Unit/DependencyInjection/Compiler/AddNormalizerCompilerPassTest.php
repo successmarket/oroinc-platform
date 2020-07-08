@@ -3,29 +3,22 @@
 namespace Oro\Bundle\ImportExportBundle\Tests\Unit\DependencyInjection\Compiler;
 
 use Oro\Bundle\ImportExportBundle\DependencyInjection\Compiler\AddNormalizerCompilerPass;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
 
 class AddNormalizerCompilerPassTest extends \PHPUnit\Framework\TestCase
 {
-    /**
-     * @var \PHPUnit\Framework\MockObject\MockObject
-     */
-    protected $serializerDefinition;
+    /** @var Definition|\PHPUnit\Framework\MockObject\MockObject */
+    private $serializerDefinition;
 
-    /**
-     * @var \PHPUnit\Framework\MockObject\MockObject
-     */
-    protected $containerBuilder;
+    /** @var ContainerBuilder|\PHPUnit\Framework\MockObject\MockObject */
+    private $containerBuilder;
 
-    protected function setUp()
+    protected function setUp(): void
     {
-        $this->serializerDefinition = $this->getMockBuilder('Symfony\Component\DependencyInjection\Definition')
-            ->disableOriginalConstructor()
-            ->getMock();
-
-        $this->containerBuilder = $this->getMockBuilder('Symfony\Component\DependencyInjection\ContainerBuilder')
-            ->disableOriginalConstructor()
-            ->getMock();
+        $this->serializerDefinition = $this->createMock(Definition::class);
+        $this->containerBuilder = $this->createMock(ContainerBuilder::class);
     }
 
     /**
@@ -44,14 +37,14 @@ class AddNormalizerCompilerPassTest extends \PHPUnit\Framework\TestCase
     ) {
         $this->containerBuilder->expects($this->once())
             ->method('getDefinition')
-            ->with(AddNormalizerCompilerPass::SERIALIZER_SERVICE)
+            ->with('oro_importexport.serializer')
             ->willReturn($this->serializerDefinition);
 
         $this->containerBuilder->expects($this->exactly(2))
             ->method('findTaggedServiceIds')
             ->willReturnMap(
                 [
-                    [AddNormalizerCompilerPass::ATTRIBUTE_NORMALIZER_TAG, false, $normalizers],
+                    ['oro_importexport.normalizer', false, $normalizers],
                     ['serializer.encoder', false, $encoders],
                 ]
             );
@@ -124,17 +117,51 @@ class AddNormalizerCompilerPassTest extends \PHPUnit\Framework\TestCase
     }
 
     //@codingStandardsIgnoreStart
-    /**
-     * @expectedException \RuntimeException
-     * @expectedExceptionMessage You must tag at least one service as "oro_importexport.normalizer" to use the import export Serializer service
-     */
     // @codingStandardIgnoreEnd
     public function testProcessFailsWhenNoNormalizers()
     {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage(
+            'You must tag at least one service as "oro_importexport.normalizer"'
+            . ' to use the import export Serializer service'
+        );
+
+        $this->containerBuilder->expects($this->once())
+            ->method('getDefinition')
+            ->with('oro_importexport.serializer')
+            ->willReturn($this->serializerDefinition);
+
         $this->containerBuilder->expects($this->once())
             ->method('findTaggedServiceIds')
-            ->with(AddNormalizerCompilerPass::ATTRIBUTE_NORMALIZER_TAG)
-            ->will($this->returnValue(array()));
+            ->with('oro_importexport.normalizer')
+            ->willReturn([]);
+
+        $pass = new AddNormalizerCompilerPass();
+        $pass->process($this->containerBuilder);
+    }
+
+    //@codingStandardsIgnoreStart
+    // @codingStandardIgnoreEnd
+    public function testProcessFailsWhenNoEncoders()
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage(
+            'You must tag at least one service as "serializer.encoder" to use the import export Serializer service'
+        );
+
+        $this->containerBuilder->expects($this->once())
+            ->method('getDefinition')
+            ->with('oro_importexport.serializer')
+            ->willReturn($this->serializerDefinition);
+
+        $this->containerBuilder->expects($this->exactly(2))
+            ->method('findTaggedServiceIds')
+            ->willReturnMap(
+                [
+                    ['oro_importexport.normalizer', false, [new Reference('foo')]],
+                    ['serializer.encoder', false, []],
+                ]
+            );
 
         $pass = new AddNormalizerCompilerPass();
         $pass->process($this->containerBuilder);

@@ -10,7 +10,7 @@ use Oro\Bundle\EntityExtendBundle\EntityConfig\ExtendScope;
 /**
  * Provides a set of method to simplify working with attribute configuration data.
  */
-class AttributeConfigurationProvider
+class AttributeConfigurationProvider implements AttributeConfigurationProviderInterface
 {
     /** @var ConfigManager */
     protected $configManager;
@@ -93,16 +93,6 @@ class AttributeConfigurationProvider
     public function isAttributeSortable(FieldConfigModel $attribute)
     {
         return $this->getConfig($attribute)->is('sortable');
-    }
-
-    /**
-     * @param FieldConfigModel $attribute
-     *
-     * @return bool
-     */
-    public function isAttributeVisible(FieldConfigModel $attribute)
-    {
-        return $this->getConfig($attribute)->is('visible');
     }
 
     /**

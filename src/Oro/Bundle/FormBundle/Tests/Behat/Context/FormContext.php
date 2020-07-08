@@ -39,6 +39,7 @@ class FormContext extends OroFeatureContext implements OroPageObjectAware
     public function iFillFormWith(TableNode $table, $formName = "OroForm")
     {
         /** @var Form $form */
+        $this->waitForAjax();
         $form = $this->createElement($formName);
         $form->fill($table);
     }
@@ -143,7 +144,7 @@ class FormContext extends OroFeatureContext implements OroPageObjectAware
                 }
 
                 $value = $label->getParent()->find('css', 'div.control-label')->getText();
-                self::assertRegExp(sprintf('/%s/i', $fieldValue), $value);
+                self::assertMatchesRegularExpression(sprintf('/%s/i', $fieldValue), $value);
 
                 return;
             }
@@ -507,26 +508,44 @@ class FormContext extends OroFeatureContext implements OroPageObjectAware
     /**
      * @Then /^(?:|I )should see the following options for "(?P<label>[^"]*)" select:$/
      * @Then /^(?:|I )should see the following options for "(?P<label>[^"]*)" select in form "(?P<formName>(?:[^"]|\\")*)":$/
+     * @Then /^(?:|I )should see the following options for "(?P<label>[^"]*)" select in form "(?P<formName>(?:[^"]|\\")*)" pre-filled with "(?P<value>(?:[^"]|\\")*)":$/
      *
      * @param string $field
      * @param TableNode $options
      * @param string $formName
+     * @param string $value
+     * @throws ElementNotFoundException
      */
     //@codingStandardsIgnoreEnd
-    public function shouldSeeTheFollowingOptionsForSelect($field, TableNode $options, $formName = 'OroForm')
-    {
+    public function shouldSeeTheFollowingOptionsForSelect(
+        $field,
+        TableNode $options,
+        $formName = 'OroForm',
+        $value = ''
+    ) {
         $optionLabels = array_merge(...$options->getRows());
 
         /** @var Select2Entity|Select $element */
         $element = $this->getFieldInForm($field, $formName);
         if ($element instanceof Select2Entity) {
-            $options = $element->getSuggestedValues();
+            $options = $element->getSuggestedValues($value);
             foreach ($optionLabels as $optionLabel) {
                 static::assertContains($optionLabel, $options);
             }
         } elseif ($element instanceof Select2Entities) {
             $element->focus();
             $options = $element->getSearchResults();
+            $optionsValue = [];
+            /** @var Element $element */
+            foreach ($options as $element) {
+                $optionsValue[] = $element->getText();
+            }
+            foreach ($optionLabels as $optionLabel) {
+                static::assertContains($optionLabel, $optionsValue);
+            }
+        } elseif ($element instanceof Select) {
+            /** @var NodeElement[] $options */
+            $options = $element->findAll('css', 'option');
             $optionsValue = [];
             /** @var Element $element */
             foreach ($options as $element) {
@@ -544,26 +563,44 @@ class FormContext extends OroFeatureContext implements OroPageObjectAware
     /**
      * @Then /^(?:|I )should not see the following options for "(?P<field>[^"]*)" select:$/
      * @Then /^(?:|I )should not see the following options for "(?P<label>[^"]*)" select in form "(?P<formName>(?:[^"]|\\")*)":$/
+     * @Then /^(?:|I )should not see the following options for "(?P<label>[^"]*)" select in form "(?P<formName>(?:[^"]|\\")*)" pre-filled with "(?P<value>(?:[^"]|\\")*)":$/
      *
      * @param string $field
      * @param TableNode $options
      * @param string $formName
+     * @param string $value
+     * @throws ElementNotFoundException
      */
     //@codingStandardsIgnoreEnd
-    public function shouldNotSeeTheFollowingOptionsForSelect($field, TableNode $options, $formName = 'OroForm')
-    {
+    public function shouldNotSeeTheFollowingOptionsForSelect(
+        $field,
+        TableNode $options,
+        $formName = 'OroForm',
+        $value = ''
+    ) {
         $optionLabels = array_merge(...$options->getRows());
 
         /** @var Select2Entity|Select $element */
         $element = $this->getFieldInForm($field, $formName);
         if ($element instanceof Select2Entity) {
-            $options = $element->getSuggestedValues();
+            $options = $element->getSuggestedValues($value);
             foreach ($optionLabels as $optionLabel) {
                 static::assertNotContains($optionLabel, $options);
             }
         } elseif ($element instanceof Select2Entities) {
             $element->focus();
             $options = $element->getSearchResults();
+            $optionsValue = [];
+            /** @var Element $element */
+            foreach ($options as $element) {
+                $optionsValue[] = $element->getText();
+            }
+            foreach ($optionLabels as $optionLabel) {
+                static::assertNotContains($optionLabel, $optionsValue);
+            }
+        } elseif ($element instanceof Select) {
+            /** @var NodeElement[] $options */
+            $options = $element->findAll('css', 'option');
             $optionsValue = [];
             /** @var Element $element */
             foreach ($options as $element) {
@@ -595,10 +632,10 @@ class FormContext extends OroFeatureContext implements OroPageObjectAware
     public function iShouldSeeThatOptionIsSelected($label, $field)
     {
         $selectedOptionText = $this->getSelectedOptionText($field);
-        self::assertContains(
+        static::assertStringContainsString(
             $label,
             $selectedOptionText,
-            sprintf(
+            \sprintf(
                 'Selected option with label "%s" doesn\'t contain text "%s" !',
                 $selectedOptionText,
                 $label
@@ -614,6 +651,21 @@ class FormContext extends OroFeatureContext implements OroPageObjectAware
     public function iShouldNotSeeOptionForSelect($label, $field)
     {
         $this->assertSelectNotContainsOptions($field, [$label]);
+    }
+
+    /**
+     * @Then /^I should not see any selected option in "([^"]*)" select$/
+     * @param string $field
+     */
+    public function iShouldNotSeeAnySelectedOption(string $field)
+    {
+        try {
+            $selectedOptionText = $this->getSelectedOptionText($field);
+        } catch (ElementNotFoundException $e) {
+            return;
+        }
+
+        self::fail(sprintf('Not expect to find a selected option, but was found "%s".', $selectedOptionText));
     }
 
     /**
@@ -745,15 +797,28 @@ class FormContext extends OroFeatureContext implements OroPageObjectAware
                 $assertionFunction();
             } catch (\Exception $exception) {
                 $failureException = $exception;
+
                 return null;
             }
 
             $failureException = null;
+
             return true;
         }, 5);
 
         if ($failureException) {
             throw $failureException;
         }
+    }
+
+    /**
+     * @When /^(?:|I )upload "(?P<fileName>.*)" file to "(?P<fileElement>.*)"/
+     * @param string $fileName
+     * @param string $element
+     */
+    public function iUploadFileToElement(string $fileName, string $element)
+    {
+        $uploadFile = $this->createElement($element);
+        $uploadFile->setValue($fileName);
     }
 }

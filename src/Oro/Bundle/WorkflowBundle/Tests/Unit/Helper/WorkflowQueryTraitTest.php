@@ -2,7 +2,7 @@
 
 namespace Oro\Bundle\WorkflowBundle\Tests\Unit\Helper;
 
-use Doctrine\DBAL\Types\Type;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Query\Expr\Join;
@@ -28,7 +28,7 @@ class WorkflowQueryTraitTest extends \PHPUnit\Framework\TestCase
     /**
      * {@inheritdoc}
      */
-    public function setUp()
+    protected function setUp(): void
     {
         $this->queryBuilder = $this->getMockBuilder(QueryBuilder::class)->disableOriginalConstructor()->getMock();
         $this->entityManager = $this->getMockBuilder(EntityManager::class)->disableOriginalConstructor()->getMock();
@@ -208,7 +208,7 @@ class WorkflowQueryTraitTest extends \PHPUnit\Framework\TestCase
     {
         return [
             [
-                'identifierFieldType' => Type::INTEGER,
+                'identifierFieldType' => Types::INTEGER,
                 'identifierFieldName' => 'idField',
                 'entityAlias' => 't',
                 'itemAlias' => 'workflowAlias',
@@ -218,7 +218,7 @@ class WorkflowQueryTraitTest extends \PHPUnit\Framework\TestCase
                 )
             ],
             [
-                'identifierFieldType' => Type::STRING,
+                'identifierFieldType' => Types::STRING,
                 'identifierFieldName' => 'idField',
                 'entityAlias' => 'rootAlias',
                 'itemAlias' => 'workflowAlias',

@@ -25,7 +25,7 @@ class NumberFilterTypeTest extends AbstractTypeTestCase
      */
     private $localeSettings;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $translator = $this->createMockTranslator();
         $this->localeSettings = $this->createMock(LocaleSettings::class);
@@ -86,6 +86,8 @@ class NumberFilterTypeTest extends AbstractTypeTestCase
         array $viewData,
         array $customOptions = array()
     ) {
+        // NOTE: must be executed after EntityBundle, because it will be fail result
+
         $this->localeSettings
             ->expects($this->once())
             ->method('getLocale')
@@ -284,6 +286,8 @@ class NumberFilterTypeTest extends AbstractTypeTestCase
         array $viewData,
         array $customOptions
     ) {
+        // NOTE: must be executed after EntityBundle, because it will be fail result
+
         $this->localeSettings
             ->expects($this->once())
             ->method('getLocale')

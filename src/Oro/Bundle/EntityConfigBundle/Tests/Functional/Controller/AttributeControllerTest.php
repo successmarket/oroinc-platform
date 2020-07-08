@@ -101,14 +101,14 @@ class AttributeControllerTest extends AbstractConfigControllerTest
     {
         $result = $this->client->getResponse();
         $this->assertHtmlResponseStatusCodeEquals($result, 200);
-        $this->assertContains('Attribute was successfully saved', $result->getContent());
+        static::assertStringContainsString('Attribute was successfully saved', $result->getContent());
     }
 
     public function testCreateFile()
     {
         $form = $this->processFirstStep('file', 'file');
 
-        $form['oro_entity_config_type[attachment][maxsize]'] = 1000000;
+        $form['oro_entity_config_type[attachment][maxsize]'] = 10;
 
         $this->finishAttributeCreation($form);
     }
@@ -117,7 +117,7 @@ class AttributeControllerTest extends AbstractConfigControllerTest
     {
         $form = $this->processFirstStep('image', 'image');
 
-        $form['oro_entity_config_type[attachment][maxsize]'] = 1000000;
+        $form['oro_entity_config_type[attachment][maxsize]'] = 10;
         $form['oro_entity_config_type[attachment][width]'] = 100;
         $form['oro_entity_config_type[attachment][height]'] = 100;
 
@@ -243,7 +243,7 @@ class AttributeControllerTest extends AbstractConfigControllerTest
 
         $result = $this->client->getResponse();
         $this->assertHtmlResponseStatusCodeEquals($result, 200);
-        $this->assertContains('Attribute was successfully saved', $result->getContent());
+        static::assertStringContainsString('Attribute was successfully saved', $result->getContent());
 
         $fieldConfig = $this->getFieldConfigByName('file', 'entity');
 

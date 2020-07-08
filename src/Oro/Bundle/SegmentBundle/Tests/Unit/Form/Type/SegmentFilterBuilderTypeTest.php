@@ -16,6 +16,8 @@ use Oro\Component\Testing\Unit\FormIntegrationTestCase;
 use Oro\Component\Testing\Unit\PreloadedExtension;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
+use Symfony\Component\Form\FormInterface;
+use Symfony\Component\Form\FormView;
 use Symfony\Component\OptionsResolver\Exception\InvalidOptionsException;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
@@ -40,7 +42,7 @@ class SegmentFilterBuilderTypeTest extends FormIntegrationTestCase
      */
     private $formType;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->doctrineHelper = $this->createMock(DoctrineHelper::class);
         $this->tokenStorage = $this->createMock(TokenStorageInterface::class);
@@ -149,10 +151,18 @@ class SegmentFilterBuilderTypeTest extends FormIntegrationTestCase
 
         $actualOptions = $form->getConfig()->getOptions();
 
-        $this->assertArraySubset($expected, $actualOptions);
+        foreach ($expected as $key => $expectedValue) {
+            $this->assertEquals($expectedValue, $actualOptions[$key]);
+        }
+
         $this->assertArrayHasKey('constraints', $actualOptions);
         $this->assertNotEmpty($actualOptions['constraints']);
-        $this->assertContains(new NotBlankFilters(), $actualOptions['constraints'], '', false, false);
+        $this->assertGreaterThan(
+            0,
+            \array_reduce($actualOptions['constraints'], function ($carry, $item) {
+                return \is_a($item, NotBlankFilters::class) ? $carry + 1 : 0;
+            })
+        );
     }
 
     /**
@@ -255,7 +265,7 @@ class SegmentFilterBuilderTypeTest extends FormIntegrationTestCase
         $this->assertEquals($segmentType, $submittedData->getType());
         $this->assertEquals($owner, $submittedData->getOwner());
         $this->assertEquals($organization, $submittedData->getOrganization());
-        $this->assertContains($segmentName, $submittedData->getName());
+        static::assertStringContainsString($segmentName, $submittedData->getName());
         $this->assertJsonStringEqualsJsonString(json_encode($expectedDefinition), $submittedData->getDefinition());
     }
 
@@ -298,7 +308,7 @@ class SegmentFilterBuilderTypeTest extends FormIntegrationTestCase
         $this->assertEquals($segmentType, $submittedData->getType());
         $this->assertNull($submittedData->getOwner());
         $this->assertNull($submittedData->getOrganization());
-        $this->assertContains($segmentName, $submittedData->getName());
+        static::assertStringContainsString($segmentName, $submittedData->getName());
         $this->assertJsonStringEqualsJsonString(json_encode($expectedDefinition), $submittedData->getDefinition());
     }
 
@@ -335,7 +345,7 @@ class SegmentFilterBuilderTypeTest extends FormIntegrationTestCase
         $form->submit($data);
         /** @var Segment $submittedData */
         $submittedData = $form->getData();
-        $this->assertContains($segmentName, $submittedData->getName());
+        static::assertStringContainsString($segmentName, $submittedData->getName());
         $this->assertInstanceOf(Segment::class, $submittedData);
         $this->assertJsonStringEqualsJsonString(json_encode($expectedDefinition), $submittedData->getDefinition());
     }
@@ -525,6 +535,45 @@ class SegmentFilterBuilderTypeTest extends FormIntegrationTestCase
         $this->factory->create(SegmentFilterBuilderType::class, $existingEntity, $options);
 
         $this->assertTrue($isCalled);
+    }
+
+    public function testBuildView()
+    {
+        $formView = new FormView();
+
+        /** @var FormInterface $form */
+        $form = $this->createMock(FormInterface::class);
+
+        $conditionBuilderValidation = [
+            'condition-item' =>  [
+                'NotBlank' => ['message' => 'Condition should not be blank'],
+            ],
+        ];
+
+        $fieldConditionOptions = [
+            'fieldChoice' => [
+                'exclude' => [
+                    ['name' => 'FieldName', 'type' => 'enum', 'entityClassName' => \stdClass::class]
+                ]
+            ]
+        ];
+
+        $options = [
+            'condition_builder_validation' => $conditionBuilderValidation,
+            'field_condition_options' => $fieldConditionOptions
+        ];
+
+        $this->formType->buildView($formView, $form, $options);
+
+        $this->assertArrayHasKey('condition_builder_options', $formView->vars);
+        $this->assertArrayHasKey('field_condition_options', $formView->vars);
+
+        $this->assertEquals(
+            ['validation' => $conditionBuilderValidation],
+            $formView->vars['condition_builder_options']
+        );
+
+        $this->assertEquals($fieldConditionOptions, $formView->vars['field_condition_options']);
     }
 
     /**

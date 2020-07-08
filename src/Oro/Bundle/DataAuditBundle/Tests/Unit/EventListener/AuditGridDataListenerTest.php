@@ -13,22 +13,22 @@ use Oro\Bundle\EntityBundle\ORM\DoctrineHelper;
 
 class AuditGridDataListenerTest extends \PHPUnit\Framework\TestCase
 {
-    /** @var DoctrineHelper|\PHPUnit_Framework_MockObject_MockObject */
+    /** @var DoctrineHelper|\PHPUnit\Framework\MockObject\MockObject */
     private $doctrineHelper;
 
     /** @var AuditGridDataListener */
     private $listener;
 
-    /** @var DatagridInterface|\PHPUnit_Framework_MockObject_MockObject */
+    /** @var DatagridInterface|\PHPUnit\Framework\MockObject\MockObject */
     private $datagrid;
 
-    /** @var AuditFieldRepository|\PHPUnit_Framework_MockObject_MockObject */
+    /** @var AuditFieldRepository|\PHPUnit\Framework\MockObject\MockObject */
     private $repository;
 
     /** @var FieldsTransformer */
     private $fieldsTransformer;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->doctrineHelper = $this->createMock(DoctrineHelper::class);
         $this->repository = $this->createMock(AuditFieldRepository::class);

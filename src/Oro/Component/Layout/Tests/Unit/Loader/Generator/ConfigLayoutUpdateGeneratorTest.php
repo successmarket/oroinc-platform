@@ -2,6 +2,7 @@
 
 namespace Oro\Component\Layout\Tests\Unit\Loader\Generator;
 
+use Oro\Component\Layout\ExpressionLanguage\ExpressionValidator;
 use Oro\Component\Layout\Loader\Generator\ConfigLayoutUpdateGenerator;
 use Oro\Component\Layout\Loader\Generator\ConfigLayoutUpdateGeneratorExtensionInterface;
 use Oro\Component\Layout\Loader\Generator\GeneratorData;
@@ -11,12 +12,13 @@ class ConfigLayoutUpdateGeneratorTest extends \PHPUnit\Framework\TestCase
     /** @var ConfigLayoutUpdateGenerator */
     protected $generator;
 
-    protected function setUp()
+    protected function setUp(): void
     {
-        $this->generator = new ConfigLayoutUpdateGenerator();
+        $expressionValidator = $this->createMock(ExpressionValidator::class);
+        $this->generator = new ConfigLayoutUpdateGenerator($expressionValidator);
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         unset($this->generator);
     }
@@ -50,7 +52,7 @@ class ConfigLayoutUpdateGeneratorTest extends \PHPUnit\Framework\TestCase
     public function testShouldValidateData($data, $exception = false)
     {
         if (false !== $exception) {
-            $this->expectException('\Oro\Component\Layout\Exception\SyntaxException');
+            $this->expectException(\Oro\Component\Layout\Exception\SyntaxException::class);
             $this->expectExceptionMessage($exception);
         }
 

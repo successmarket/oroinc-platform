@@ -2,6 +2,7 @@
 
 namespace Oro\Bundle\BatchBundle\Tests\Functional\ORM;
 
+use Doctrine\DBAL\Platforms\MySQL80Platform;
 use Doctrine\DBAL\Platforms\PostgreSqlPlatform;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\QueryBuilder;
@@ -15,7 +16,7 @@ class BufferedIdentityQueryResultIteratorTest extends WebTestCase
     /**
      * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -50,11 +51,10 @@ class BufferedIdentityQueryResultIteratorTest extends WebTestCase
         $this->assertSameResult($queryBuilder);
     }
 
-    /**
-     * @expectedException \LogicException
-     */
     public function testInconsistentKey()
     {
+        $this->expectException(\LogicException::class);
+
         $em = $this->getContainer()->get('doctrine');
 
         /** @var QueryBuilder $queryBuilder */
@@ -240,7 +240,7 @@ class BufferedIdentityQueryResultIteratorTest extends WebTestCase
             ->where('MOD(value.id, 2) = 0')
             ->orderBy('value.id');
 
-        if ($this->isPostgreSql()) {
+        if ($this->isPostgreSql() || $this->isMySql8()) {
             self::expectException(\LogicException::class);
         }
 
@@ -263,7 +263,7 @@ class BufferedIdentityQueryResultIteratorTest extends WebTestCase
             ->where('MOD(value.id, 2) = 0')
             ->orderBy('value.id');
 
-        if ($this->isPostgreSql()) {
+        if ($this->isPostgreSql() || $this->isMySql8()) {
             self::expectException(\LogicException::class);
         }
 
@@ -416,5 +416,18 @@ class BufferedIdentityQueryResultIteratorTest extends WebTestCase
         $em = $this->getContainer()->get('doctrine')->getManager();
 
         return $em->getConnection()->getDatabasePlatform() instanceof PostgreSqlPlatform;
+    }
+
+    /**
+     * Checks if current DB adapter is MySQL 8
+     *
+     * @return bool
+     */
+    private function isMySql8()
+    {
+        /** @var EntityManager $em */
+        $em = $this->getContainer()->get('doctrine')->getManager();
+
+        return $em->getConnection()->getDatabasePlatform() instanceof MySQL80Platform;
     }
 }

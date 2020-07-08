@@ -6,7 +6,7 @@ use Oro\Bundle\InstallerBundle\Command\PlatformUpdateCommand;
 use Oro\Bundle\InstallerBundle\CommandExecutor;
 use Oro\Bundle\InstallerBundle\InstallerEvent;
 use Oro\Bundle\SearchBundle\EventListener\Command\PlatformUpdateCommandListener;
-use Oro\Bundle\SearchBundle\Provider\Console\SearchReindexationGlobalOptionsProvider;
+use Oro\Bundle\SearchBundle\EventListener\Command\ReindexationOptionsCommandListener;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -30,7 +30,7 @@ class PlatformUpdateCommandListenerTest extends \PHPUnit\Framework\TestCase
     /** @var InstallerEvent */
     protected $event;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->command = $this->createMock(Command::class);
         $this->input = $this->createMock(InputInterface::class);
@@ -80,8 +80,9 @@ class PlatformUpdateCommandListenerTest extends \PHPUnit\Framework\TestCase
             ->method('getOption')
             ->willReturnMap(
                 [
-                    [SearchReindexationGlobalOptionsProvider::SKIP_REINDEXATION_OPTION_NAME, $isSkip],
-                    [SearchReindexationGlobalOptionsProvider::SCHEDULE_REINDEXATION_OPTION_NAME, $isScheduled],
+                    ['timeout', 500],
+                    [ReindexationOptionsCommandListener::SKIP_REINDEXATION_OPTION_NAME, $isSkip],
+                    [ReindexationOptionsCommandListener::SCHEDULE_REINDEXATION_OPTION_NAME, $isScheduled],
                 ]
             );
 
@@ -89,7 +90,7 @@ class PlatformUpdateCommandListenerTest extends \PHPUnit\Framework\TestCase
             ->method('writeln')
             ->with([$expectedMessage, '']);
 
-        $expectedParams = ['--scheduled' => true, '--process-isolation' => true];
+        $expectedParams = ['--scheduled' => true, '--process-isolation' => true, '--process-timeout' => 500];
         if (!$isScheduled) {
             unset($expectedParams['--scheduled']);
         }

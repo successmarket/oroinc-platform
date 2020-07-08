@@ -4,6 +4,7 @@ namespace Oro\Bundle\ReminderBundle\Tests\Unit\Model\Email;
 
 use Oro\Bundle\NotificationBundle\Manager\EmailNotificationManager;
 use Oro\Bundle\ReminderBundle\Entity\Reminder;
+use Oro\Bundle\ReminderBundle\Event\ReminderEvents;
 use Oro\Bundle\ReminderBundle\Event\SendReminderEmailEvent;
 use Oro\Bundle\ReminderBundle\Model\Email\EmailSendProcessor;
 use Oro\Bundle\ReminderBundle\Model\Email\TemplateEmailNotification;
@@ -34,7 +35,7 @@ class EmailSendProcessorTest extends \PHPUnit\Framework\TestCase
      */
     protected $eventDispatcher;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->emailNotificationManager = $this
             ->getMockBuilder(EmailNotificationManager::class)
@@ -44,28 +45,27 @@ class EmailSendProcessorTest extends \PHPUnit\Framework\TestCase
         $this->emailNotification = $this->createMock(TemplateEmailNotification::class);
         $this->eventDispatcher = $this->createMock(EventDispatcher::class);
 
-        $this->processor = new EmailSendProcessor(
+        $this->processor = new class(
             $this->emailNotificationManager,
             $this->emailNotification,
             $this->eventDispatcher
-        );
+        ) extends EmailSendProcessor {
+            public function xgetReminders(): array
+            {
+                return $this->reminders;
+            }
+        };
     }
 
     public function testPush()
     {
-        /** @var Reminder $fooReminder */
         $fooReminder = $this->createMock(Reminder::class);
-        /** @var Reminder $barReminder */
         $barReminder = $this->createMock(Reminder::class);
 
         $this->processor->push($fooReminder);
         $this->processor->push($barReminder);
 
-        $this->assertAttributeEquals(
-            array($fooReminder, $barReminder),
-            'reminders',
-            $this->processor
-        );
+        static::assertEquals([$fooReminder, $barReminder], $this->processor->xgetReminders());
     }
 
     public function testProcess()
@@ -78,7 +78,7 @@ class EmailSendProcessorTest extends \PHPUnit\Framework\TestCase
         $this->emailNotification
             ->expects($this->exactly(2))
             ->method('setReminder')
-            ->withConsecutive($fooReminder, $barReminder);
+            ->withConsecutive([$fooReminder], [$barReminder]);
 
         $this->emailNotificationManager
             ->expects($this->exactly(2))
@@ -98,7 +98,10 @@ class EmailSendProcessorTest extends \PHPUnit\Framework\TestCase
 
         $this->eventDispatcher->expects($this->exactly(2))
             ->method('dispatch')
-            ->withConsecutive($barEvent, $fooEvent);
+            ->withConsecutive(
+                [ReminderEvents::BEFORE_REMINDER_EMAIL_NOTIFICATION_SEND, $barEvent],
+                [ReminderEvents::BEFORE_REMINDER_EMAIL_NOTIFICATION_SEND, $fooEvent]
+            );
 
         $this->processor->push($fooReminder);
         $this->processor->push($barReminder);
@@ -135,14 +138,6 @@ class EmailSendProcessorTest extends \PHPUnit\Framework\TestCase
         $this->processor->push($fooReminder);
 
         $this->processor->process();
-    }
-
-    public function testGetName()
-    {
-        $this->assertEquals(
-            EmailSendProcessor::NAME,
-            $this->processor->getName()
-        );
     }
 
     public function testGetLabel()

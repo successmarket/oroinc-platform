@@ -1,6 +1,6 @@
 <?php
 
-namespace Oro\Bundle\WindowsBundle\Tests\Manager;
+namespace Oro\Bundle\WindowsBundle\Tests\Unit\Manager;
 
 use Oro\Bundle\WindowsBundle\Manager\WindowsStateRequestManager;
 use Symfony\Component\HttpFoundation\Request;
@@ -9,58 +9,52 @@ use Symfony\Component\HttpFoundation\RequestStack;
 class WindowsStateRequestManagerTest extends \PHPUnit\Framework\TestCase
 {
     /** @var WindowsStateRequestManager */
-    protected $manager;
+    private $manager;
 
     /** @var \PHPUnit\Framework\MockObject\MockObject|RequestStack */
-    protected $requestStack;
+    private $requestStack;
 
-    protected function setUp()
+    protected function setUp(): void
     {
-        $this->requestStack = $this->getMockBuilder('Symfony\Component\HttpFoundation\RequestStack')
-            ->disableOriginalConstructor()
-            ->getMock();
+        $this->requestStack = $this->createMock(RequestStack::class);
 
         $this->manager = new WindowsStateRequestManager($this->requestStack);
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Missing $request
-     */
     public function testGetDataMissingRequest()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Missing $request');
+
         $this->requestStack->expects($this->once())->method('getCurrentRequest')->willReturn(null);
         $this->manager->getData();
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Missing data in $request
-     */
     public function testGetDataMissingData()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Missing data in $request');
+
         $request = new Request();
         $this->requestStack->expects($this->once())->method('getCurrentRequest')->willReturn($request);
         $this->manager->getData();
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Missing url in $data
-     */
     public function testGetDataMissingUrl()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Missing url in $data');
+
         $request = new Request([], ['data' => []]);
         $this->requestStack->expects($this->once())->method('getCurrentRequest')->willReturn($request);
         $this->manager->getData();
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage $cleanUrl is empty
-     */
     public function testCleanUrlIsEmpty()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('$cleanUrl is empty');
+
         $request = new Request([], ['data' => ['url' => 'localhost']], [], [], [], ['SCRIPT_NAME' => 'localhost']);
         $this->requestStack->expects($this->once())->method('getCurrentRequest')->willReturn($request);
         $this->manager->getData();
@@ -106,12 +100,11 @@ class WindowsStateRequestManagerTest extends \PHPUnit\Framework\TestCase
         ];
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage cleanUrl is missing
-     */
     public function testDataEmpty()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('cleanUrl is missing');
+
         $this->manager->getUri([]);
     }
 }

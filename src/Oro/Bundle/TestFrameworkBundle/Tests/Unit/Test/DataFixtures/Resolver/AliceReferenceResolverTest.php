@@ -2,17 +2,17 @@
 
 namespace Oro\Bundle\TestFrameworkBundle\Tests\Unit\Test\DataFixtures\Resolver;
 
+use Doctrine\Common\Persistence\ManagerRegistry;
 use Doctrine\Common\Persistence\Mapping\ClassMetadata;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Proxy\Proxy;
 use Oro\Bundle\TestFrameworkBundle\Test\DataFixtures\Collection;
 use Oro\Bundle\TestFrameworkBundle\Test\DataFixtures\Resolver\AliceReferenceResolver;
-use Symfony\Bridge\Doctrine\RegistryInterface;
 
 class AliceReferenceResolverTest extends \PHPUnit\Framework\TestCase
 {
     /**
-     * @var RegistryInterface|\PHPUnit\Framework\MockObject\MockObject
+     * @var ManagerRegistry|\PHPUnit\Framework\MockObject\MockObject
      */
     private $registry;
 
@@ -21,9 +21,9 @@ class AliceReferenceResolverTest extends \PHPUnit\Framework\TestCase
      */
     private $aliceReferenceResolver;
 
-    protected function setUp()
+    protected function setUp(): void
     {
-        $this->registry = $this->createMock(RegistryInterface::class);
+        $this->registry = $this->createMock(ManagerRegistry::class);
         $this->aliceReferenceResolver = new AliceReferenceResolver($this->registry);
     }
 

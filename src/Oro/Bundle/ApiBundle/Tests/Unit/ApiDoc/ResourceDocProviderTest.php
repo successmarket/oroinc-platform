@@ -10,7 +10,7 @@ class ResourceDocProviderTest extends \PHPUnit\Framework\TestCase
     /** @var ResourceDocProvider */
     private $resourceDocProvider;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->resourceDocProvider = new ResourceDocProvider();
     }
@@ -29,39 +29,142 @@ class ResourceDocProviderTest extends \PHPUnit\Framework\TestCase
     public function getResourceDescriptionProvider()
     {
         return [
-            ['unknown', 'Test', null],
-            [ApiAction::OPTIONS, 'Test', 'Get options'],
-            [ApiAction::GET, 'Test', 'Get Test'],
-            [ApiAction::GET_LIST, 'Test', 'Get Test'],
-            [ApiAction::UPDATE, 'Test', 'Update Test'],
-            [ApiAction::CREATE, 'Test', 'Create Test'],
-            [ApiAction::DELETE, 'Test', 'Delete Test'],
-            [ApiAction::DELETE_LIST, 'Test', 'Delete Test']
+            ['unknown', 'Product', null],
+            [ApiAction::OPTIONS, 'Product', 'Get options'],
+            [ApiAction::GET, 'Product', 'Get Product'],
+            [ApiAction::GET_LIST, 'Products', 'Get Products'],
+            [ApiAction::UPDATE, 'Product', 'Update Product'],
+            [ApiAction::UPDATE_LIST, 'Products', 'Create or update a list of Products'],
+            [ApiAction::CREATE, 'Product', 'Create Product'],
+            [ApiAction::DELETE, 'Product', 'Delete Product'],
+            [ApiAction::DELETE_LIST, 'Products', 'Delete Products']
         ];
     }
 
     /**
      * @dataProvider getResourceDocumentationProvider
      */
-    public function testGetResourceDocumentation($action, $entityDescription, $expected)
+    public function testGetResourceDocumentation($action, $entitySingularName, $entityPluralName, $expected)
     {
         self::assertSame(
             $expected,
-            $this->resourceDocProvider->getResourceDocumentation($action, $entityDescription)
+            $this->resourceDocProvider->getResourceDocumentation($action, $entitySingularName, $entityPluralName)
         );
     }
 
+    /**
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
+     */
     public function getResourceDocumentationProvider()
     {
         return [
-            ['unknown', 'Test', null],
-            [ApiAction::OPTIONS, 'Test', 'Get communication options for a resource'],
-            [ApiAction::GET, 'Test', 'Get an entity'],
-            [ApiAction::GET_LIST, 'Test', 'Get a list of entities'],
-            [ApiAction::UPDATE, 'Test', 'Update an entity'],
-            [ApiAction::CREATE, 'Test', 'Create an entity'],
-            [ApiAction::DELETE, 'Test', 'Delete an entity'],
-            [ApiAction::DELETE_LIST, 'Test', 'Delete a list of entities']
+            ['unknown', 'Product', 'Products', null],
+            [ApiAction::OPTIONS, 'Product', 'Products', 'Get communication options for a resource'],
+            [ApiAction::GET, 'Product', 'Products', 'Get an entity'],
+            [ApiAction::GET_LIST, 'Product', 'Products', 'Get a list of entities'],
+            [ApiAction::UPDATE, 'Product', 'Products', 'Update an entity'],
+            [
+                ApiAction::UPDATE_LIST,
+                'Product',
+                'Products',
+                'Create or update a list of product records.'
+                . "\n\n"
+                . 'The request is processed asynchronously, and the details of the corresponding asynchronous operation'
+                . "\nare returned in the response."
+                . "\n\n"
+                . '**Note:** *The server may process records in any order regardless of the order'
+                . "\nin which they are specified in the request.*"
+                . "\n\n"
+                . 'The input data for each record is the same as for the API resources to create or update'
+                . "\na single product record."
+                . "\n\n"
+                . 'Example:'
+                . "\n\n"
+                . '```JSON'
+                . "\n{"
+                . "\n   \"data\": ["
+                . "\n      {"
+                . "\n          \"type\":\"entityType\","
+                . "\n          \"attributes\": {...},"
+                . "\n          \"relationships\": {...}"
+                . "\n      },"
+                . "\n      {"
+                . "\n          \"type\":\"entityType\","
+                . "\n          \"attributes\": {...},"
+                . "\n          \"relationships\": {...}"
+                . "\n       }"
+                . "\n   ]"
+                . "\n}"
+                . "\n```"
+                . "\n\n"
+                . 'Use the **update** meta property to mark the records that should be updated.'
+                . "\nSee [Creating and Updating Related Resources with Primary API Resource]"
+                . '(https://doc.oroinc.com/api/create-update-related-resources/'
+                . '#creating-and-updating-related-resources-with-primary-api-resource)'
+                . "\nfor more details about this meta property."
+                . "\n\n"
+                . 'Example:'
+                . "\n\n"
+                . '```JSON'
+                . "\n{"
+                . "\n   \"data\": ["
+                . "\n      {"
+                . "\n          \"meta\": {\"update\": true},"
+                . "\n          \"type\":\"entityType\","
+                . "\n          \"id\": \"1\","
+                . "\n          \"attributes\": {...},"
+                . "\n          \"relationships\": {...}"
+                . "\n      },"
+                . "\n      {"
+                . "\n          \"meta\": {\"update\": true},"
+                . "\n          \"type\":\"entityType\","
+                . "\n          \"id\": \"2\","
+                . "\n          \"attributes\": {...},"
+                . "\n          \"relationships\": {...}"
+                . "\n       }"
+                . "\n   ]"
+                . "\n}"
+                . "\n```"
+                . "\n"
+                . "\nThe related entities can be created or updated when processing primary entities."
+                . "\nThe list of related entities should be specified in the **included** section"
+                . "\nthat must be placed at the root level, the same as the **data** section."
+                . "\n\n"
+                . 'Example:'
+                . "\n\n"
+                . '```JSON'
+                . "\n{"
+                . "\n   \"data\": ["
+                . "\n      {"
+                . "\n          \"type\":\"entityType\","
+                . "\n          \"attributes\": {...},"
+                . "\n          \"relationships\": {"
+                . "\n              \"relation\": {"
+                . "\n                  \"data\": {"
+                . "\n                      \"type\":\"entityType1\","
+                . "\n                      \"id\": \"included_entity_1\""
+                . "\n                  }"
+                . "\n              },"
+                . "\n              ..."
+                . "\n          }"
+                . "\n      },"
+                . "\n      ..."
+                . "\n   ],"
+                . "\n   \"included\": ["
+                . "\n       {"
+                . "\n          \"type\":\"entityType1\","
+                . "\n          \"id\": \"included_entity_1\","
+                . "\n          \"attributes\": {...},"
+                . "\n          \"relationships\": {...}"
+                . "\n      },"
+                . "\n      ..."
+                . "\n   ]"
+                . "\n}"
+                . "\n```"
+            ],
+            [ApiAction::CREATE, 'Product', 'Products', 'Create an entity'],
+            [ApiAction::DELETE, 'Product', 'Products', 'Delete an entity'],
+            [ApiAction::DELETE_LIST, 'Product', 'Products', 'Delete a list of entities']
         ];
     }
 
@@ -79,7 +182,7 @@ class ResourceDocProviderTest extends \PHPUnit\Framework\TestCase
     public function getSubresourceDescriptionProvider()
     {
         return [
-            ['unknown', 'Test', false, null],
+            ['unknown', 'test', false, null],
             [ApiAction::OPTIONS, 'test', false, 'Get options'],
             [ApiAction::OPTIONS, 'test', true, 'Get options'],
             [ApiAction::GET_SUBRESOURCE, 'test', false, 'Get test'],
@@ -115,7 +218,7 @@ class ResourceDocProviderTest extends \PHPUnit\Framework\TestCase
     public function getSubresourceDocumentationProvider()
     {
         return [
-            ['unknown', 'Test', false, null],
+            ['unknown', 'test', false, null],
             [ApiAction::OPTIONS, 'test', false, 'Get communication options for a resource'],
             [ApiAction::OPTIONS, 'test', true, 'Get communication options for a resource'],
             [ApiAction::GET_SUBRESOURCE, 'test', false, 'Get a related entity'],

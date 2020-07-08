@@ -199,8 +199,8 @@ class ACLContext extends OroFeatureContext implements
             $entityName = array_shift($row);
 
             foreach ($row as $cell) {
-                list($role, $value) = explode(':', $cell);
-                $userRoleForm->setPermission($entityName, $role, $value);
+                list($permission, $value) = explode(':', $cell);
+                $userRoleForm->setPermission($entityName, $permission, $value);
             }
         }
     }
@@ -339,6 +339,108 @@ class ACLContext extends OroFeatureContext implements
         $this->createElement('Entity Edit Button')->click();
     }
 
+    /**
+     * @When /^(?:|I )expand "(?P<entity>(?:[^"]|\\")*)" permissions in "(?P<section>(?:[^"]|\\")*)" section$/
+     *
+     * @param string $entity
+     * @param string $section
+     */
+    public function iExpandEntityPermissions($entity, $section)
+    {
+        $page = $this->getSession()->getPage();
+        $expandElement = $page->find(
+            'xpath',
+            "//h4[contains(@class,'scrollspy-title')][text()=\"$section\"]/.." .
+            "//div[contains(@class,'entity-name')][text()=\"$entity\"]" .
+            "/..//*[contains(@class,'collapse-action')]"
+        );
+        if ($expandElement) {
+            $expandElement->focus();
+            $expandElement->click();
+        }
+    }
+
+
+    /**
+     * @When /^(?:|I )click Perform Transition permissions for "(?P<transition>(?:[^"]|\\")*)" transition$/
+     *
+     * @param string $transition
+     */
+    public function iClickPerformTransitionPermissions($transition)
+    {
+        $page = $this->getSession()->getPage();
+        $element = $page->find(
+            'xpath',
+            "//*[contains(@class,'field-name')][contains(text(),'$transition')]/" .
+            "..//*[contains(@class,'action-permissions__item')]/" .
+            "*[contains(@class,'action-permissions__dropdown-toggle')]"
+        );
+        if ($element) {
+            $element->focus();
+            $element->click();
+        }
+    }
+
+    /**
+     * @Then /^(?:|I )should see next items in permissions dropdown:$/
+     *
+     * @param TableNode $table
+     */
+    public function iShouldSeeItemsInPermissionsDropdown(TableNode $table)
+    {
+        $itemElements = $this->findAllElements('Permissions Dropdown Items');
+        $actualItems = [];
+        if (count($itemElements)) {
+            foreach ($itemElements as $itemElement) {
+                $actualItems[] = $itemElement->getText();
+            }
+        }
+
+        $expectedItems = [];
+        foreach ($table->getRows() as $row) {
+            $expectedItems[] = reset($row);
+        }
+
+        self::assertEquals($expectedItems, $actualItems);
+    }
+
+    /**
+     * @Then /^(?:|I )choose "(?P<option>[^"]*)" in permissions dropdown$/
+     *
+     * @param string $option
+     */
+    public function iSelectOptionInPermissionsDropdown($option)
+    {
+        $itemElement = $this->findElementContains('Permissions Dropdown Items', $option);
+
+        self::assertNotNull($itemElement, "Selected Option is not found in permissions dropdown");
+
+        $itemElement->focus();
+        $itemElement->click();
+    }
+
+    /**
+     * Change group of field permissions on create/edit pages
+     *
+     * Example: And I select following field permissions:
+     *       | Account name  | View:Business Unit | Create:Global | Edit:None |
+     *
+     * @Then /^(?:|I )select following field permissions:$/
+     */
+    public function iSelectFollowingFieldPermissions(TableNode $table)
+    {
+        $userRoleForm = $this->getRoleEditFormElement();
+
+        foreach ($table->getRows() as $row) {
+            $fieldName = array_shift($row);
+
+            foreach ($row as $cell) {
+                list($permission, $value) = explode(':', $cell);
+                $userRoleForm->setPermission($fieldName, $permission, $value, true);
+            }
+        }
+    }
+
     protected function loginAsAdmin()
     {
         $this->oroMainContext->loginAsUserWithPassword();
@@ -346,7 +448,7 @@ class ACLContext extends OroFeatureContext implements
     }
 
     /**
-     * @param $role
+     * @param Role $role
      * @return UserRoleForm
      */
     protected function openRoleEditForm($role)
@@ -363,14 +465,14 @@ class ACLContext extends OroFeatureContext implements
 
         $filterItem->open();
         $filterItem->selectType('is equal to');
-        $filterItem->setFilterValue($role->__toString());
+        $filterItem->setFilterValue($role->getLabel());
         $filterItem->submit();
         $this->waitForAjax();
 
         /** @var Grid $grid */
         $grid = $this->createElement('Grid');
 
-        $grid->clickActionLink($role, 'Edit');
+        $grid->clickActionLink($role->getLabel(), 'Edit');
         $this->waitForAjax();
 
         return $this->getRoleEditFormElement();

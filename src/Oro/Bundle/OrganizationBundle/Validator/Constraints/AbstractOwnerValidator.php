@@ -11,7 +11,7 @@ use Oro\Bundle\SecurityBundle\Acl\Domain\OneShotIsGrantedObserver;
 use Oro\Bundle\SecurityBundle\Acl\Extension\EntityAclExtension;
 use Oro\Bundle\SecurityBundle\Acl\Extension\ObjectIdentityHelper;
 use Oro\Bundle\SecurityBundle\Acl\Group\AclGroupProviderInterface;
-use Oro\Bundle\SecurityBundle\Acl\Voter\AclVoter;
+use Oro\Bundle\SecurityBundle\Acl\Voter\AclVoterInterface;
 use Oro\Bundle\SecurityBundle\Authentication\TokenAccessorInterface;
 use Oro\Bundle\SecurityBundle\Owner\Metadata\OwnershipMetadataInterface;
 use Oro\Bundle\SecurityBundle\Owner\Metadata\OwnershipMetadataProviderInterface;
@@ -42,7 +42,7 @@ abstract class AbstractOwnerValidator extends ConstraintValidator
     /** @var OwnerTreeProviderInterface */
     protected $ownerTreeProvider;
 
-    /** @var AclVoter */
+    /** @var AclVoterInterface */
     protected $aclVoter;
 
     /** @var AclGroupProviderInterface */
@@ -54,7 +54,7 @@ abstract class AbstractOwnerValidator extends ConstraintValidator
      * @param AuthorizationCheckerInterface      $authorizationChecker
      * @param TokenAccessorInterface             $tokenAccessor
      * @param OwnerTreeProviderInterface         $ownerTreeProvider
-     * @param AclVoter                           $aclVoter
+     * @param AclVoterInterface                  $aclVoter
      * @param AclGroupProviderInterface          $aclGroupProvider
      */
     public function __construct(
@@ -63,7 +63,7 @@ abstract class AbstractOwnerValidator extends ConstraintValidator
         AuthorizationCheckerInterface $authorizationChecker,
         TokenAccessorInterface $tokenAccessor,
         OwnerTreeProviderInterface $ownerTreeProvider,
-        AclVoter $aclVoter,
+        AclVoterInterface $aclVoter,
         AclGroupProviderInterface $aclGroupProvider
     ) {
         $this->doctrine = $doctrine;

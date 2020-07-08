@@ -2,11 +2,11 @@
 
 namespace Oro\Bundle\SearchBundle\Tests\Functional\EventListener;
 
+use Doctrine\Common\Persistence\ManagerRegistry;
 use Oro\Bundle\MessageQueueBundle\Test\Functional\MessageQueueAssertTrait;
 use Oro\Bundle\SearchBundle\Async\Topics;
 use Oro\Bundle\TestFrameworkBundle\Entity\Item;
 use Oro\Bundle\TestFrameworkBundle\Test\WebTestCase;
-use Symfony\Bridge\Doctrine\RegistryInterface;
 
 /**
  * @group search
@@ -16,7 +16,7 @@ class IndexListenerTest extends WebTestCase
 {
     use MessageQueueAssertTrait;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -82,7 +82,7 @@ class IndexListenerTest extends WebTestCase
     }
 
     /**
-     * @return RegistryInterface
+     * @return ManagerRegistry
      */
     private function getDoctrine()
     {

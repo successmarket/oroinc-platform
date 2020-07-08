@@ -13,16 +13,18 @@ class Configuration implements ConfigurationInterface
      */
     public function getConfigTreeBuilder()
     {
-        $treeBuilder = new TreeBuilder();
-        $rootNode = $treeBuilder->root('oro_navigation');
+        $treeBuilder = new TreeBuilder('oro_navigation');
+        $rootNode = $treeBuilder->getRootNode();
 
         $node = $rootNode->children();
         $node->scalarNode('js_routing_filename_prefix')
             ->defaultValue('')
             ->info('The prefix in the name of the file with a list of js routes.')
             ->beforeNormalization()
-                ->always(function ($data) {
-                    return ltrim($data, '/');
+                ->always(static function (string $data) {
+                    $data = trim($data, '/_');
+
+                    return $data ? $data . '_' : '';
                 })
                 ->end()
             ->end();

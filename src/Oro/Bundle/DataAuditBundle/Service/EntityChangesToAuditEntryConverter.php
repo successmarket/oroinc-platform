@@ -3,14 +3,17 @@
 namespace Oro\Bundle\DataAuditBundle\Service;
 
 use Doctrine\Common\Persistence\ManagerRegistry;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Oro\Bundle\DataAuditBundle\Entity\AbstractAudit;
+use Oro\Bundle\DataAuditBundle\Exception\WrongDataAuditEntryStateException;
 use Oro\Bundle\DataAuditBundle\Loggable\AuditEntityMapper;
 use Oro\Bundle\DataAuditBundle\Model\EntityReference;
 use Oro\Bundle\DataAuditBundle\Provider\AuditConfigProvider;
 use Oro\Bundle\DataAuditBundle\Provider\EntityNameProvider;
+use Oro\Bundle\EntityExtendBundle\Entity\AbstractEnumValue;
 
 /**
  * This converter is intended to add the data audit records to the database
@@ -201,7 +204,8 @@ class EntityChangesToAuditEntryConverter
 
             $entityClass = $entityChange['entity_class'];
             $entityId = $entityChange['entity_id'];
-            if (!$this->configProvider->isAuditableEntity($entityClass)) {
+            if (\is_a($entityClass, AbstractEnumValue::class, true) ||
+                !$this->configProvider->isAuditableEntity($entityClass)) {
                 continue;
             }
 
@@ -270,7 +274,7 @@ class EntityChangesToAuditEntryConverter
      * @param string                 $auditEntryClass
      * @param string                 $transactionId
      * @param string                 $entityClass
-     * @param int                    $entityId
+     * @param string                 $entityId
      * @param \DateTime              $loggedAt
      * @param EntityReference        $user
      * @param EntityReference        $organization
@@ -299,27 +303,32 @@ class EntityChangesToAuditEntryConverter
             ->where('a.transactionId = :transactionId AND a.objectClass = :objectClass AND a.objectId = :objectId')
             ->setParameter('transactionId', $transactionId)
             ->setParameter('objectClass', $entityClass)
-            ->setParameter('objectId', $entityId)
+            ->setParameter('objectId', (string) $entityId)
             ->getQuery()
             ->getOneOrNullResult();
 
         if (null === $auditEntry) {
-            /** @var AbstractAudit $auditEntry */
-            $auditEntry = $auditEntityManager->getClassMetadata($auditEntryClass)->newInstance();
-            $auditEntry->setTransactionId($transactionId);
-            $auditEntry->setObjectClass($entityClass);
-            $auditEntry->setObjectId($entityId);
-            $auditEntry->setLoggedAt($loggedAt);
-            $auditEntry->setUser($this->getEntityByReference($user));
-            $auditEntry->setOrganization($this->getEntityByReference($organization));
-            $auditEntry->setImpersonation($this->getEntityByReference($impersonation));
-            $auditEntry->setObjectName(
-                $this->entityNameProvider->getEntityName($auditEntryClass, $entityClass, $entityId)
-            );
-            $auditEntry->setAction($action);
+            try {
+                /** @var AbstractAudit $auditEntry */
+                $auditEntry = $auditEntityManager->getClassMetadata($auditEntryClass)->newInstance();
+                $auditEntry->setTransactionId($transactionId);
+                $auditEntry->setObjectClass($entityClass);
+                $auditEntry->setObjectId((string) $entityId);
+                $auditEntry->setLoggedAt($loggedAt);
+                $auditEntry->setUser($this->getEntityByReference($user));
+                $auditEntry->setOrganization($this->getEntityByReference($organization));
+                $auditEntry->setImpersonation($this->getEntityByReference($impersonation));
+                $auditEntry->setObjectName(
+                    $this->entityNameProvider->getEntityName($auditEntryClass, $entityClass, $entityId)
+                );
+                $auditEntry->setAction($action);
 
-            $auditEntityManager->persist($auditEntry);
-            $auditEntityManager->flush();
+                $auditEntityManager->persist($auditEntry);
+                $auditEntityManager->flush($auditEntry);
+            } catch (UniqueConstraintViolationException $e) {
+                // We should stop the process when the same audit entry appears in DB during the save.
+                throw new WrongDataAuditEntryStateException($auditEntry);
+            }
 
             $this->setNewAuditVersionService->setVersion($auditEntry);
         }

@@ -2,83 +2,74 @@
 
 namespace Oro\Component\MessageQueue\Job;
 
-use Oro\Component\MessageQueue\Client\Message;
-use Oro\Component\MessageQueue\Client\MessagePriority;
-use Oro\Component\MessageQueue\Client\MessageProducerInterface;
+use Doctrine\Persistence\ObjectRepository;
 use Oro\Component\MessageQueue\Client\TopicSubscriberInterface;
 use Oro\Component\MessageQueue\Consumption\MessageProcessorInterface;
 use Oro\Component\MessageQueue\Transport\MessageInterface;
 use Oro\Component\MessageQueue\Transport\SessionInterface;
 use Oro\Component\MessageQueue\Util\JSON;
 use Psr\Log\LoggerInterface;
+use Symfony\Bridge\Doctrine\ManagerRegistry;
 
 /**
- * Calculate root job status asynchronously
+ * Calculate root job status asynchronously.
+ *
+ * Deprecated, all root job statuses are calculated in the end of each job.
+ * If such messages still exists in message broker they will be processed with current processor.
  */
 class CalculateRootJobStatusProcessor implements MessageProcessorInterface, TopicSubscriberInterface
 {
-    /** @var JobStorage */
-    private $jobStorage;
-
-    /** @var RootJobStatusCalculator */
+    /** @var RootJobStatusCalculatorInterface */
     private $rootJobStatusCalculator;
 
-    /** @var MessageProducerInterface */
-    private $producer;
+    /** @var ManagerRegistry */
+    private $doctrine;
+
+    /** @var string */
+    private $entityClass;
 
     /** @var LoggerInterface */
     private $logger;
 
     /**
-     * @param JobStorage               $jobStorage
-     * @param RootJobStatusCalculator  $calculateRootJobStatusCase
-     * @param MessageProducerInterface $producer
-     * @param LoggerInterface          $logger
+     * @param RootJobStatusCalculatorInterface $calculateRootJobStatusCase
+     * @param ManagerRegistry $doctrine
+     * @param string $entityClass
+     * @param LoggerInterface $logger
      */
     public function __construct(
-        JobStorage $jobStorage,
-        RootJobStatusCalculator $calculateRootJobStatusCase,
-        MessageProducerInterface $producer,
+        RootJobStatusCalculatorInterface $calculateRootJobStatusCase,
+        ManagerRegistry $doctrine,
+        string $entityClass,
         LoggerInterface $logger
     ) {
-        $this->jobStorage = $jobStorage;
         $this->rootJobStatusCalculator = $calculateRootJobStatusCase;
-        $this->producer = $producer;
+        $this->doctrine = $doctrine;
+        $this->entityClass = $entityClass;
         $this->logger = $logger;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function process(MessageInterface $message, SessionInterface $session)
+    public function process(MessageInterface $message, SessionInterface $session): string
     {
         $data = JSON::decode($message->getBody());
 
-        if (! isset($data['jobId'])) {
-            $this->logger->critical('Got invalid message');
+        if (!isset($data['jobId'])) {
+            $this->logger->critical('Got invalid message. Job id is missing.');
 
             return self::REJECT;
         }
 
-        $job = $this->jobStorage->findJobById($data['jobId']);
-        if (! $job) {
+        $job = $this->getJobRepository()->findJobById((int)$data['jobId']);
+        if (!$job) {
             $this->logger->critical(sprintf('Job was not found. id: "%s"', $data['jobId']));
 
             return self::REJECT;
         }
 
-        $isRootJobStopped = $this->rootJobStatusCalculator->calculate(
-            $job,
-            $data['calculateProgress'] ?? false
-        );
-
-        if ($isRootJobStopped) {
-            $rootJob = $job->isRoot() ? $job : $job->getRootJob();
-            $this->producer->send(
-                Topics::ROOT_JOB_STOPPED,
-                new Message(['jobId' => $rootJob->getId()], MessagePriority::HIGH)
-            );
-        }
+        $this->rootJobStatusCalculator->calculate($job);
 
         return self::ACK;
     }
@@ -86,8 +77,16 @@ class CalculateRootJobStatusProcessor implements MessageProcessorInterface, Topi
     /**
      * {@inheritdoc}
      */
-    public static function getSubscribedTopics()
+    public static function getSubscribedTopics(): array
     {
         return [Topics::CALCULATE_ROOT_JOB_STATUS];
+    }
+
+    /**
+     * @return JobRepositoryInterface|ObjectRepository
+     */
+    private function getJobRepository(): JobRepositoryInterface
+    {
+        return $this->doctrine->getManagerForClass($this->entityClass)->getRepository($this->entityClass);
     }
 }

@@ -21,7 +21,7 @@ class MediaCacheManagerRegistryTest extends \PHPUnit\Framework\TestCase
     /** @var MediaCacheManagerRegistry */
     private $registry;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->fileAccessControlChecker = $this->createMock(FileAccessControlChecker::class);
         $this->publicMediaCacheManager = $this->createMock(GaufretteFileManager::class);
@@ -38,7 +38,7 @@ class MediaCacheManagerRegistryTest extends \PHPUnit\Framework\TestCase
     {
         $this->fileAccessControlChecker
             ->method('isCoveredByAcl')
-            ->withConsecutive($file1 = new File(), $file2 = new File())
+            ->withConsecutive([$file1 = new File()], [$file2 = new File()])
             ->willReturnOnConsecutiveCalls(true, false);
 
         self::assertSame(

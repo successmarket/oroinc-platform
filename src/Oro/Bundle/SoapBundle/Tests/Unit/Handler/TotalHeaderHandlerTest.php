@@ -36,7 +36,7 @@ class TotalHeaderHandlerTest extends \PHPUnit\Framework\TestCase
     /** @var \PHPUnit\Framework\MockObject\MockObject */
     protected $em;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->optimizer = $this->createMock(CountQueryBuilderOptimizer::class);
         $this->optimizer->expects($this->any())->method('getCountQueryBuilder')
@@ -61,7 +61,7 @@ class TotalHeaderHandlerTest extends \PHPUnit\Framework\TestCase
             ->will($this->returnValue($configuration));
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         unset($this->handler, $this->optimizer, $this->em);
     }
@@ -139,7 +139,7 @@ class TotalHeaderHandlerTest extends \PHPUnit\Framework\TestCase
         $this->handler->handle($context);
 
         $response = $context->getResponse();
-        $this->assertSame($testCount, $response->headers->get(TotalHeaderHandler::HEADER_NAME));
+        $this->assertSame((string) $testCount, $response->headers->get(TotalHeaderHandler::HEADER_NAME));
     }
 
     public function testHandleWithQueryBuilder()
@@ -159,7 +159,7 @@ class TotalHeaderHandlerTest extends \PHPUnit\Framework\TestCase
         $this->handler->handle($context);
 
         $response = $context->getResponse();
-        $this->assertSame($testCount, $response->headers->get(TotalHeaderHandler::HEADER_NAME));
+        $this->assertSame((string) $testCount, $response->headers->get(TotalHeaderHandler::HEADER_NAME));
     }
 
     public function testHandleWithQuery()
@@ -177,7 +177,7 @@ class TotalHeaderHandlerTest extends \PHPUnit\Framework\TestCase
         $this->handler->handle($context);
 
         $response = $context->getResponse();
-        $this->assertSame($testCount, $response->headers->get(TotalHeaderHandler::HEADER_NAME));
+        $this->assertSame((string) $testCount, $response->headers->get(TotalHeaderHandler::HEADER_NAME));
     }
 
     public function testHandleWithSqlQueryBuilder()
@@ -223,7 +223,7 @@ class TotalHeaderHandlerTest extends \PHPUnit\Framework\TestCase
         $this->handler->handle($context);
 
         $response = $context->getResponse();
-        $this->assertSame($testCount, $response->headers->get(TotalHeaderHandler::HEADER_NAME));
+        $this->assertSame((string) $testCount, $response->headers->get(TotalHeaderHandler::HEADER_NAME));
     }
 
     public function testHandleWithSqlQuery()
@@ -264,7 +264,7 @@ class TotalHeaderHandlerTest extends \PHPUnit\Framework\TestCase
         $this->handler->handle($context);
 
         $response = $context->getResponse();
-        $this->assertSame($testCount, $response->headers->get(TotalHeaderHandler::HEADER_NAME));
+        $this->assertSame((string) $testCount, $response->headers->get(TotalHeaderHandler::HEADER_NAME));
     }
 
     public function testHandleWithJustManagerAwareController()
@@ -303,36 +303,30 @@ class TotalHeaderHandlerTest extends \PHPUnit\Framework\TestCase
         $this->handler->handle($context);
 
         $response = $context->getResponse();
-        $this->assertSame($testCount, $response->headers->get(TotalHeaderHandler::HEADER_NAME));
+        $this->assertSame((string) $testCount, $response->headers->get(TotalHeaderHandler::HEADER_NAME));
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     */
     public function testHandleWithInvalidQueryValueThrowException()
     {
+        $this->expectException(\InvalidArgumentException::class);
         $context = $this->createContext();
         $context->set('query', false);
 
         $this->handler->handle($context);
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     */
     public function testHandleWithInvalidTotalCountValueThrowException()
     {
+        $this->expectException(\InvalidArgumentException::class);
         $context = $this->createContext();
         $context->set('totalCount', 22);
 
         $this->handler->handle($context);
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     */
     public function testHandleWithInvalidTotalCountCallbackThrowException()
     {
+        $this->expectException(\InvalidArgumentException::class);
         $context = $this->createContext();
         $context->set(
             'totalCount',

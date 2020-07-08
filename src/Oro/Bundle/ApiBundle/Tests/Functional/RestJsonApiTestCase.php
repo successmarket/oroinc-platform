@@ -2,7 +2,7 @@
 
 namespace Oro\Bundle\ApiBundle\Tests\Functional;
 
-use Doctrine\Common\Util\ClassUtils;
+use Doctrine\ORM\EntityManagerInterface;
 use Oro\Bundle\ApiBundle\Request\JsonApi\JsonApiDocumentBuilder as JsonApiDoc;
 use Oro\Bundle\ApiBundle\Request\RequestType;
 use Oro\Component\PhpUtils\ArrayUtil;
@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Yaml\Yaml;
 
 /**
- * The base class for REST API that conforms JSON:API specification functional tests.
+ * The base class for REST API that conforms the JSON:API specification functional tests.
  * @SuppressWarnings(PHPMD.ExcessiveClassComplexity)
  */
 abstract class RestJsonApiTestCase extends RestApiTestCase
@@ -21,7 +21,7 @@ abstract class RestJsonApiTestCase extends RestApiTestCase
     /**
      * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->initClient();
         parent::setUp();
@@ -51,6 +51,7 @@ abstract class RestJsonApiTestCase extends RestApiTestCase
     {
         $this->checkHateoasHeader($server);
         $this->checkWsseAuthHeader($server);
+        $this->checkCsrfHeader($server);
 
         if (!empty($parameters['filter'])) {
             foreach ($parameters['filter'] as $key => $filter) {
@@ -99,7 +100,7 @@ abstract class RestJsonApiTestCase extends RestApiTestCase
         );
 
         // make sure that REST API call does not start the session
-        self::assertSessionNotStarted($method, $uri);
+        $this->assertSessionNotStarted($method, $uri, $server);
 
         return $this->client->getResponse();
     }
@@ -114,7 +115,7 @@ abstract class RestJsonApiTestCase extends RestApiTestCase
     protected function assertResponseContains($expectedContent, Response $response, $ignoreOrder = false)
     {
         $content = self::jsonToArray($response->getContent());
-        $expectedContent = self::processTemplateData($this->loadResponseData($expectedContent));
+        $expectedContent = self::processTemplateData($this->getResponseData($expectedContent));
 
         self::assertThat($content, new JsonApiDocContainsConstraint($expectedContent, false, !$ignoreOrder));
     }
@@ -152,9 +153,9 @@ abstract class RestJsonApiTestCase extends RestApiTestCase
     {
         $content = self::jsonToArray($response->getContent());
         self::assertArrayHasKey('data', $content);
-        self::assertInternalType('array', $content['data']);
+        self::assertIsArray($content['data']);
         self::assertArrayHasKey('attributes', $content['data']);
-        self::assertInternalType('array', $content['data']['attributes']);
+        self::assertIsArray($content['data']['attributes']);
         foreach ($attributes as $name) {
             self::assertArrayNotHasKey($name, $content['data']['attributes']);
         }
@@ -170,9 +171,9 @@ abstract class RestJsonApiTestCase extends RestApiTestCase
     {
         $content = self::jsonToArray($response->getContent());
         self::assertArrayHasKey('data', $content);
-        self::assertInternalType('array', $content['data']);
+        self::assertIsArray($content['data']);
         self::assertArrayHasKey('relationships', $content['data']);
-        self::assertInternalType('array', $content['data']['relationships']);
+        self::assertIsArray($content['data']['relationships']);
         foreach ($relationships as $name) {
             self::assertArrayNotHasKey($name, $content['data']['relationships']);
         }
@@ -289,13 +290,16 @@ abstract class RestJsonApiTestCase extends RestApiTestCase
 
         if ($this->hasReferenceRepository()) {
             $idReferences = [];
+            $doctrine = self::getContainer()->get('doctrine');
+            $doctrineHelper = $this->getDoctrineHelper();
             $references = $this->getReferenceRepository()->getReferences();
             foreach ($references as $referenceId => $entity) {
-                $entityClass = ClassUtils::getClass($entity);
+                $entityClass = $doctrineHelper->getClass($entity);
                 $entityType = $this->getEntityType($entityClass, false);
                 if ($entityType) {
-                    $metadata = $this->doctrineHelper->getEntityMetadataForClass($entityClass, false);
-                    if (null !== $metadata) {
+                    $em = $doctrine->getManagerForClass($entityClass);
+                    if ($em instanceof EntityManagerInterface) {
+                        $metadata = $em->getClassMetadata($entityClass);
                         $entityId = $metadata->getIdentifierValues($entity);
                         if (count($entityId) === 1) {
                             $entityId = (string)reset($entityId);
@@ -316,7 +320,7 @@ abstract class RestJsonApiTestCase extends RestApiTestCase
 
         if ($fileName) {
             if ($this->isRelativePath($fileName)) {
-                $fileName = $this->getTestResourcePath('responses', $fileName);
+                $fileName = $this->getTestResourcePath($this->getResponseDataFolderName(), $fileName);
             }
             file_put_contents($fileName, $content);
         } else {
@@ -333,7 +337,7 @@ abstract class RestJsonApiTestCase extends RestApiTestCase
         if (isset($data[JsonApiDoc::TYPE], $data[JsonApiDoc::ID])) {
             $key = $data[JsonApiDoc::TYPE] . '::' . $data[JsonApiDoc::ID];
             if (isset($idReferences[$key])) {
-                list($referenceId, $entityIdFieldName) = $idReferences[$key];
+                [$referenceId, $entityIdFieldName] = $idReferences[$key];
                 $data[JsonApiDoc::ID] = sprintf('<toString(@%s->%s)>', $referenceId, $entityIdFieldName);
                 if (isset($data[JsonApiDoc::ATTRIBUTES])) {
                     $attributes = $data[JsonApiDoc::ATTRIBUTES];
@@ -377,9 +381,9 @@ abstract class RestJsonApiTestCase extends RestApiTestCase
     protected function getResourceId(Response $response)
     {
         $content = self::jsonToArray($response->getContent());
-        self::assertInternalType('array', $content);
+        self::assertIsArray($content);
         self::assertArrayHasKey(JsonApiDoc::DATA, $content);
-        self::assertInternalType('array', $content[JsonApiDoc::DATA]);
+        self::assertIsArray($content[JsonApiDoc::DATA]);
         self::assertArrayHasKey(JsonApiDoc::ID, $content[JsonApiDoc::DATA]);
 
         return $content[JsonApiDoc::DATA][JsonApiDoc::ID];
@@ -413,9 +417,9 @@ abstract class RestJsonApiTestCase extends RestApiTestCase
     protected function getResponseErrors(Response $response)
     {
         $content = self::jsonToArray($response->getContent());
-        self::assertInternalType('array', $content);
+        self::assertIsArray($content);
         self::assertArrayHasKey(JsonApiDoc::ERRORS, $content);
-        self::assertInternalType('array', $content[JsonApiDoc::ERRORS]);
+        self::assertIsArray($content[JsonApiDoc::ERRORS]);
 
         return $content[JsonApiDoc::ERRORS];
     }

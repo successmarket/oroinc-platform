@@ -71,17 +71,14 @@ class SetDefaultPaging implements ProcessorInterface
         if (!$filters->has($filterName)) {
             $filters->add(
                 $filterName,
-                new PageNumberFilter(
-                    DataType::UNSIGNED_INTEGER,
-                    'The page number, starting from 1.',
-                    1
-                )
+                new PageNumberFilter(DataType::UNSIGNED_INTEGER, 'The page number, starting from 1.', 1),
+                false
             );
         } else {
             // make sure that "page number" filter is added after "page size" filter
             $pageFilter = $filters->get($filterName);
             $filters->remove($filterName);
-            $filters->add($filterName, $pageFilter);
+            $filters->add($filterName, $pageFilter, false);
         }
     }
 
@@ -96,10 +93,11 @@ class SetDefaultPaging implements ProcessorInterface
             $filters->add(
                 $filterName,
                 new PageSizeFilter(
-                    DataType::INTEGER,
+                    DataType::UNSIGNED_INTEGER,
                     'The number of items per page.',
-                    null !== $pageSize ? $pageSize : $this->getDefaultPageSize()
-                )
+                    $pageSize ?? $this->getDefaultPageSize()
+                ),
+                false
             );
         }
     }

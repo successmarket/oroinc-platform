@@ -26,37 +26,37 @@ The created record is returned in the response.
 Example:
 
 ```JSON
-{  
-   "data":{  
-      "type":"organizations",
-      "attributes":{  
-         "is_global":null,
-         "name":"Acme, South",
-         "description":"Example of organization description",
-         "enabled":true
+{
+   "data": {
+      "type": "organizations",
+      "attributes": {
+         "is_global": null,
+         "name": "Acme, South",
+         "description": "Example of organization description",
+         "enabled": true
       },
-      "relationships":{  
-         "businessUnits":{  
-            "data":[  
-               {  
-                  "type":"businessunits",
-                  "id":"1"
+      "relationships": {
+         "businessUnits": {
+            "data": [
+               {
+                  "type": "businessunits",
+                  "id": "1"
                },
-               {  
-                  "type":"businessunits",
-                  "id":"2"
+               {
+                  "type": "businessunits",
+                  "id": "2"
                }
             ]
          },
-         "users":{  
-            "data":[  
-               {  
-                  "type":"users",
-                  "id":"1"
+         "users": {
+            "data": [
+               {
+                  "type": "users",
+                  "id": "1"
                },
-               {  
-                  "type":"users",
-                  "id":"2"
+               {
+                  "type": "users",
+                  "id": "2"
                }
             ]
          }
@@ -70,44 +70,46 @@ Example:
 
 Edit a specific organization record.
 
+The updated record is returned in the response.
+
 {@inheritdoc}
 
 {@request:json_api}
 Example:
 
 ```JSON
-{  
-   "data":{  
-      "type":"organizations",
-      "id":"2",
-      "attributes":{  
-         "is_global":null,
-         "name":"Acme, South",
-         "description":"Example of organization description",
-         "enabled":true
+{
+   "data": {
+      "type": "organizations",
+      "id": "2",
+      "attributes": {
+         "is_global": null,
+         "name": "Acme, South",
+         "description": "Example of organization description",
+         "enabled": true
       },
-      "relationships":{  
-         "businessUnits":{  
-            "data":[  
-               {  
-                  "type":"businessunits",
-                  "id":"1"
+      "relationships": {
+         "businessUnits": {
+            "data": [
+               {
+                  "type": "businessunits",
+                  "id": "1"
                },
-               {  
-                  "type":"businessunits",
-                  "id":"2"
+               {
+                  "type": "businessunits",
+                  "id": "2"
                }
             ]
          },
-         "users":{  
-            "data":[  
-               {  
-                  "type":"users",
-                  "id":"1"
+         "users": {
+            "data": [
+               {
+                  "type": "users",
+                  "id": "1"
                },
-               {  
-                  "type":"users",
-                  "id":"2"
+               {
+                  "type": "users",
+                  "id": "2"
                }
             ]
          }
@@ -119,21 +121,13 @@ Example:
 
 ## FIELDS
 
-### id
-
-#### update
-
-{@inheritdoc}
-
-**The required field**
-
 ### name
 
 #### create
 
 {@inheritdoc}
 
-**The required field**
+**The required field.**
 
 #### update 
 
@@ -231,15 +225,15 @@ Set users who have access to a specific organization.
 Example:
 
 ```JSON
-{  
-   "data":[  
-      {  
-         "type":"users",
-         "id":"1"
+{
+   "data": [
+      {
+         "type": "users",
+         "id": "1"
       },
-      {  
-         "type":"users",
-         "id":"2"
+      {
+         "type": "users",
+         "id": "2"
       }
    ]
 }
@@ -254,15 +248,15 @@ Replace users who have access to a specific organization.
 Example:
 
 ```JSON
-{  
-   "data":[  
-      {  
-         "type":"users",
-         "id":"1"
+{
+   "data": [
+      {
+         "type": "users",
+         "id": "1"
       },
-      {  
-         "type":"users",
-         "id":"2"
+      {
+         "type": "users",
+         "id": "2"
       }
    ]
 }

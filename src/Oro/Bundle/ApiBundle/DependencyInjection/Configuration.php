@@ -2,12 +2,17 @@
 
 namespace Oro\Bundle\ApiBundle\DependencyInjection;
 
+use Oro\Bundle\ConfigBundle\DependencyInjection\SettingsBuilder;
+use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeBuilder;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 
+/**
+ * @SuppressWarnings(PHPMD.ExcessiveClassComplexity)
+ */
 class Configuration implements ConfigurationInterface
 {
     /**
@@ -15,22 +20,32 @@ class Configuration implements ConfigurationInterface
      */
     public function getConfigTreeBuilder()
     {
-        $treeBuilder = new TreeBuilder();
-        $rootNode = $treeBuilder->root('oro_api');
+        $treeBuilder = new TreeBuilder('oro_api');
+        $rootNode = $treeBuilder->getRootNode();
+
+        SettingsBuilder::append(
+            $rootNode,
+            [
+                'web_api' => ['type' => 'boolean', 'value' => false]
+            ]
+        );
 
         $node = $rootNode->children();
         $this->appendOptions($node);
         $this->appendConfigFilesNode($node);
-        $this->appendApiDocViewsNode($node);
         $this->appendConfigExtensionsNode($node);
+        $this->appendApiDocCacheNode($node);
+        $this->appendApiDocViewsNode($node);
         $this->appendActionsNode($node);
-        $this->appendFilterOperatorsNode($node);
         $this->appendFiltersNode($node);
+        $this->appendFilterOperatorsNode($node);
         $this->appendFormTypesNode($node);
         $this->appendFormTypeExtensionsNode($node);
         $this->appendFormTypeGuessersNode($node);
         $this->appendFormTypeGuessesNode($node);
         $this->appendCorsNode($node);
+        $this->appendFeatureDependedFirewalls($node);
+        $this->appendBatchApiNode($node);
 
         return $treeBuilder;
     }
@@ -54,7 +69,7 @@ class Configuration implements ConfigurationInterface
             ->integerNode('config_max_nesting_level')
                 ->info(
                     'The maximum number of nesting target entities'
-                    . ' that can be specified in "Resources/config/oro/api.yml"'
+                    . ' that can be specified in "Resources/config/oro/api.yml".'
                 )
                 ->min(0)
                 ->defaultValue(3)
@@ -68,7 +83,7 @@ class Configuration implements ConfigurationInterface
     {
         $node
             ->arrayNode('config_files')
-                ->info('All supported API configuration files')
+                ->info('All supported API configuration files.')
                 ->validate()
                     ->always(function (array $value) {
                         if (!array_key_exists('default', $value)) {
@@ -123,7 +138,7 @@ class Configuration implements ConfigurationInterface
                             ->end()
                         ->end()
                         ->arrayNode('request_type')
-                            ->info('The request type for which this file is applicable.')
+                            ->info('The request type to which this file is applicable.')
                             ->prototype('scalar')->end()
                         ->end()
                     ->end()
@@ -133,6 +148,7 @@ class Configuration implements ConfigurationInterface
 
     /**
      * @param NodeBuilder $node
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
     private function appendApiDocViewsNode(NodeBuilder $node)
     {
@@ -148,6 +164,9 @@ class Configuration implements ConfigurationInterface
                         ->booleanNode('default')
                             ->info('Whether this view is default one.')
                             ->defaultFalse()
+                        ->end()
+                        ->scalarNode('underlying_view')
+                            ->info('The name of the underlying view.')
                         ->end()
                         ->arrayNode('request_type')
                             ->info('The request type supported by this view.')
@@ -199,6 +218,13 @@ class Configuration implements ConfigurationInterface
                                 ->end()
                             ->end()
                         ->end()
+                        ->arrayNode('data_types')
+                            ->info('The map between data-type names and their representation in API documentation.')
+                            ->example(['guid' => 'string', 'currency' => 'string'])
+                            ->useAttributeAsKey('name')
+                            ->normalizeKeys(false)
+                            ->prototype('scalar')->cannotBeEmpty()->end()
+                        ->end()
                     ->end()
                 ->end()
             ->end()
@@ -208,20 +234,125 @@ class Configuration implements ConfigurationInterface
                     . ' that does not have own documentation.'
                 )
                 ->defaultNull()
+            ->end()
+            ->arrayNode('api_doc_data_types')
+                ->info(
+                    'The map between data-type names and their representation in API documentation. The data-types'
+                    . ' declared in this map can be overridden in "data_types" section of a particular API view.'
+                )
+                ->example(['guid' => 'string', 'currency' => 'string'])
+                ->useAttributeAsKey('name')
+                ->normalizeKeys(false)
+                ->prototype('scalar')->cannotBeEmpty()->end()
             ->end();
         $node->end()
             ->validate()
                 ->always(function (array $value) {
                     $documentationPath = $value['documentation_path'];
                     unset($value['documentation_path']);
-                    foreach ($value['api_doc_views'] as $key => $view) {
-                        if (!\array_key_exists('documentation_path', $view)) {
-                            $value['api_doc_views'][$key]['documentation_path'] = $documentationPath;
+                    $views = $value['api_doc_views'];
+                    foreach (array_keys($views) as $viewName) {
+                        if (!empty($views[$viewName]['underlying_view'])) {
+                            $underlyingViewName = $views[$viewName]['underlying_view'];
+                            self::assertUnderlyingView($views, $underlyingViewName, $viewName);
+                            $value['api_doc_views'][$viewName] = self::mergeViews(
+                                $views[$viewName],
+                                $views[$underlyingViewName]
+                            );
+                        }
+                        if (!\array_key_exists('documentation_path', $views[$viewName])) {
+                            $value['api_doc_views'][$viewName]['documentation_path'] = $documentationPath;
+                        }
+                        if (empty($value['api_doc_views'][$viewName]['data_types'])) {
+                            unset($value['api_doc_views'][$viewName]['data_types']);
                         }
                     }
 
                     return $value;
                 })
+            ->end();
+    }
+
+    /**
+     * @param array  $views
+     * @param string $underlyingViewName
+     * @param string $viewName
+     */
+    private static function assertUnderlyingView(array $views, string $underlyingViewName, string $viewName)
+    {
+        if (empty($views[$underlyingViewName])) {
+            throw new \LogicException(sprintf(
+                'The API view "%s" cannot be used as a underlying view for "%s" API view'
+                . ' because it is not defined.',
+                $underlyingViewName,
+                $viewName
+            ));
+        }
+        if (!empty($views[$underlyingViewName]['underlying_view'])) {
+            throw new \LogicException(sprintf(
+                'The API view "%s" cannot be used as a underlying view for "%s" API view'
+                . ' because only one nesting level of a underlying views is supported.',
+                $underlyingViewName,
+                $viewName
+            ));
+        }
+    }
+
+    /**
+     * @param array $view
+     * @param array $underlyingView
+     *
+     * @return array
+     */
+    private static function mergeViews(array $view, array $underlyingView): array
+    {
+        foreach ($underlyingView as $key => $val) {
+            if (!\array_key_exists($key, $view)) {
+                $view[$key] = $val;
+            } elseif ('headers' === $key) {
+                foreach ($underlyingView[$key] as $headerName => $headerValues) {
+                    $existingHeaderValues = [];
+                    if (!empty($view[$key][$headerName])) {
+                        foreach ($view[$key][$headerName] as $headerValue) {
+                            $existingHeaderValues[$headerValue['value']] = true;
+                        }
+                    }
+                    foreach ($headerValues as $headerValue) {
+                        if (!isset($existingHeaderValues[$headerValue['value']])) {
+                            $view[$key][$headerName][] = $headerValue;
+                        }
+                    }
+                }
+            } elseif ('data_types' === $key) {
+                foreach ($underlyingView[$key] as $dataType => $docDataType) {
+                    if (!isset($view[$key][$dataType])) {
+                        $view[$key][$dataType] = $docDataType;
+                    }
+                }
+            }
+        }
+
+        return $view;
+    }
+
+    /**
+     * @param NodeBuilder $node
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
+     */
+    private function appendApiDocCacheNode(NodeBuilder $node)
+    {
+        $node
+            ->arrayNode('api_doc_cache')
+                ->info('The configuration of API documentation cache.')
+                ->addDefaultsIfNotSet()
+                ->children()
+                    ->arrayNode('excluded_features')
+                        ->info('The list of features that do not affect API documentation cache.')
+                        ->example(['web_api'])
+                        ->prototype('scalar')->cannotBeEmpty()->end()
+                        ->defaultValue(['web_api'])
+                    ->end()
+                ->end()
             ->end();
     }
 
@@ -246,7 +377,7 @@ class Configuration implements ConfigurationInterface
     {
         $node
             ->arrayNode('actions')
-                ->info('A definition of API actions')
+                ->info('The definition of API actions.')
                 ->example(
                     [
                         'get' => [
@@ -285,7 +416,7 @@ class Configuration implements ConfigurationInterface
                             ->cannotBeEmpty()
                         ->end()
                         ->arrayNode('processing_groups')
-                            ->info('A list of groups by which child processors can be split')
+                            ->info('A list of groups by which child processors can be split.')
                             ->useAttributeAsKey('name')
                             ->prototype('array')
                                 ->children()
@@ -330,7 +461,7 @@ class Configuration implements ConfigurationInterface
     {
         $node
             ->arrayNode('filters')
-                ->info('A definition of filters')
+                ->info('The definition of filters.')
                 ->example(
                     [
                         'integer' => [
@@ -394,7 +525,7 @@ class Configuration implements ConfigurationInterface
     {
         $node
             ->arrayNode('form_types')
-                ->info('The form types that can be reused in API')
+                ->info('The form types that can be reused in API.')
                 ->example([
                     'Symfony\Component\Form\Extension\Core\Type\FormType',
                     'oro_api.form.type.entity'
@@ -411,7 +542,7 @@ class Configuration implements ConfigurationInterface
     {
         $node
             ->arrayNode('form_type_extensions')
-                ->info('The form type extensions that can be reused in API')
+                ->info('The form type extensions that can be reused in API.')
                 ->example(['form.type_extension.form.http_foundation'])
                 ->prototype('scalar')
                 ->end()
@@ -425,7 +556,7 @@ class Configuration implements ConfigurationInterface
     {
         $node
             ->arrayNode('form_type_guessers')
-                ->info('The form type guessers that can be reused in API')
+                ->info('The form type guessers that can be reused in API.')
                 ->example(['form.type_guesser.validator'])
                 ->prototype('scalar')
                 ->end()
@@ -439,7 +570,7 @@ class Configuration implements ConfigurationInterface
     {
         $node
             ->arrayNode('form_type_guesses')
-                ->info('A definition of data type to form type guesses')
+                ->info('The definition of data type to form type guesses.')
                 ->example(
                     [
                         'integer' => [
@@ -474,33 +605,158 @@ class Configuration implements ConfigurationInterface
     {
         $node
             ->arrayNode('cors')
-                ->info('The configuration of CORS requests')
+                ->info('The configuration of CORS requests.')
                 ->addDefaultsIfNotSet()
                 ->children()
                     ->integerNode('preflight_max_age')
-                        ->info('The amount of seconds the user agent is allowed to cache CORS preflight requests')
+                        ->info('The amount of seconds the user agent is allowed to cache CORS preflight requests.')
                         ->defaultValue(600)
                         ->min(0)
                     ->end()
                     ->arrayNode('allow_origins')
-                        ->info('The list of origins that are allowed to send CORS requests')
+                        ->info('The list of origins that are allowed to send CORS requests.')
                         ->example(['https://foo.com', 'https://bar.com'])
                         ->prototype('scalar')->cannotBeEmpty()->end()
                     ->end()
                     ->booleanNode('allow_credentials')
-                        ->info('Indicates whether CORS request can include user credentials')
+                        ->info('Indicates whether CORS request can include user credentials.')
                         ->defaultValue(false)
                     ->end()
                     ->arrayNode('allow_headers')
-                        ->info('The list of headers that are allowed to send by CORS requests')
+                        ->info('The list of headers that are allowed to send by CORS requests.')
                         ->example(['X-Foo', 'X-Bar'])
                         ->prototype('scalar')->cannotBeEmpty()->end()
                     ->end()
                     ->arrayNode('expose_headers')
-                        ->info('The list of headers that can be exposed by CORS responses')
+                        ->info('The list of headers that can be exposed by CORS responses.')
                         ->example(['X-Foo', 'X-Bar'])
                         ->prototype('scalar')->cannotBeEmpty()->end()
                     ->end()
+                ->end()
+            ->end();
+    }
+
+    /**
+     * @param NodeBuilder $node
+     */
+    private function appendFeatureDependedFirewalls(NodeBuilder $node)
+    {
+        $node
+            ->arrayNode('api_firewalls')
+                ->info('The configuration of feature depended API firewalls.')
+                ->useAttributeAsKey('name')
+                ->prototype('array')
+                    ->children()
+                        ->scalarNode('feature_name')
+                            ->info('The name of the feature.')
+                            ->cannotBeEmpty()
+                        ->end()
+                        ->arrayNode('feature_firewall_listeners')
+                            ->info(
+                                'The list of security firewall listeners that should be removed'
+                                . ' if the feature is disabled.'
+                            )
+                            ->prototype('scalar')->cannotBeEmpty()->end()
+                            ->defaultValue([])
+                        ->end()
+                    ->end()
+                ->end()
+            ->end();
+    }
+
+    /**
+     * @param NodeBuilder $node
+     */
+    private function appendBatchApiNode(NodeBuilder $node)
+    {
+        $batchApiNode = $node
+            ->arrayNode('batch_api')
+                ->info('The Batch API configuration.')
+                ->addDefaultsIfNotSet()
+                ->children();
+        $batchApiNode
+            ->arrayNode('async_operation')
+                ->addDefaultsIfNotSet()
+                ->children()
+                    ->integerNode('lifetime')
+                        ->info('The number of days asynchronous operations are stored in the system.')
+                        ->min(1)
+                        ->defaultValue(30)
+                    ->end()
+                    ->integerNode('cleanup_process_timeout')
+                        ->info(
+                            'The maximum number of seconds that the asynchronous operations cleanup process'
+                            . ' can spend in one run.'
+                        )
+                        ->min(60) // 1 minute
+                        ->defaultValue(3600) // 1 hour
+                    ->end()
+                ->end()
+            ->end()
+            ->integerNode('chunk_size')
+                ->info('The default maximum number of entities that can be saved in a chunk.')
+                ->min(1)
+                ->defaultValue(100)
+            ->end()
+            ->integerNode('included_data_chunk_size')
+                ->info('The default maximum number of included entities that can be saved in a chunk.')
+                ->min(1)
+                ->defaultValue(50)
+            ->end();
+
+        $chunkSizePerEntityNode = $batchApiNode
+            ->arrayNode('chunk_size_per_entity')
+                ->info(
+                    'The maximum number of entities of a specific type that can be saved in a chunk.'
+                    . "\n"
+                    . 'The null value can be used to revert already configured chunk size'
+                    . ' for a specific entity type and use the default chunk size for it.'
+                )
+                ->example(['Oro\Bundle\UserBundle\Entity\User' => 10]);
+        $this->configureChunkSizePerEntity($chunkSizePerEntityNode);
+
+        $includedDataChunkSizePerEntityNode = $batchApiNode
+            ->arrayNode('included_data_chunk_size_per_entity')
+                ->info(
+                    'The maximum number of included entities that can be saved in a chunk'
+                    . ' for a specific primary entity type.'
+                    . "\n"
+                    . 'The null value can be used to revert already configured chunk size'
+                    . ' for a specific entity type and use the default chunk size for it.'
+                )
+                ->example(['Oro\Bundle\UserBundle\Entity\User' => 20]);
+        $this->configureChunkSizePerEntity($includedDataChunkSizePerEntityNode);
+    }
+
+    /**
+     * @param ArrayNodeDefinition $node
+     */
+    private function configureChunkSizePerEntity(ArrayNodeDefinition $node)
+    {
+        $node
+            ->useAttributeAsKey('name')
+            ->normalizeKeys(false)
+            ->validate()
+                ->always(function ($value) {
+                    $toRemove = [];
+                    foreach ($value as $className => $chunkSize) {
+                        if (null === $chunkSize) {
+                            $toRemove[] = $className;
+                        }
+                    }
+                    foreach ($toRemove as $className) {
+                        unset($value[$className]);
+                    }
+
+                    return $value;
+                })
+            ->end()
+            ->prototype('scalar')
+                ->validate()
+                    ->ifTrue(function ($value) {
+                        return null !== $value && !is_int($value);
+                    })
+                    ->thenInvalid('Expected int or NULL.')
                 ->end()
             ->end();
     }

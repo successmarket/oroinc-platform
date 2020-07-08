@@ -11,16 +11,19 @@ use Oro\Bundle\ApiBundle\Config\Loader\ConfigLoaderFactory;
 use Oro\Bundle\ApiBundle\Filter\FilterOperatorRegistry;
 use Oro\Bundle\ApiBundle\Model\EntityIdentifier;
 use Oro\Bundle\ApiBundle\Normalizer\ConfigNormalizer;
-use Oro\Bundle\ApiBundle\Normalizer\DateTimeNormalizer;
 use Oro\Bundle\ApiBundle\Normalizer\ObjectNormalizer;
 use Oro\Bundle\ApiBundle\Normalizer\ObjectNormalizerRegistry;
+use Oro\Bundle\ApiBundle\Processor\ApiContext;
+use Oro\Bundle\ApiBundle\Request\RequestType;
 use Oro\Bundle\ApiBundle\Tests\Unit\Fixtures\Entity;
 use Oro\Bundle\ApiBundle\Util\ConfigUtil;
 use Oro\Bundle\ApiBundle\Util\DoctrineHelper;
 use Oro\Bundle\ApiBundle\Util\EntityDataAccessor;
+use Oro\Bundle\ApiBundle\Util\RequestExpressionMatcher;
 use Oro\Component\EntitySerializer\DataNormalizer;
 use Oro\Component\EntitySerializer\DataTransformer;
 use Oro\Component\EntitySerializer\SerializationHelper;
+use Oro\Component\Testing\Unit\TestContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -31,25 +34,24 @@ class ByConfigObjectNormalizerTest extends \PHPUnit\Framework\TestCase
     /** @var ObjectNormalizer */
     private $objectNormalizer;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $doctrine = $this->createMock(ManagerRegistry::class);
         $doctrine->expects(self::any())
             ->method('getManagerForClass')
             ->willReturn(null);
 
-        $normalizers = new ObjectNormalizerRegistry();
         $this->objectNormalizer = new ObjectNormalizer(
-            $normalizers,
+            new ObjectNormalizerRegistry(
+                [],
+                TestContainerBuilder::create()->getContainer($this),
+                new RequestExpressionMatcher()
+            ),
             new DoctrineHelper($doctrine),
             new SerializationHelper(new DataTransformer($this->createMock(ContainerInterface::class))),
             new EntityDataAccessor(),
             new ConfigNormalizer(),
             new DataNormalizer()
-        );
-
-        $normalizers->addNormalizer(
-            new DateTimeNormalizer()
         );
     }
 
@@ -62,6 +64,9 @@ class ByConfigObjectNormalizerTest extends \PHPUnit\Framework\TestCase
      */
     private function normalizeObject($object, EntityDefinitionConfig $config = null, array $context = [])
     {
+        if (!isset($context[ApiContext::REQUEST_TYPE])) {
+            $context[ApiContext::REQUEST_TYPE] = new RequestType([RequestType::REST]);
+        }
         $normalizedObjects = $this->objectNormalizer->normalizeObjects([$object], $config, $context);
 
         return reset($normalizedObjects);
@@ -220,25 +225,26 @@ class ByConfigObjectNormalizerTest extends \PHPUnit\Framework\TestCase
             'fields'                    => [
                 'id'   => null,
                 'name' => null
-            ],
-            'post_serialize'            => function (array $item, array $context) {
-                $item['name'] .= sprintf('_additional[%s]', $context['key']);
-                $item['another'] = 'value';
-
-                return $item;
-            },
-            'post_serialize_collection' => function (array $items, array $context) {
-                foreach ($items as $key => $item) {
-                    $items[$key]['name'] .= ' + collection';
-                }
-
-                return $items;
-            }
+            ]
         ];
+        $configObject = $this->createConfigObject($config);
+        $configObject->setPostSerializeHandler(function (array $item, array $context) {
+            $item['name'] .= sprintf('_additional[%s]', $context['key']);
+            $item['another'] = 'value';
+
+            return $item;
+        });
+        $configObject->setPostSerializeCollectionHandler(function (array $items, array $context) {
+            foreach ($items as $key => $item) {
+                $items[$key]['name'] .= ' + collection';
+            }
+
+            return $items;
+        });
 
         $result = $this->normalizeObject(
             $object,
-            $this->createConfigObject($config),
+            $configObject,
             ['key' => 'context value']
         );
 
@@ -273,19 +279,20 @@ class ByConfigObjectNormalizerTest extends \PHPUnit\Framework\TestCase
                             'property_path'    => 'category',
                             'fields'           => 'name'
                         ]
-                    ],
-                    'post_serialize'   => function (array $item) {
-                        $item['name'] .= '_additional';
-
-                        return $item;
-                    }
+                    ]
                 ]
             ]
         ];
+        $configObject = $this->createConfigObject($config);
+        $configObject->getField('owner')->getTargetEntity()->setPostSerializeHandler(function (array $item) {
+            $item['name'] .= '_additional';
+
+            return $item;
+        });
 
         $result = $this->normalizeObject(
             $this->createProductObject(),
-            $this->createConfigObject($config)
+            $configObject
         );
 
         self::assertEquals(
@@ -505,19 +512,22 @@ class ByConfigObjectNormalizerTest extends \PHPUnit\Framework\TestCase
                             'property_path'    => 'groups',
                             'fields'           => 'id'
                         ]
-                    ],
-                    'post_serialize'   => function (array $item, array $context) {
-                        $item['name'] .= sprintf('_additional[%s]', $context['key']);
-
-                        return $item;
-                    }
+                    ]
                 ]
             ]
         ];
+        $configObject = $this->createConfigObject($config);
+        $configObject->getField('owner')->getTargetEntity()->setPostSerializeHandler(
+            function (array $item, array $context) {
+                $item['name'] .= sprintf('_additional[%s]', $context['key']);
+
+                return $item;
+            }
+        );
 
         $result = $this->normalizeObject(
             $this->createProductObject(),
-            $this->createConfigObject($config),
+            $configObject,
             ['key' => 'context value']
         );
 
@@ -897,6 +907,80 @@ class ByConfigObjectNormalizerTest extends \PHPUnit\Framework\TestCase
         );
     }
 
+    public function testNormalizeWithComputedField()
+    {
+        $config = [
+            'exclusion_policy' => 'all',
+            'fields'           => [
+                'id'           => null,
+                'computedName' => [
+                    'property_path' => '_',
+                    'depends_on'    => ['name']
+                ],
+                'name'         => [
+                    'exclude' => true
+                ]
+            ]
+        ];
+        $configObject = $this->createConfigObject($config);
+        $configObject->setPostSerializeHandler(function (array $item) {
+            $item['computedName'] = $item['name'] . ' (computed)';
+
+            return $item;
+        });
+
+        $result = $this->normalizeObject(
+            $this->createProductObject(),
+            $configObject
+        );
+
+        self::assertEquals(
+            [
+                'id'           => 123,
+                'computedName' => 'product_name (computed)'
+            ],
+            $result
+        );
+    }
+
+    public function testNormalizeWithComputedFieldAndSkipPostSerializationForPrimaryObjects()
+    {
+        $config = [
+            'exclusion_policy' => 'all',
+            'fields'           => [
+                'id'           => null,
+                'computedName' => [
+                    'property_path' => '_',
+                    'depends_on'    => ['name']
+                ],
+                'name'         => [
+                    'exclude' => true
+                ]
+            ]
+        ];
+        $configObject = $this->createConfigObject($config);
+        $configObject->setPostSerializeHandler(function (array $item) {
+            $item['computedName'] = $item['name'] . ' (computed)';
+
+            return $item;
+        });
+
+        $normalizedObjects = $this->objectNormalizer->normalizeObjects(
+            [$this->createProductObject()],
+            $configObject,
+            [ApiContext::REQUEST_TYPE => new RequestType([RequestType::REST])],
+            true
+        );
+        $result = reset($normalizedObjects);
+
+        self::assertEquals(
+            [
+                'id' => 123
+            ],
+            $result
+        );
+    }
+
     public function testNormalizeWithDependsOnComputedField()
     {
         $config = [
@@ -916,19 +1000,20 @@ class ByConfigObjectNormalizerTest extends \PHPUnit\Framework\TestCase
                                 'value' => null
                             ]
                         ]
-                    ],
-                    'post_serialize'   => function (array $item) {
-                        $item['computedName'] = ['value' => $item['name'] . ' (computed)'];
-
-                        return $item;
-                    }
+                    ]
                 ]
             ]
         ];
+        $configObject = $this->createConfigObject($config);
+        $configObject->getField('owner')->getTargetEntity()->setPostSerializeHandler(function (array $item) {
+            $item['computedName'] = ['value' => $item['name'] . ' (computed)'];
+
+            return $item;
+        });
 
         $result = $this->normalizeObject(
             $this->createProductObject(),
-            $this->createConfigObject($config)
+            $configObject
         );
 
         self::assertEquals(
@@ -963,19 +1048,20 @@ class ByConfigObjectNormalizerTest extends \PHPUnit\Framework\TestCase
                                 ]
                             ]
                         ]
-                    ],
-                    'post_serialize'   => function (array $item) {
-                        $item['renamedComputedName'] = ['renamedValue' => $item['name'] . ' (computed)'];
-
-                        return $item;
-                    }
+                    ]
                 ]
             ]
         ];
+        $configObject = $this->createConfigObject($config);
+        $configObject->getField('renamedOwner')->getTargetEntity()->setPostSerializeHandler(function (array $item) {
+            $item['renamedComputedName'] = ['renamedValue' => $item['name'] . ' (computed)'];
+
+            return $item;
+        });
 
         $result = $this->normalizeObject(
             $this->createProductObject(),
-            $this->createConfigObject($config)
+            $configObject
         );
 
         self::assertEquals(
@@ -1027,14 +1113,14 @@ class ByConfigObjectNormalizerTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    // @codingStandardsIgnoreStart
-    /**
-     * @expectedException \Oro\Bundle\ApiBundle\Exception\RuntimeException
-     * @expectedExceptionMessage The exclusion policy must be "all". Object type: "Oro\Bundle\ApiBundle\Tests\Unit\Fixtures\Entity\Category".
-     */
-    // @codingStandardsIgnoreEnd
     public function testNormalizeObjectForInvalidExclusionPolicyInRelationConfig()
     {
+        $this->expectException(\Oro\Bundle\ApiBundle\Exception\RuntimeException::class);
+        $this->expectExceptionMessage(\sprintf(
+            'The exclusion policy must be "all". Object type: "%s".',
+            \Oro\Bundle\ApiBundle\Tests\Unit\Fixtures\Entity\Category::class
+        ));
+
         $config = [
             'exclusion_policy' => 'all',
             'fields'           => [

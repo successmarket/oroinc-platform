@@ -4,12 +4,14 @@ namespace Oro\Bundle\UserBundle\Controller;
 
 use Oro\Bundle\SecurityBundle\Annotation\Acl;
 use Oro\Bundle\UserBundle\Entity\Group;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Annotation\Route;
 
 /**
+ * CRUD for user groups.
+ *
  * @Route("/group")
  */
 class GroupController extends Controller
@@ -70,7 +72,7 @@ class GroupController extends Controller
     public function indexAction(Request $request)
     {
         return array(
-            'entity_class' => $this->container->getParameter('oro_user.group.entity.class')
+            'entity_class' => Group::class
         );
     }
 

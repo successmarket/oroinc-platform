@@ -23,7 +23,7 @@ class TranslationControllerTest extends WebTestCase
     /**
      * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->initClient([], $this->generateBasicAuthHeader());
         $this->loadFixtures([LoadTranslations::class]);
@@ -36,16 +36,27 @@ class TranslationControllerTest extends WebTestCase
         $crawler = $this->client->request('GET', $this->getUrl('oro_translation_translation_index'));
 
         $this->assertHtmlResponseStatusCodeEquals($this->client->getResponse(), 200);
-        $this->assertContains(self::DATAGRID_NAME, $crawler->html());
+        static::assertStringContainsString(self::DATAGRID_NAME, $crawler->html());
 
         $domains = $this->registry->getManagerForClass(TranslationKey::class)
             ->getRepository(TranslationKey::class)
             ->findAvailableDomains();
 
         // Assert Domain filter choices
+        $gridElement = $crawler->filter('[data-page-component-name="oro-translation-translations-grid"]');
+        $gridComponentOptions = json_decode($gridElement->attr('data-page-component-options'), JSON_OBJECT_AS_ARRAY);
+        $this->assertArrayHasKey('metadata', $gridComponentOptions);
+        $this->assertArrayHasKey('filters', $gridComponentOptions['metadata']);
+        $this->assertIsArray($gridComponentOptions['metadata']['filters']);
+        $domainFilter = null;
+        foreach ($gridComponentOptions['metadata']['filters'] as $filter) {
+            if ($filter['name'] === 'domain') {
+                $domainFilter = $filter;
+                break;
+            }
+        }
         foreach ($domains as $domain) {
-            $json = sprintf('{"label":"%s","value":"%s"}', $domain, $domain);
-            $this->assertContains($json, $crawler->html(), 'JSON not found in page content');
+            self::assertContains(['label' => $domain, 'value' => $domain], $domainFilter['choices']);
         }
 
         $language = $this->registry->getRepository(Language::class)->findOneBy(['code' => LoadLanguages::LANGUAGE1]);
@@ -62,10 +73,10 @@ class TranslationControllerTest extends WebTestCase
             ->findAllByLanguageAndDomain(LoadLanguages::LANGUAGE1, LoadTranslations::TRANSLATION_KEY_DOMAIN);
 
         foreach ($translations as $translation) {
-            $this->assertContains(sprintf('"id":"%d"', $translation['id']), $response);
-            $this->assertContains(sprintf('"key":"%s"', $translation['key']), $response);
-            $this->assertContains(sprintf('"domain":"%s"', $translation['domain']), $response);
-            $this->assertContains(sprintf('"value":"%s"', $translation['value']), $response);
+            static::assertStringContainsString(sprintf('"id":"%d"', $translation['id']), $response);
+            static::assertStringContainsString(sprintf('"key":"%s"', $translation['key']), $response);
+            static::assertStringContainsString(sprintf('"domain":"%s"', $translation['domain']), $response);
+            static::assertStringContainsString(sprintf('"value":"%s"', $translation['value']), $response);
         }
     }
 

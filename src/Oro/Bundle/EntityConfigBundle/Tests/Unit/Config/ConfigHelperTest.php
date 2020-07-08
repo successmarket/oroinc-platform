@@ -35,7 +35,7 @@ class ConfigHelperTest extends \PHPUnit\Framework\TestCase
     /** @var ConfigHelper */
     private $configHelper;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->configManager = $this->getMockBuilder(ConfigManager::class)
             ->disableOriginalConstructor()
@@ -60,7 +60,7 @@ class ConfigHelperTest extends \PHPUnit\Framework\TestCase
         return $config;
     }
 
-    public function testGetExtendRequireJsModules()
+    public function testGetExtendJsModules()
     {
         $modules = ['module1'];
 
@@ -74,7 +74,7 @@ class ConfigHelperTest extends \PHPUnit\Framework\TestCase
 
         $propertyConfig
             ->expects($this->once())
-            ->method('getRequireJsModules')
+            ->method('getJsModules')
             ->willReturn($modules);
 
         $configProvider
@@ -88,7 +88,7 @@ class ConfigHelperTest extends \PHPUnit\Framework\TestCase
             ->with('extend')
             ->willReturn($configProvider);
 
-        $this->assertEquals($modules, $this->configHelper->getExtendRequireJsModules());
+        $this->assertEquals($modules, $this->configHelper->getExtendJsModules());
     }
 
     public function testGetEntityConfigByField()
@@ -381,12 +381,11 @@ class ConfigHelperTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage The field type "item1||item2" is not supported.
-     */
     public function testCreateFieldOptionsForNotSupportedFieldType()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The field type "item1||item2" is not supported.');
+
         $extendEntityConfig = $this->getEntityConfig('Test\Entity', []);
         $fieldType = 'item1||item2';
         $additionalFieldOptions = [];

@@ -7,6 +7,33 @@ use Oro\Bundle\ApiBundle\Request\DataType;
 class DataTypeTest extends \PHPUnit\Framework\TestCase
 {
     /**
+     * @dataProvider arrayProvider
+     */
+    public function testIsArray($dataType, $expected)
+    {
+        self::assertSame($expected, DataType::isArray($dataType));
+    }
+
+    public function arrayProvider()
+    {
+        return [
+            ['array', true],
+            ['objects', true],
+            ['object[]', true],
+            ['strings', true],
+            ['string[]', true],
+            ['scalar', false],
+            ['object', false],
+            ['nestedObject', false],
+            ['string', false],
+            ['string[]t', false],
+            ['[]string', false],
+            [null, false],
+            ['', false]
+        ];
+    }
+
+    /**
      * @dataProvider nestedObjectProvider
      */
     public function testIsNestedObject($dataType, $expected)
@@ -54,11 +81,17 @@ class DataTypeTest extends \PHPUnit\Framework\TestCase
     public function associationAsFieldProvider()
     {
         return [
-            ['array', true],
-            ['object', true],
             ['scalar', true],
+            ['object', true],
+            ['array', true],
+            ['objects', true],
+            ['object[]', true],
+            ['strings', true],
+            ['string[]', true],
             ['nestedObject', true],
             ['string', false],
+            ['string[]t', false],
+            ['[]string', false],
             [null, false],
             ['', false]
         ];
@@ -88,7 +121,7 @@ class DataTypeTest extends \PHPUnit\Framework\TestCase
      */
     public function testParseExtendedAssociation($dataType, $expectedAssociationType, $expectedAssociationKind)
     {
-        list($associationType, $associationKind) = DataType::parseExtendedAssociation($dataType);
+        [$associationType, $associationKind] = DataType::parseExtendedAssociation($dataType);
         self::assertSame($expectedAssociationType, $associationType);
         self::assertSame($expectedAssociationKind, $associationKind);
     }
@@ -103,10 +136,10 @@ class DataTypeTest extends \PHPUnit\Framework\TestCase
 
     /**
      * @dataProvider invalidExtendedAssociationProvider
-     * @expectedException \InvalidArgumentException
      */
     public function testParseInvalidExtendedAssociation($dataType)
     {
+        $this->expectException(\InvalidArgumentException::class);
         DataType::parseExtendedAssociation($dataType);
     }
 
@@ -118,7 +151,6 @@ class DataTypeTest extends \PHPUnit\Framework\TestCase
             ['association:'],
             ['association::'],
             ['association:manyToOne:'],
-            [null],
             ['']
         ];
     }

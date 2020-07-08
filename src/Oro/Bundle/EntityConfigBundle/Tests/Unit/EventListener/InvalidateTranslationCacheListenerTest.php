@@ -4,16 +4,16 @@ namespace Oro\Bundle\EntityConfigBundle\Tests\Unit\EventListener;
 
 use Doctrine\Common\Cache\Cache;
 use Doctrine\Common\Cache\CacheProvider;
+use Doctrine\Common\Persistence\ManagerRegistry;
 use Doctrine\ORM\Configuration;
 use Doctrine\ORM\EntityManagerInterface;
 use Oro\Bundle\EntityConfigBundle\EventListener\InvalidateTranslationCacheListener;
 use Oro\Bundle\EntityExtendBundle\Entity\AbstractEnumValue;
-use Symfony\Bridge\Doctrine\RegistryInterface;
 
 class InvalidateTranslationCacheListenerTest extends \PHPUnit\Framework\TestCase
 {
     /**
-     * @var RegistryInterface|\PHPUnit\Framework\MockObject\MockObject
+     * @var ManagerRegistry|\PHPUnit\Framework\MockObject\MockObject
      */
     private $registry;
 
@@ -22,9 +22,9 @@ class InvalidateTranslationCacheListenerTest extends \PHPUnit\Framework\TestCase
      */
     private $listener;
 
-    protected function setUp()
+    protected function setUp(): void
     {
-        $this->registry = $this->createMock(RegistryInterface::class);
+        $this->registry = $this->createMock(ManagerRegistry::class);
         $this->listener = new InvalidateTranslationCacheListener($this->registry);
     }
 

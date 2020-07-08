@@ -1,13 +1,17 @@
 <?php
+
 namespace Oro\Component\Testing;
 
+use Doctrine\Common\Persistence\ManagerRegistry;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Event\ConnectionEventArgs;
 use Doctrine\ORM\EntityManagerInterface;
 use Oro\Component\Testing\Doctrine\Events;
-use Symfony\Bridge\Doctrine\RegistryInterface;
 use Symfony\Bundle\FrameworkBundle\Client;
 
+/**
+ * Provides functions to operate DB transactions.
+ */
 trait DbIsolationExtension
 {
     /**
@@ -22,17 +26,22 @@ trait DbIsolationExtension
      */
     protected function startTransaction($nestTransactionsWithSavepoints = false)
     {
-        if (false == $this->getClient() instanceof Client) {
+        if (false == $this->getClientInstance() instanceof Client) {
             throw new \LogicException('The client must be instance of Client');
         }
-        if (false == $this->getClient()->getContainer()) {
+        if (false == $this->getClientInstance()->getContainer()) {
             throw new \LogicException('The client missing a container. Make sure the kernel was booted');
         }
 
-        /** @var RegistryInterface $registry */
-        $registry = $this->getClient()->getContainer()->get('doctrine');
+        /** @var ManagerRegistry $registry */
+        $registry = $this->getClientInstance()->getContainer()->get('doctrine');
         foreach ($registry->getManagers() as $name => $em) {
             if ($em instanceof EntityManagerInterface) {
+                $objectId = spl_object_id($em->getConnection());
+                if (array_key_exists($objectId, self::$dbIsolationConnections)) {
+                    continue;
+                }
+
                 $em->clear();
                 $connection = $em->getConnection();
                 if ($connection->getNestTransactionsWithSavepoints() !== $nestTransactionsWithSavepoints) {
@@ -40,7 +49,7 @@ trait DbIsolationExtension
                 }
                 $connection->beginTransaction();
 
-                self::$dbIsolationConnections[$name.uniqid('connection', true)] = $connection;
+                self::$dbIsolationConnections[$objectId] = $connection;
             }
         }
     }
@@ -68,5 +77,5 @@ trait DbIsolationExtension
     /**
      * @return \Symfony\Bundle\FrameworkBundle\Client
      */
-    abstract protected function getClient();
+    abstract protected function getClientInstance();
 }

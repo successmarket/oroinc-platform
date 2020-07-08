@@ -27,7 +27,7 @@ class WidgetControllerTest extends WebTestCase
     /** @var PropertyAccessor */
     private $propertyAccessor;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->initClient([], $this->generateBasicAuthHeader());
 
@@ -38,8 +38,10 @@ class WidgetControllerTest extends WebTestCase
         $this->entityId = $this->getReference(LoadTestEntityData::TEST_ENTITY_1)->getId();
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
+        $this->getContainer()->get('oro_action.tests.provider.button.extension')
+            ->setDecoratedExtension(null);
         $this->configModifier->resetCache();
     }
 
@@ -55,7 +57,8 @@ class WidgetControllerTest extends WebTestCase
     public function testButtonsOperation(array $config, $route, $entityId, $entityClass, array $expected)
     {
         $this->setOperationsConfig($config);
-        $this->getContainer()->get('oro_action.provider.button')->addExtension(new ButtonProviderExtensionStub());
+        $this->getContainer()->get('oro_action.tests.provider.button.extension')
+            ->setDecoratedExtension(new ButtonProviderExtensionStub());
 
         if ($entityId) {
             $entityId = $this->entityId;
@@ -80,7 +83,7 @@ class WidgetControllerTest extends WebTestCase
 
         if ($expected) {
             foreach ($expected as $item) {
-                $this->assertContains($item, $crawler->html());
+                static::assertStringContainsString($item, $crawler->html());
             }
         } else {
             $this->assertEmpty($crawler);
@@ -135,7 +138,7 @@ class WidgetControllerTest extends WebTestCase
 
         $crawler = $this->client->submit($form);
 
-        $this->assertContains($expectedMessage, $crawler->html());
+        static::assertStringContainsString($expectedMessage, $crawler->html());
         $this->assertEntityFields($entity, $expectedData);
     }
 

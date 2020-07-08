@@ -79,7 +79,7 @@ class FieldTypeTest extends TypeTestCase
     /** @var array */
     protected $expectedChoicesView;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->expectedChoicesView = $this->prepareExpectedChoicesView($this->defaultFieldTypeChoices);
 
@@ -205,8 +205,7 @@ class FieldTypeTest extends TypeTestCase
 
         /** @var $form FormInterface|\PHPUnit\Framework\MockObject\MockObject */
         $form = $this->createMock(FormInterface::class);
-
-        $this->type->finishView($view, $form, []);
+        $this->type->finishView($view, $form, ['excludeTypes' => []]);
 
         $this->assertEquals(
             [
@@ -214,7 +213,7 @@ class FieldTypeTest extends TypeTestCase
                     [
                         FieldNameLength::class => [
                             'min' => FieldNameLength::MIN_LENGTH,
-                            'max' => 22, //will be returned by generator
+                            'max' => 55, //will be returned by generator
                         ]
                     ]
                 )

@@ -1,14 +1,14 @@
 define(function(require) {
     'use strict';
 
-    var $ = require('jquery');
-    var _ = require('underscore');
-    var BaseComponent = require('oroui/js/app/components/base/component');
-    var mediator = require('oroui/js/mediator');
-    var routing = require('routing');
-    var tinyMCE = require('tinymce/tinymce');
+    const $ = require('jquery');
+    const _ = require('underscore');
+    const BaseComponent = require('oroui/js/app/components/base/component');
+    const LoadingMaskView = require('oroui/js/app/views/loading-mask-view');
+    const routing = require('routing');
+    const tinyMCE = require('tinymce/tinymce');
 
-    var CreateOrSelectChoiceComponent = BaseComponent.extend({
+    const CreateOrSelectChoiceComponent = BaseComponent.extend({
 
         MODE_CREATE: 'create',
         MODE_VIEW: 'view',
@@ -29,12 +29,13 @@ define(function(require) {
         $existingEntityInput: null,
         $dialog: null,
         editable: false,
+        disabledEditForm: false,
 
         /**
          * @inheritDoc
          */
-        constructor: function CreateOrSelectChoiceComponent() {
-            CreateOrSelectChoiceComponent.__super__.constructor.apply(this, arguments);
+        constructor: function CreateOrSelectChoiceComponent(options) {
+            CreateOrSelectChoiceComponent.__super__.constructor.call(this, options);
         },
 
         /**
@@ -42,10 +43,11 @@ define(function(require) {
          */
         initialize: function(options) {
             this.editable = (options.editable === true);
+            this.disabledEditForm = (options.disabled_edit_form === true);
             if (this.editable) {
                 this.requiredOptions.push('editRoute');
             }
-            var missingProperties = _.filter(this.requiredOptions, _.negate(_.bind(options.hasOwnProperty, options)));
+            const missingProperties = _.filter(this.requiredOptions, _.negate(_.bind(options.hasOwnProperty, options)));
             if (missingProperties.length) {
                 throw new Error(
                     'Following properties are required but weren\'t passed: ' +
@@ -79,7 +81,7 @@ define(function(require) {
          * @private
          */
         _onEntityChange: function(e) {
-            var mode = this.MODE_CREATE;
+            let mode = this.MODE_CREATE;
             if (e.val) {
                 mode = this.editable ? this.MODE_EDIT : this.MODE_VIEW;
             }
@@ -133,7 +135,7 @@ define(function(require) {
                 return;
             }
 
-            var route = routing.generate(this.editRoute, {id: e.val});
+            const route = routing.generate(this.editRoute, {id: e.val});
 
             this._setLoading(true);
             $.get(route)
@@ -155,10 +157,10 @@ define(function(require) {
                 return;
             }
 
-            var self = this;
+            const self = this;
             this.$newEntity.find('input[type=text], input[data-default-value], textarea').each(function() {
-                var $el = $(this);
-                var newVal = self._getCleanValue($el);
+                const $el = $(this);
+                const newVal = self._getCleanValue($el);
                 $el.val(newVal);
                 if ($el.is('textarea')) {
                     $el.text(newVal).change();
@@ -166,6 +168,21 @@ define(function(require) {
                     $el.change();
                 }
             });
+
+            if (this.disabledEditForm) {
+                this.$newEntity.find(':input').each(function() {
+                    const $input = $(this);
+                    const editor = tinyMCE.get($input.attr('id'));
+
+                    if (editor && !$input.data('saved-disabled')) {
+                        editor.setMode('design');
+                        $(editor.editorContainer).removeClass('disabled');
+                        $(editor.editorContainer).children('.disabled-overlay').remove();
+                    }
+
+                    $input.prop('disabled', $input.data('saved-disabled'));
+                });
+            }
         },
 
         /**
@@ -193,16 +210,16 @@ define(function(require) {
          * @private
          */
         _setNewEntityForm: function(data) {
-            var $data = $(data);
+            const $data = $(data);
             /*
              * For each input element in added form, create new name to match naming scheme.
              */
             $data.find(':input').each(_.bind(function(index, element) {
-                var $element = $(element);
-                var inputName = $element.attr('name');
+                const $element = $(element);
+                let inputName = $element.attr('name');
                 inputName = inputName.substr(inputName.indexOf('['));
 
-                var $modifiedField = this.$newEntity.find('[name$="' + inputName + '"]');
+                let $modifiedField = this.$newEntity.find('[name$="' + inputName + '"]');
 
                 if ($element.is(':checkbox') || $element.is(':radio')) {
                     $modifiedField = this.$newEntity.find(
@@ -210,7 +227,7 @@ define(function(require) {
                     );
                     $modifiedField.prop('checked', $element.is(':checked')).change();
                 } else {
-                    var editor = tinyMCE.get($modifiedField.attr('id'));
+                    const editor = tinyMCE.get($modifiedField.attr('id'));
                     if (editor) {
                         editor.setContent($element.val());
                     } else {
@@ -218,6 +235,22 @@ define(function(require) {
                     }
                 }
             }, this));
+
+            if (this.disabledEditForm) {
+                this.$newEntity.find(':input').each(function() {
+                    const $input = $(this);
+                    const editor = tinyMCE.get($input.attr('id'));
+
+                    $input.data('saved-disabled', $input.prop('disabled'));
+                    $input.prop('disabled', true);
+
+                    if (editor && !$input.data('saved-disabled')) {
+                        editor.setMode('readonly');
+                        $(editor.editorContainer).addClass('disabled');
+                        $(editor.editorContainer).append('<div class="disabled-overlay"></div>');
+                    }
+                });
+            }
         },
 
         /**
@@ -236,10 +269,59 @@ define(function(require) {
          */
         _setLoading: function(enabled) {
             if (enabled) {
-                mediator.execute('showLoading');
+                this._showLoadingMask();
             } else {
-                mediator.execute('hideLoading');
+                this._hideLoadingMask();
             }
+        },
+
+        /**
+         * @private
+         */
+        _showLoadingMask: function() {
+            this._ensureLoadingMaskLoaded();
+
+            if (!this.loadingMask.isShown()) {
+                this.loadingMask.show();
+            }
+        },
+
+        /**
+         * @private
+         */
+        _hideLoadingMask: function() {
+            this._ensureLoadingMaskLoaded();
+
+            if (this.loadingMask.isShown()) {
+                this.loadingMask.hide();
+            }
+        },
+
+        /**
+         * @private
+         */
+        _ensureLoadingMaskLoaded: function() {
+            if (!this.loadingMask) {
+                this.loadingMask = new LoadingMaskView({container: this.$newEntity});
+            }
+        },
+
+        dispose: function() {
+            if (this.disposed) {
+                return;
+            }
+
+            if (this.loadingMask) {
+                this.loadingMask.dispose();
+                delete this.loadingMask;
+            }
+
+            this.$existingEntity.off('change', _.bind(this._onEntityChange, this));
+            this.$existingEntity.off('change', _.bind(this._retrieveEntityData, this));
+            this.$existingEntity.off('change', _.bind(this._cleanEntityData, this));
+            this.$mode.off('change', _.bind(this._updateNewEntityVisibility, this));
+
+            CreateOrSelectChoiceComponent.__super__.dispose.call(this);
         }
     });
 

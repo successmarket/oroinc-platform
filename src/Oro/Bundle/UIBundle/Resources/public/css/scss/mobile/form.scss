@@ -101,6 +101,7 @@
 
         .controls {
             margin-#{$start}: $form-horizontal-controls-offset-left;
+            min-width: 0;
 
             &:first-child {
                 margin-#{$start}: $form-horizontal-controls-offset-left;
@@ -172,5 +173,21 @@
 
     &__container > input {
         padding-#{$end}: $input-size;
+    }
+}
+
+.form-flex {
+    > .control-group {
+        margin-bottom: $form-container-control-row-space;
+
+        .controls {
+            > div {
+                float: none !important;
+            }
+        }
+    }
+
+    .form-buttons {
+        margin-bottom: $form-container-control-row-space;
     }
 }

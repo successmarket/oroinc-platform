@@ -19,13 +19,13 @@ class EventDispatcherTest extends \PHPUnit\Framework\TestCase
     /** @var \PHPUnit\Framework\MockObject\MockObject */
     protected $realDispatcherMock;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->realDispatcherMock = $this->createMock('Symfony\Component\EventDispatcher\EventDispatcherInterface');
         $this->dispatcher         = new EventDispatcher($this->realDispatcherMock);
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         unset($this->realDispatcherMock, $this->dispatcher);
     }
@@ -44,7 +44,7 @@ class EventDispatcherTest extends \PHPUnit\Framework\TestCase
 
         foreach ($expectedEvents as $k => $event) {
             $this->realDispatcherMock->expects($this->at($k))->method('dispatch')
-                ->with($event);
+                ->with(new GridEvent($gridMock), $event);
         }
 
         $event = new GridEvent($gridMock);
@@ -82,17 +82,18 @@ class EventDispatcherTest extends \PHPUnit\Framework\TestCase
     {
         $config   = DatagridConfiguration::create($config);
 
-        foreach ($expectedEvents as $k => $event) {
+        $event = new GridConfigEvent($config);
+
+        foreach ($expectedEvents as $k => $eventName) {
             $this->realDispatcherMock->expects($this->at($k))->method('dispatch')
-                ->with($event);
+                ->with($event, $eventName);
         }
 
-        $event = new GridConfigEvent($config);
         $this->dispatcher->dispatch(self::TEST_EVENT_NAME, $event);
     }
     public function testDispatchException()
     {
-        $this->expectException('\InvalidArgumentException');
+        $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage(
             'Unexpected event type. Expected instance of GridEventInterface or GridConfigurationEventInterface'
         );

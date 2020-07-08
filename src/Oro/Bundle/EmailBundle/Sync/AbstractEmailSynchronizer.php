@@ -3,6 +3,7 @@
 namespace Oro\Bundle\EmailBundle\Sync;
 
 use Doctrine\Common\Persistence\ManagerRegistry;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\ORMException;
 use Doctrine\ORM\QueryBuilder;
@@ -15,10 +16,12 @@ use Oro\Component\MessageQueue\Client\MessageProducerInterface;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Psr\Log\NullLogger;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 
 /**
+ * Abstract class for the email synchronizer.
+ *
  * @SuppressWarnings(PHPMD.ExcessiveClassComplexity)
  */
 abstract class AbstractEmailSynchronizer implements EmailSynchronizerInterface, LoggerAwareInterface
@@ -39,7 +42,7 @@ abstract class AbstractEmailSynchronizer implements EmailSynchronizerInterface, 
     /** @var KnownEmailAddressCheckerFactory */
     protected $knownEmailAddressCheckerFactory;
 
-    /** @var TokenStorage */
+    /** @var TokenStorageInterface */
     protected $tokenStorage;
 
     /** @var KnownEmailAddressCheckerInterface */
@@ -78,9 +81,9 @@ abstract class AbstractEmailSynchronizer implements EmailSynchronizerInterface, 
     }
 
     /**
-     * @param TokenStorage $tokenStorage
+     * @param TokenStorageInterface $tokenStorage
      */
-    public function setTokenStorage(TokenStorage $tokenStorage)
+    public function setTokenStorage(TokenStorageInterface $tokenStorage)
     {
         $this->tokenStorage = $tokenStorage;
         $this->currentToken = $tokenStorage->getToken();
@@ -318,7 +321,7 @@ abstract class AbstractEmailSynchronizer implements EmailSynchronizerInterface, 
 
     /**
      * Switches the security context to the given organization
-     * @todo: Should be deleted after email sync process will be refactored
+     * Should be deleted after email sync process will be refactored
      */
     protected function impersonateOrganization(Organization $organization = null)
     {
@@ -393,13 +396,13 @@ abstract class AbstractEmailSynchronizer implements EmailSynchronizerInterface, 
             ->set('o.syncCodeUpdatedAt', ':updated')
             ->where('o.id = :id')
             ->setParameter('code', $syncCode)
-            ->setParameter('updated', $this->getCurrentUtcDateTime())
+            ->setParameter('updated', $this->getCurrentUtcDateTime(), Types::DATETIME_MUTABLE)
             ->setParameter('id', $origin->getId());
 
         if ($synchronizedAt !== null) {
             $qb
                 ->set('o.synchronizedAt', ':synchronized')
-                ->setParameter('synchronized', $synchronizedAt);
+                ->setParameter('synchronized', $synchronizedAt, Types::DATETIME_MUTABLE);
         }
 
         if ($syncCode === self::SYNC_CODE_IN_PROCESS || $syncCode === self::SYNC_CODE_IN_PROCESS_FORCE) {
@@ -475,9 +478,9 @@ abstract class AbstractEmailSynchronizer implements EmailSynchronizerInterface, 
             ->setParameter('inProcessForce', self::SYNC_CODE_IN_PROCESS_FORCE)
             ->setParameter('success', self::SYNC_CODE_SUCCESS)
             ->setParameter('isActive', true)
-            ->setParameter('now', $now)
-            ->setParameter('min', $min)
-            ->setParameter('border', $border)
+            ->setParameter('now', $now, Types::DATETIME_MUTABLE)
+            ->setParameter('min', $min, Types::DATETIME_MUTABLE)
+            ->setParameter('border', $border, Types::DATETIME_MUTABLE)
             ->setParameter('timeShift', $timeShift)
             ->setMaxResults($maxConcurrentTasks + 1);
 
@@ -581,7 +584,7 @@ abstract class AbstractEmailSynchronizer implements EmailSynchronizerInterface, 
             ->where('o.syncCode = :inProcess AND o.syncCodeUpdatedAt <= :border')
             ->setParameter('inProcess', self::SYNC_CODE_IN_PROCESS)
             ->setParameter('failure', self::SYNC_CODE_FAILURE)
-            ->setParameter('border', $border)
+            ->setParameter('border', $border, Types::DATETIME_MUTABLE)
             ->getQuery();
 
         $affectedRows = $query->execute();

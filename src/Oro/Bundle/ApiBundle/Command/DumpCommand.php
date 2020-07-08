@@ -2,9 +2,6 @@
 
 namespace Oro\Bundle\ApiBundle\Command;
 
-use Doctrine\Common\Persistence\ManagerRegistry;
-use Doctrine\ORM\EntityManager;
-use Doctrine\ORM\Mapping\ClassMetadata;
 use Oro\Bundle\ApiBundle\Provider\ResourcesProvider;
 use Oro\Bundle\ApiBundle\Provider\SubresourcesProvider;
 use Oro\Bundle\ApiBundle\Request\ApiResource;
@@ -15,6 +12,7 @@ use Oro\Bundle\ApiBundle\Request\ValueNormalizer;
 use Oro\Bundle\ApiBundle\Request\Version;
 use Oro\Bundle\ApiBundle\Util\ConfigUtil;
 use Oro\Bundle\ApiBundle\Util\ValueNormalizerUtil;
+use Oro\Bundle\EntityBundle\Provider\EntityClassProviderInterface;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -25,27 +23,30 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class DumpCommand extends AbstractDebugCommand
 {
+    /** @var string */
+    protected static $defaultName = 'oro:api:dump';
+
     /** @var SubresourcesProvider */
     private $subresourcesProvider;
 
-    /** @var ManagerRegistry */
-    private $doctrine;
+    /** @var EntityClassProviderInterface */
+    private $entityClassProvider;
 
     /**
-     * @param ValueNormalizer      $valueNormalizer
-     * @param ResourcesProvider    $resourcesProvider
-     * @param SubresourcesProvider $subresourcesProvider
-     * @param ManagerRegistry      $doctrine
+     * @param ValueNormalizer              $valueNormalizer
+     * @param ResourcesProvider            $resourcesProvider
+     * @param SubresourcesProvider         $subresourcesProvider
+     * @param EntityClassProviderInterface $entityClassProvider
      */
     public function __construct(
         ValueNormalizer $valueNormalizer,
         ResourcesProvider $resourcesProvider,
         SubresourcesProvider $subresourcesProvider,
-        ManagerRegistry $doctrine
+        EntityClassProviderInterface $entityClassProvider
     ) {
         parent::__construct($valueNormalizer, $resourcesProvider);
         $this->subresourcesProvider = $subresourcesProvider;
-        $this->doctrine = $doctrine;
+        $this->entityClassProvider = $entityClassProvider;
     }
 
     /**
@@ -54,7 +55,6 @@ class DumpCommand extends AbstractDebugCommand
     protected function configure()
     {
         $this
-            ->setName('oro:api:dump')
             ->setDescription('Dumps all resources accessible through API.')
             ->addArgument(
                 'entity',
@@ -106,20 +106,10 @@ class DumpCommand extends AbstractDebugCommand
         }
 
         $notAccessibleEntities = [];
-        $managers = $this->doctrine->getManagers();
-        foreach ($managers as $manager) {
-            if (!$manager instanceof EntityManager) {
-                continue;
-            }
-            /** @var ClassMetadata[] $allMetadata */
-            $allMetadata = $manager->getMetadataFactory()->getAllMetadata();
-            foreach ($allMetadata as $metadata) {
-                if (!isset($accessibleEntities[$metadata->name])
-                    && !isset($notAccessibleEntities[$metadata->name])
-                    && !$metadata->isMappedSuperclass
-                ) {
-                    $notAccessibleEntities[$metadata->name] = true;
-                }
+        $entityClasses = $this->entityClassProvider->getClassNames();
+        foreach ($entityClasses as $entityClass) {
+            if (!isset($accessibleEntities[$entityClass]) && !isset($notAccessibleEntities[$entityClass])) {
+                $notAccessibleEntities[$entityClass] = true;
             }
         }
         $notAccessibleEntities = array_keys($notAccessibleEntities);

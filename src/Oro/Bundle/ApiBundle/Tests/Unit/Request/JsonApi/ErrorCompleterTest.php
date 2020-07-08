@@ -10,6 +10,7 @@ use Oro\Bundle\ApiBundle\Filter\FilterNamesRegistry;
 use Oro\Bundle\ApiBundle\Metadata\AssociationMetadata;
 use Oro\Bundle\ApiBundle\Metadata\EntityMetadata;
 use Oro\Bundle\ApiBundle\Metadata\FieldMetadata;
+use Oro\Bundle\ApiBundle\Metadata\MetaPropertyMetadata;
 use Oro\Bundle\ApiBundle\Model\Error;
 use Oro\Bundle\ApiBundle\Model\ErrorSource;
 use Oro\Bundle\ApiBundle\Request\DataType;
@@ -18,6 +19,7 @@ use Oro\Bundle\ApiBundle\Request\JsonApi\ErrorCompleter;
 use Oro\Bundle\ApiBundle\Request\RequestType;
 use Oro\Bundle\ApiBundle\Request\ValueNormalizer;
 use Oro\Bundle\ApiBundle\Util\RequestExpressionMatcher;
+use Oro\Component\Testing\Unit\TestContainerBuilder;
 use Symfony\Component\HttpFoundation\Response;
 
 class ErrorCompleterTest extends \PHPUnit\Framework\TestCase
@@ -34,7 +36,7 @@ class ErrorCompleterTest extends \PHPUnit\Framework\TestCase
     /** @var ErrorCompleter */
     private $errorCompleter;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->exceptionTextExtractor = $this->createMock(ExceptionTextExtractorInterface::class);
         $this->valueNormalizer = $this->createMock(ValueNormalizer::class);
@@ -52,7 +54,8 @@ class ErrorCompleterTest extends \PHPUnit\Framework\TestCase
             $this->exceptionTextExtractor,
             $this->valueNormalizer,
             new FilterNamesRegistry(
-                [[$filterNames, RequestType::JSON_API]],
+                [['filter_names', RequestType::JSON_API]],
+                TestContainerBuilder::create()->add('filter_names', $filterNames)->getContainer($this),
                 new RequestExpressionMatcher()
             )
         );
@@ -530,6 +533,41 @@ class ErrorCompleterTest extends \PHPUnit\Framework\TestCase
         self::assertEquals($expectedError, $error);
     }
 
+    public function testCompleteErrorForMetaProperty()
+    {
+        $metadata = new EntityMetadata();
+        $metadata->setIdentifierFieldNames(['id']);
+        $metadata->addMetaProperty(new MetaPropertyMetadata('test'));
+
+        $error = new Error();
+        $error->setDetail('test detail');
+        $error->setSource(ErrorSource::createByPropertyPath('test'));
+
+        $expectedError = new Error();
+        $expectedError->setDetail('test detail');
+        $expectedError->setSource(ErrorSource::createByPointer('/data/meta/test'));
+
+        $this->errorCompleter->complete($error, $this->requestType, $metadata);
+        self::assertEquals($expectedError, $error);
+    }
+
+    public function testCompleteErrorForMetaPropertyOfEntityWithoutIdentifierFields()
+    {
+        $metadata = new EntityMetadata();
+        $metadata->addMetaProperty(new MetaPropertyMetadata('test'));
+
+        $error = new Error();
+        $error->setDetail('test detail');
+        $error->setSource(ErrorSource::createByPropertyPath('test'));
+
+        $expectedError = new Error();
+        $expectedError->setDetail('test detail');
+        $expectedError->setSource(ErrorSource::createByPointer('/meta/test'));
+
+        $this->errorCompleter->complete($error, $this->requestType, $metadata);
+        self::assertEquals($expectedError, $error);
+    }
+
     public function testCompleteErrorForExpandRelatedEntitiesConfigFilterConstraint()
     {
         $exception = new NotSupportedConfigOperationException(
@@ -679,6 +717,108 @@ class ErrorCompleterTest extends \PHPUnit\Framework\TestCase
         $expectedError->setDetail('test detail. Source: 1.notMappedPointer.');
 
         $this->errorCompleter->complete($error, $this->requestType, new EntityMetadata());
+        self::assertEquals($expectedError, $error);
+    }
+
+    public function testFixIncludedEntityPathForErrorWithPropertyPathToOwnField()
+    {
+        $metadata = new EntityMetadata();
+        $metadata->setIdentifierFieldNames(['id']);
+        $association1 = new AssociationMetadata();
+        $association1->setName('association1');
+        $metadata->addAssociation($association1);
+
+        $error = new Error();
+        $error->setDetail('test detail');
+        $error->setSource(ErrorSource::createByPropertyPath('association1'));
+
+        $expectedError = new Error();
+        $expectedError->setDetail($error->getDetail());
+        $expectedError->setSource(
+            ErrorSource::createByPointer('/included/0/relationships/association1/data')
+        );
+
+        $this->errorCompleter->fixIncludedEntityPath('/included/0', $error, $this->requestType, $metadata);
+        self::assertEquals($expectedError, $error);
+    }
+
+    public function testFixIncludedEntityPathForErrorWithPropertyPathToNestedField()
+    {
+        $metadata = new EntityMetadata();
+        $metadata->setIdentifierFieldNames(['id']);
+        $association1 = new AssociationMetadata();
+        $association1->setName('association1');
+        $metadata->addAssociation($association1);
+
+        $error = new Error();
+        $error->setDetail('test detail');
+        $error->setSource(ErrorSource::createByPropertyPath('association1.field1'));
+
+        $expectedError = new Error();
+        $expectedError->setDetail($error->getDetail());
+        $expectedError->setSource(
+            ErrorSource::createByPointer('/included/0/relationships/association1/data/field1')
+        );
+
+        $this->errorCompleter->fixIncludedEntityPath('/included/0', $error, $this->requestType, $metadata);
+        self::assertEquals($expectedError, $error);
+    }
+
+    public function testFixIncludedEntityPathForErrorWithPropertyPathToUnknownField()
+    {
+        $metadata = new EntityMetadata();
+        $metadata->setIdentifierFieldNames(['id']);
+
+        $error = new Error();
+        $error->setDetail('test detail');
+        $error->setSource(ErrorSource::createByPropertyPath('association1.field1'));
+
+        $expectedError = new Error();
+        $expectedError->setDetail($error->getDetail() . '. Source: association1.field1.');
+        $expectedError->setSource(ErrorSource::createByPointer('/included/0'));
+
+        $this->errorCompleter->fixIncludedEntityPath('/included/0', $error, $this->requestType, $metadata);
+        self::assertEquals($expectedError, $error);
+    }
+
+    public function testFixIncludedEntityPathForErrorWithoutSource()
+    {
+        $metadata = new EntityMetadata();
+        $metadata->setIdentifierFieldNames(['id']);
+        $association1 = new AssociationMetadata();
+        $association1->setName('association1');
+        $metadata->addAssociation($association1);
+
+        $error = new Error();
+        $error->setDetail('test detail');
+
+        $expectedError = new Error();
+        $expectedError->setDetail($error->getDetail());
+        $expectedError->setSource(ErrorSource::createByPointer('/included/0'));
+
+        $this->errorCompleter->fixIncludedEntityPath('/included/0', $error, $this->requestType, $metadata);
+        self::assertEquals($expectedError, $error);
+    }
+
+    public function testFixIncludedEntityPathForErrorWithPointerStartsWithData()
+    {
+        $metadata = new EntityMetadata();
+        $metadata->setIdentifierFieldNames(['id']);
+        $association1 = new AssociationMetadata();
+        $association1->setName('association1');
+        $metadata->addAssociation($association1);
+
+        $error = new Error();
+        $error->setDetail('test detail');
+        $error->setSource(ErrorSource::createByPointer('/data/relationships/association1/data/field1'));
+
+        $expectedError = new Error();
+        $expectedError->setDetail($error->getDetail());
+        $expectedError->setSource(
+            ErrorSource::createByPointer('/included/0/relationships/association1/data/field1')
+        );
+
+        $this->errorCompleter->fixIncludedEntityPath('/included/0', $error, $this->requestType, $metadata);
         self::assertEquals($expectedError, $error);
     }
 }

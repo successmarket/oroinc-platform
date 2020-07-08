@@ -8,7 +8,8 @@ use Oro\Bundle\TranslationBundle\Entity\Language;
 use Oro\Bundle\TranslationBundle\Exception\TranslationProviderException;
 use Oro\Bundle\TranslationBundle\Provider\ExternalTranslationsProvider;
 use Oro\Bundle\TranslationBundle\Tests\Functional\DataFixtures\LoadLanguages;
-use Symfony\Component\Intl\Intl;
+use Symfony\Component\Intl\Languages;
+use Symfony\Component\Intl\Locales;
 
 /**
  * @dbIsolationPerTest
@@ -18,7 +19,7 @@ class OroLanguageUpdateCommandTest extends WebTestCase
     /** @var  ExternalTranslationsProvider|\PHPUnit\Framework\MockObject\MockObject */
     protected $externalTranslationsProvider;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->initClient();
         $this->loadFixtures([LoadLanguages::class]);
@@ -33,12 +34,12 @@ class OroLanguageUpdateCommandTest extends WebTestCase
         $result = $this->runCommand(OroLanguageUpdateCommand::getDefaultName());
 
         $this->assertNotEmpty($result);
-        $this->assertContains('Avail. Translations', $result);
-        $this->assertContains('N/A', $result);
-        $this->assertContains('English', $result);
-        $this->assertContains('en_CA', $result);
-        $this->assertContains('fr_FR', $result);
-        $this->assertContains('en_US', $result);
+        static::assertStringContainsString('Avail. Translations', $result);
+        static::assertStringContainsString('N/A', $result);
+        static::assertStringContainsString('English', $result);
+        static::assertStringContainsString('en_CA', $result);
+        static::assertStringContainsString('fr_FR', $result);
+        static::assertStringContainsString('en_US', $result);
     }
 
     public function testExecuteWithWrongLanguageCodeOption()
@@ -53,7 +54,7 @@ class OroLanguageUpdateCommandTest extends WebTestCase
         ];
 
         foreach ($expectedMessages as $message) {
-            $this->assertContains($message, $result);
+            static::assertStringContainsString($message, $result);
         }
     }
 
@@ -78,7 +79,7 @@ class OroLanguageUpdateCommandTest extends WebTestCase
         $this->assertNotEmpty($result);
 
         foreach ($expectedMessages as $message) {
-            $this->assertContains(sprintf($message, $this->getLanguageName($language)), $result);
+            static::assertStringContainsString(sprintf($message, $this->getLanguageName($language)), $result);
         }
     }
 
@@ -95,7 +96,7 @@ class OroLanguageUpdateCommandTest extends WebTestCase
         $result = $this->runCommand(OroLanguageUpdateCommand::getDefaultName(), ['--language' => $language->getCode()]);
         $this->assertNotEmpty($result);
 
-        $this->assertContains('EXCEPTION_TEXT', $result);
+        static::assertStringContainsString('EXCEPTION_TEXT', $result);
     }
 
     public function testWithAllOption()
@@ -114,11 +115,11 @@ class OroLanguageUpdateCommandTest extends WebTestCase
         $result = $this->runCommand(OroLanguageUpdateCommand::getDefaultName(), ['--all' => true]);
 
         foreach ($languages as $language) {
-            $this->assertContains(
+            static::assertStringContainsString(
                 sprintf('Processing language "%s" ...', $this->getLanguageName($language)),
                 $result
             );
-            $this->assertContains(
+            static::assertStringContainsString(
                 sprintf('Installation completed for "%s"', $this->getLanguageName($language)),
                 $result
             );
@@ -154,12 +155,12 @@ class OroLanguageUpdateCommandTest extends WebTestCase
      */
     private function getLanguageName(Language $language)
     {
-        $name = Intl::getLanguageBundle()->getLanguageName($language->getCode(), null, 'en');
+        $name = Languages::getName($language->getCode(), 'en');
         if ($name) {
             return $name;
         }
 
-        $name = Intl::getLocaleBundle()->getLocaleName($language->getCode(), 'en');
+        $name = Locales::getName($language->getCode(), 'en');
         if ($name) {
             return $name;
         }

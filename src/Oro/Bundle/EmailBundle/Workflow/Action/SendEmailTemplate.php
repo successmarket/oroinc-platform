@@ -2,20 +2,13 @@
 
 namespace Oro\Bundle\EmailBundle\Workflow\Action;
 
-use Doctrine\Common\Persistence\ObjectManager;
 use Doctrine\ORM\EntityNotFoundException;
-use Oro\Bundle\EmailBundle\Entity\EmailTemplate;
 use Oro\Bundle\EmailBundle\Entity\EmailUser;
-use Oro\Bundle\EmailBundle\Form\Model\Email;
 use Oro\Bundle\EmailBundle\Mailer\Processor;
-use Oro\Bundle\EmailBundle\Model\EmailHolderInterface;
-use Oro\Bundle\EmailBundle\Model\EmailTemplateCriteria;
-use Oro\Bundle\EmailBundle\Provider\EmailRenderer;
+use Oro\Bundle\EmailBundle\Model\DTO\EmailAddressDTO;
+use Oro\Bundle\EmailBundle\Tools\AggregatedEmailTemplatesSender;
 use Oro\Bundle\EmailBundle\Tools\EmailAddressHelper;
-use Oro\Bundle\EmailBundle\Tools\EmailOriginHelper;
 use Oro\Bundle\EntityBundle\Provider\EntityNameResolver;
-use Oro\Bundle\LocaleBundle\DependencyInjection\Configuration;
-use Oro\Bundle\LocaleBundle\Provider\PreferredLanguageProviderInterface;
 use Oro\Component\Action\Exception\InvalidParameterException;
 use Oro\Component\ConfigExpression\ContextAccessor;
 use Symfony\Component\Validator\Constraints\Email as EmailConstraints;
@@ -30,61 +23,41 @@ class SendEmailTemplate extends AbstractSendEmail
     /** @var array */
     protected $options;
 
-    /** @var EmailRenderer */
-    protected $renderer;
-
-    /** @var ObjectManager */
-    protected $objectManager;
-
     /** @var ValidatorInterface */
-    protected $validator;
+    private $validator;
 
-    /** @var PreferredLanguageProviderInterface */
-    private $languageProvider;
+    /** @var AggregatedEmailTemplatesSender */
+    private $sender;
 
-    /** @var EmailOriginHelper */
-    private $emailOriginHelper;
+    /** @var EmailConstraints */
+    private $emailConstraint;
 
     /**
-     * @param ContextAccessor    $contextAccessor
-     * @param Processor          $emailProcessor
+     * @param ContextAccessor $contextAccessor
+     * @param Processor $emailProcessor
      * @param EmailAddressHelper $emailAddressHelper
      * @param EntityNameResolver $entityNameResolver
-     * @param EmailRenderer      $renderer
-     * @param ObjectManager      $objectManager
      * @param ValidatorInterface $validator
-     * @param EmailOriginHelper  $emailOriginHelper
+     * @param AggregatedEmailTemplatesSender $sender
      */
     public function __construct(
         ContextAccessor $contextAccessor,
         Processor $emailProcessor,
         EmailAddressHelper $emailAddressHelper,
         EntityNameResolver $entityNameResolver,
-        EmailRenderer $renderer,
-        ObjectManager $objectManager,
         ValidatorInterface $validator,
-        EmailOriginHelper $emailOriginHelper
+        AggregatedEmailTemplatesSender $sender
     ) {
         parent::__construct($contextAccessor, $emailProcessor, $emailAddressHelper, $entityNameResolver);
 
-        $this->renderer = $renderer;
-        $this->objectManager = $objectManager;
         $this->validator = $validator;
-        $this->emailOriginHelper = $emailOriginHelper;
-    }
-
-    /**
-     * @param PreferredLanguageProviderInterface $languageProvider
-     */
-    public function setPreferredLanguageProvider(PreferredLanguageProviderInterface $languageProvider)
-    {
-        $this->languageProvider = $languageProvider;
+        $this->sender = $sender;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function initialize(array $options)
+    public function initialize(array $options): self
     {
         if (empty($options['from'])) {
             throw new InvalidParameterException('From parameter is required');
@@ -107,6 +80,7 @@ class SendEmailTemplate extends AbstractSendEmail
         }
 
         $this->options = $options;
+        $this->emailConstraint = new EmailConstraints(['message' => 'Invalid email address']);
 
         return $this;
     }
@@ -117,43 +91,16 @@ class SendEmailTemplate extends AbstractSendEmail
      * @throws EntityNotFoundException if the specified email template cannot be found
      * @throws \Twig\Error\Error When an error occurred in Twig during email template loading, compilation or rendering
      */
-    protected function executeAction($context)
+    protected function executeAction($context): void
     {
-        $emailUsers = [];
-        $entity = $this->contextAccessor->getValue($context, $this->options['entity']);
-        $template = $this->contextAccessor->getValue($context, $this->options['template']);
         $from = $this->getEmailAddress($context, $this->options['from']);
-        $this->validateAddress($from);
+        $this->validateEmailAddress($from, '"From" email');
 
-        $recipientsByGroups = $this->getRecipientsByLanguage($context);
-        $entityClass = $this->objectManager->getClassMetadata(get_class($entity))->getName();
-        foreach ($recipientsByGroups as $language => $recipients) {
-            $criteria = new EmailTemplateCriteria($template, $entityClass);
-            $emailTemplate = $this->getEmailTemplate($criteria, $language);
-            list($subject, $body) = $this->renderer->compileMessage(
-                $emailTemplate,
-                ['entity' => $entity]
-            );
-            $emails = array_map(function ($recipient) {
-                return $recipient instanceof EmailHolderInterface ? $recipient->getEmail() : $recipient;
-            }, $recipients);
+        $templateName = $this->contextAccessor->getValue($context, $this->options['template']);
 
-            $emailModel = $this->getEmailModel();
-            $emailModel->setFrom($from);
-            $emailModel->setTo($emails);
-            $emailModel->setSubject($subject);
-            $emailModel->setBody($body);
-            $emailModel->setType($emailTemplate->getType());
+        $entity = $this->contextAccessor->getValue($context, $this->options['entity']);
 
-            try {
-                $emailOrigin = $this->emailOriginHelper
-                    ->getEmailOrigin($emailModel->getFrom(), $emailModel->getOrganization());
-
-                $emailUsers[] = $this->emailProcessor->process($emailModel, $emailOrigin);
-            } catch (\Swift_SwiftException $exception) {
-                $this->logger->error('Workflow send email template action.', ['exception' => $exception]);
-            }
-        }
+        $emailUsers = $this->sender->send($entity, $this->getRecipientsFromContext($context), $from, $templateName);
 
         $emailUser = reset($emailUsers);
         if (array_key_exists('attribute', $this->options) && $emailUser instanceof EmailUser) {
@@ -162,103 +109,43 @@ class SendEmailTemplate extends AbstractSendEmail
     }
 
     /**
-     * @param string $email
-     *
-     * @throws \Symfony\Component\Validator\Exception\ValidatorException
-     */
-    protected function validateAddress($email)
-    {
-        $emailConstraint = new EmailConstraints();
-        $emailConstraint->message = 'Invalid email address';
-        if ($email) {
-            $errorList = $this->validator->validate(
-                $email,
-                $emailConstraint
-            );
-            if ($errorList && $errorList->count() > 0) {
-                throw new ValidatorException($errorList->get(0)->getMessage());
-            }
-        }
-    }
-
-    /**
      * @param mixed $context
      * @return array
      */
-    private function getRecipientsByLanguage($context): array
+    protected function getRecipientsFromContext($context): array
     {
         $recipients = [];
         foreach ($this->options['to'] as $email) {
             if ($email) {
                 $address = $this->getEmailAddress($context, $email);
                 if ($address) {
-                    $this->validateAddress($address);
-                    $recipients[] = $this->getEmailAddress($context, $address);
+                    $this->validateEmailAddress($address, 'Recipient email');
+                    $recipients[] = new EmailAddressDTO($address);
                 }
             }
         }
+
         foreach ($this->options['recipients'] as $recipient) {
             if ($recipient) {
-                $recipient = $this->contextAccessor->getValue($context, $recipient);
-                $this->validateRecipient($recipient);
-                $recipients[] = $recipient;
+                $recipients[] = $this->contextAccessor->getValue($context, $recipient);
             }
         }
 
-        $groupedRecipients = [];
-        foreach ($recipients as $recipient) {
-            $groupedRecipients[$this->languageProvider->getPreferredLanguage($recipient)][] = $recipient;
-        }
-
-        // Move default language on first place in array
-        if (isset($groupedRecipients[Configuration::DEFAULT_LANGUAGE])) {
-            $defaultLangRecipients = $groupedRecipients[Configuration::DEFAULT_LANGUAGE];
-            unset($groupedRecipients[Configuration::DEFAULT_LANGUAGE]);
-            $groupedRecipients = [Configuration::DEFAULT_LANGUAGE => $defaultLangRecipients] + $groupedRecipients;
-        }
-
-        return $groupedRecipients;
+        return $recipients;
     }
 
     /**
-     * @param EmailTemplateCriteria $criteria
-     * @param string $language
-     * @throws EntityNotFoundException
-     * @return EmailTemplate
+     * @param string $email
+     * @param string $context optional description of what kind of address is being validated
+     * @throws ValidatorException if email address is not valid
      */
-    private function getEmailTemplate(EmailTemplateCriteria $criteria, string $language): EmailTemplate
+    protected function validateEmailAddress($email, string $context = '')
     {
-        $emailTemplate = $this->objectManager
-            ->getRepository(EmailTemplate::class)
-            ->findOneLocalized($criteria, $language);
+        $errorList = $this->validator->validate($email, $this->emailConstraint);
 
-        if (!$emailTemplate) {
-            $errorMessage = sprintf(
-                'Workflow @send_email_template action error: '
-                . 'template "%s" for entity "%s" and language "%s" not found.',
-                $criteria->getName(),
-                $criteria->getEntityName(),
-                $language
-            );
-            $this->logger->error($errorMessage);
-            throw new EntityNotFoundException($errorMessage);
-        }
-
-        return $emailTemplate;
-    }
-
-    /**
-     * @param EmailHolderInterface $recipient
-     * @throws ValidatorException
-     */
-    private function validateRecipient(EmailHolderInterface $recipient): void
-    {
-        if (!$recipient instanceof EmailHolderInterface) {
-            throw new ValidatorException(sprintf(
-                'Recipient should implements %s, but %s was given',
-                EmailHolderInterface::class,
-                is_object($recipient) ? get_class($recipient) : gettype($recipient)
-            ));
+        if ($errorList && $errorList->count() > 0) {
+            $errorString = $errorList->get(0)->getMessage();
+            throw new ValidatorException(\sprintf("Validating %s (%s):\n%s", $context, $email, $errorString));
         }
     }
 
@@ -293,15 +180,9 @@ class SendEmailTemplate extends AbstractSendEmail
         }
 
         if (!is_array($options['recipients'])) {
-            throw new InvalidParameterException('Recipients parameter must be an array');
+            throw new InvalidParameterException(
+                \sprintf('Recipients parameter must be an array, %s given', \gettype($options['recipients']))
+            );
         }
-    }
-
-    /**
-     * @return Email
-     */
-    protected function getEmailModel()
-    {
-        return new Email();
     }
 }

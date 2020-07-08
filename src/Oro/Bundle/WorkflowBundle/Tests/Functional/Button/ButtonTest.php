@@ -25,7 +25,7 @@ class ButtonTest extends WebTestCase
     /**
      * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->initClient([], $this->generateBasicAuthHeader());
         $this->loadFixtures([LoadWorkflowDefinitions::class]);
@@ -74,10 +74,10 @@ class ButtonTest extends WebTestCase
             $notExpected = array_diff($allItems, $expected);
         }
         foreach ($expected as $item) {
-            $this->assertContains($item, $crawler->html());
+            static::assertStringContainsString($item, $crawler->html());
         }
         foreach ($notExpected as $item) {
-            $this->assertNotContains($item, $crawler->html());
+            static::assertStringNotContainsString($item, $crawler->html());
         }
     }
 
@@ -94,33 +94,33 @@ class ButtonTest extends WebTestCase
             'entity context' => [
                 'context' => ['entityClass' => 'entity1'],
                 'expected' => [
-                    'transition-test_start_init_option-start_transition_from_entities"',
+                    'transition-test_start_init_option-start_transition_from_entities',
                 ],
             ],
             'route context' => [
                 'context' => ['route' => 'route1'],
                 'expected' => [
-                    'transition-test_start_init_option-start_transition_from_routes"',
+                    'transition-test_start_init_option-start_transition_from_routes',
                 ],
             ],
             'datagrid context' => [
                 'context' => ['datagrid' => 'datagrid1'],
                 'expected' => [
-                    'transition-test_start_init_option-start_transition_from_datagrids"',
+                    'transition-test_start_init_option-start_transition_from_datagrids',
                 ],
             ],
             'entity and datagrid context' => [
                 'context' => ['datagrid' => 'datagrid1', 'entityClass' => 'entity1'],
                 'expected' => [
-                    'transition-test_start_init_option-start_transition_from_datagrids"',
-                    'transition-test_start_init_option-start_transition_from_entities"',
+                    'transition-test_start_init_option-start_transition_from_datagrids',
+                    'transition-test_start_init_option-start_transition_from_entities',
                 ],
             ],
             'workflow datagrid context' => [
                 'context' => ['entityClass' => WorkflowAwareEntity::class, 'datagrid' => 'datagrid1'],
                 'expected' => [
-                    'transition-test_flow_datagrids-transition1"',
-                    'transition-test_start_init_option-start_transition_from_datagrids"',
+                    'transition-test_flow_datagrids-transition1',
+                    'transition-test_start_init_option-start_transition_from_datagrids',
                 ],
             ],
             'not matched context' => [

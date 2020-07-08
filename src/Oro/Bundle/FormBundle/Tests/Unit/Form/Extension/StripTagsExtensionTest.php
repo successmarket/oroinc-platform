@@ -1,9 +1,10 @@
 <?php
 
-namespace Oro\Bundle\FormBundle\Tests\Unit\Extension;
+namespace Oro\Bundle\FormBundle\Tests\Unit\Form\Extension;
 
 use Oro\Bundle\FormBundle\Form\Extension\StripTagsExtension;
 use Oro\Bundle\UIBundle\Tools\HtmlTagHelper;
+use Oro\Component\Testing\Unit\TestContainerBuilder;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -16,10 +17,15 @@ class StripTagsExtensionTest extends \PHPUnit\Framework\TestCase
     /** @var HtmlTagHelper|\PHPUnit\Framework\MockObject\MockObject */
     protected $htmlTagHelper;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->htmlTagHelper = $this->createMock(HtmlTagHelper::class);
-        $this->formExtension = new StripTagsExtension($this->htmlTagHelper);
+
+        $container = TestContainerBuilder::create()
+            ->add('oro_ui.html_tag_helper', $this->htmlTagHelper)
+            ->getContainer($this);
+
+        $this->formExtension = new StripTagsExtension($container);
     }
 
     public function testConfigureOptions()

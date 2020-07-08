@@ -2,9 +2,8 @@
 
 namespace Oro\Bundle\MessageQueueBundle\Tests\Functional\Consumption\Extension;
 
+use Oro\Bundle\MessageQueueBundle\Test\Async\ChangeConfigProcessor;
 use Oro\Bundle\SecurityBundle\Tests\Unit\Form\Extension\TestLogger;
-use Oro\Bundle\TestFrameworkBundle\Async\ChangeConfigProcessor;
-use Oro\Bundle\TestFrameworkBundle\Async\Topics;
 use Oro\Bundle\TestFrameworkBundle\Test\WebTestCase;
 use Oro\Component\MessageQueue\Client\MessageProducerInterface;
 use Oro\Component\MessageQueue\Consumption\ChainExtension;
@@ -17,50 +16,42 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class InterruptConsumptionExtensionTest extends WebTestCase
 {
-    /**
-     * @var MessageProducerInterface
-     */
-    protected $producer;
+    /** @var MessageProducerInterface */
+    private $producer;
 
-    /**
-     * @var MessageProcessorInterface
-     */
-    protected $messageProcessor;
+    /** @var MessageProcessorInterface */
+    private $messageProcessor;
 
-    /**
-     * @var TestLogger
-     */
-    protected $logger;
+    /** @var TestLogger */
+    private $logger;
 
-    /**
-     * @var QueueConsumer
-     */
-    protected $consumer;
+    /** @var QueueConsumer */
+    private $consumer;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->initClient();
         $container = self::getContainer();
-        $this->producer = $container->get('oro_test.client.message_producer');
+        $this->producer = $container->get('oro_message_queue.message_producer');
         $this->messageProcessor = $container->get('oro_message_queue.client.delegate_message_processor');
         $this->logger = new TestLogger();
-        $this->consumer = $container->get('oro_test.consumption.queue_consumer');
+        $this->consumer = $container->get('oro_message_queue.consumption.queue_consumer');
         $this->clearMessages();
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         $this->clearMessages();
     }
 
     public function testMessageConsumptionIsNotInterruptedByMessageLimit()
     {
-        $this->producer->send(Topics::CHANGE_CONFIG, ChangeConfigProcessor::COMMAND_NOOP);
-        $this->producer->send(Topics::CHANGE_CONFIG, ChangeConfigProcessor::COMMAND_NOOP);
+        $this->producer->send(ChangeConfigProcessor::TEST_TOPIC, ChangeConfigProcessor::COMMAND_NOOP);
+        $this->producer->send(ChangeConfigProcessor::TEST_TOPIC, ChangeConfigProcessor::COMMAND_NOOP);
 
         $this->consumer->bind('oro.default', $this->messageProcessor);
         $this->consumer->consume(new ChainExtension([
-            new LimitConsumedMessagesExtension(4),
+            new LimitConsumedMessagesExtension(2),
             new LoggerExtension($this->logger)
         ]));
 
@@ -69,12 +60,12 @@ class InterruptConsumptionExtensionTest extends WebTestCase
 
     public function testMessageConsumptionIsInterruptedByConfigCacheChanged()
     {
-        $this->producer->send(Topics::CHANGE_CONFIG, ChangeConfigProcessor::COMMAND_CHANGE_CACHE);
-        $this->producer->send(Topics::CHANGE_CONFIG, ChangeConfigProcessor::COMMAND_CHANGE_CACHE);
+        $this->producer->send(ChangeConfigProcessor::TEST_TOPIC, ChangeConfigProcessor::COMMAND_CHANGE_CACHE);
+        $this->producer->send(ChangeConfigProcessor::TEST_TOPIC, ChangeConfigProcessor::COMMAND_CHANGE_CACHE);
 
         $this->consumer->bind('oro.default', $this->messageProcessor);
         $this->consumer->consume(new ChainExtension([
-            new LimitConsumedMessagesExtension(4),
+            new LimitConsumedMessagesExtension(2),
             new LoggerExtension($this->logger)
         ]));
 
@@ -84,14 +75,12 @@ class InterruptConsumptionExtensionTest extends WebTestCase
     /**
      * @param string $expectedMessage
      */
-    private function assertInterruptionMessage(string $expectedMessage)
+    private function assertInterruptionMessage(string $expectedMessage): void
     {
-        $logs = $this->logger->getLogs('warning');
-
-        self::assertEquals($expectedMessage, reset($logs));
+        $this->assertTrue($this->logger->hasRecord($expectedMessage, 'warning'));
     }
 
-    private function clearMessages()
+    private function clearMessages(): void
     {
         $connection = self::getContainer()->get(
             'oro_message_queue.transport.dbal.connection',

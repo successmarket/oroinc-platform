@@ -46,12 +46,12 @@ class JobRunner
         if (!$rootJob) {
             return null;
         }
+
         $this->throwIfJobIsStale($rootJob);
 
         $childJob = $this->jobProcessor->findOrCreateChildJob($name, $rootJob);
 
-        if ($rootJob->isInterrupted()) {
-            $this->jobProcessor->cancelAllActiveChildJobs($rootJob);
+        if ($childJob->getStatus() === Job::STATUS_CANCELLED) {
             $this->jobExtension->onCancel($childJob);
 
             return null;
@@ -64,12 +64,9 @@ class JobRunner
         $this->jobExtension->onPreRunUnique($childJob);
 
         $result = $this->callbackResult($runCallback, $childJob);
-
-        if ($this->isReadyForStop($childJob)) {
-            $result
-                ? $this->jobProcessor->successChildJob($childJob)
-                : $this->jobProcessor->failChildJob($childJob);
-        }
+        $result
+            ? $this->jobProcessor->successChildJob($childJob)
+            : $this->jobProcessor->failChildJob($childJob);
 
         $this->jobExtension->onPostRunUnique($childJob, $result);
 
@@ -118,13 +115,13 @@ class JobRunner
     public function runDelayed($jobId, \Closure $runCallback)
     {
         $job = $this->jobProcessor->findJobById($jobId);
-        if (! $job) {
+        if (!$job) {
             throw JobNotFoundException::create($jobId);
         }
+
         $this->throwIfJobIsStale($job);
 
-        if ($job->getRootJob()->isInterrupted()) {
-            $this->jobProcessor->cancelAllActiveChildJobs($job->getRootJob());
+        if ($job->getStatus() === Job::STATUS_CANCELLED) {
             $this->jobExtension->onCancel($job);
 
             return null;
@@ -137,16 +134,23 @@ class JobRunner
         $this->jobExtension->onPreRunDelayed($job);
 
         $result = $this->callbackResult($runCallback, $job);
-
-        if ($this->isReadyForStop($job)) {
-            $result
-                ? $this->jobProcessor->successChildJob($job)
-                : $this->jobProcessor->failChildJob($job);
-        }
+        $result
+            ? $this->jobProcessor->successChildJob($job)
+            : $this->jobProcessor->failChildJob($job);
 
         $this->jobExtension->onPostRunDelayed($job, $result);
 
         return $result;
+    }
+
+    /**
+     * @param Job $rootJob
+     *
+     * @return JobRunner
+     */
+    public function getJobRunnerForChildJob(Job $rootJob)
+    {
+        return new JobRunner($this->jobProcessor, $this->jobExtension, $rootJob);
     }
 
     /**
@@ -163,16 +167,6 @@ class JobRunner
     }
 
     /**
-     * @param Job $rootJob
-     *
-     * @return JobRunner
-     */
-    private function getJobRunnerForChildJob(Job $rootJob)
-    {
-        return new JobRunner($this->jobProcessor, $this->jobExtension, $rootJob);
-    }
-
-    /**
      * @param Job $job
      *
      * @return bool
@@ -181,17 +175,6 @@ class JobRunner
     {
         return !$job->getStartedAt() || $job->getStatus() === Job::STATUS_FAILED_REDELIVERED;
     }
-
-    /**
-     * @param Job $job
-     *
-     * @return bool
-     */
-    private function isReadyForStop(Job $job)
-    {
-        return !$job->getStoppedAt() || $job->getStatus() === Job::STATUS_FAILED_REDELIVERED;
-    }
-
     /**
      * @param \Closure $runCallback
      * @param Job $job

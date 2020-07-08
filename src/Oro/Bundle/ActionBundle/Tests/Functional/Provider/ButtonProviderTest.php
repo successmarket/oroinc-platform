@@ -32,7 +32,7 @@ class ButtonProviderTest extends WebTestCase
     /**
      * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->initClient();
         $this->buttonProvider = $this->getContainer()->get('oro_action.provider.button');
@@ -40,8 +40,10 @@ class ButtonProviderTest extends WebTestCase
         $this->configModifier = new PhpArrayConfigCacheModifier($this->configProvider);
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
+        $this->getContainer()->get('oro_action.tests.provider.button.extension')
+            ->setDecoratedExtension(null);
         $this->configModifier->resetCache();
     }
 
@@ -58,7 +60,8 @@ class ButtonProviderTest extends WebTestCase
         $config = $this->getConfig('oro_action_test_operation', [self::ROUTE_NAME]);
         $this->setOperationsConfig($config);
 
-        $this->buttonProvider->addExtension(new ButtonProviderExtensionStub($findButton, $isAvailable));
+        $this->getContainer()->get('oro_action.tests.provider.button.extension')
+            ->setDecoratedExtension(new ButtonProviderExtensionStub($findButton, $isAvailable));
 
         $buttons = $this->buttonProvider->findAll(
             (new ButtonSearchContext())->setRouteName(self::ROUTE_NAME)

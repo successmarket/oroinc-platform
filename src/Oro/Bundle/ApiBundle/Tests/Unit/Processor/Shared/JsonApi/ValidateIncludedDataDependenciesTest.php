@@ -13,7 +13,7 @@ class ValidateIncludedDataDependenciesTest extends FormProcessorTestCase
     /** @var ValidateIncludedDataDependencies */
     private $processor;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -87,12 +87,11 @@ class ValidateIncludedDataDependenciesTest extends FormProcessorTestCase
         );
     }
 
-    /**
-     * @expectedException \LogicException
-     * @expectedExceptionMessage The "data" section must exist in the request data.
-     */
     public function testProcessIncludedDataWithoutPrimaryData()
     {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('The "data" section must exist in the request data.');
+
         $requestData = [
             'included' => [
                 [
@@ -169,6 +168,15 @@ class ValidateIncludedDataDependenciesTest extends FormProcessorTestCase
                 [
                     'type'          => 'groups',
                     'id'            => 'included_group_1',
+                    'relationships' => [
+                        'user' => [
+                            'data' => ['type' => 'users', 'id' => 'user_1']
+                        ]
+                    ]
+                ],
+                [
+                    'type'          => 'groups',
+                    'id'            => 'included_group_2',
                     'relationships' => [
                         'user' => [
                             'data' => ['type' => 'users', 'id' => 'user_1']
@@ -276,6 +284,68 @@ class ValidateIncludedDataDependenciesTest extends FormProcessorTestCase
                 [
                     'type'          => 'grouptypes',
                     'id'            => 'included_group_type_1',
+                    'relationships' => [
+                        'group' => [
+                            'data' => ['type' => 'groups', 'id' => 'included_group_1']
+                        ]
+                    ]
+                ],
+                [
+                    'type'          => 'grouptypes',
+                    'id'            => 'included_group_type_2',
+                    'relationships' => [
+                        'group' => [
+                            'data' => ['type' => 'groups', 'id' => 'included_group_1']
+                        ]
+                    ]
+                ]
+            ]
+        ];
+
+        $this->context->setRequestData($requestData);
+        $this->processor->process($this->context);
+
+        self::assertFalse($this->context->hasErrors());
+    }
+
+    public function testProcessThirdLevelIndirectInverseRelationshipOn()
+    {
+        $requestData = [
+            'data'     => [
+                'type' => 'organizations',
+                'id'   => 'org_1'
+            ],
+            'included' => [
+                [
+                    'type'          => 'users',
+                    'id'            => 'included_user_1',
+                    'relationships' => [
+                        'user' => [
+                            'data' => ['type' => 'organizations', 'id' => 'org_1']
+                        ]
+                    ]
+                ],
+                [
+                    'type'          => 'groups',
+                    'id'            => 'included_group_1',
+                    'relationships' => [
+                        'user' => [
+                            'data' => ['type' => 'users', 'id' => 'included_user_1']
+                        ]
+                    ]
+                ],
+                [
+                    'type'          => 'grouptypes',
+                    'id'            => 'included_group_type_1',
+                    'relationships' => [
+                        'group' => [
+                            'data' => ['type' => 'groups', 'id' => 'included_group_1']
+                        ]
+                    ]
+                ],
+                [
+                    'type'          => 'grouptypes',
+                    'id'            => 'included_group_type_2',
                     'relationships' => [
                         'group' => [
                             'data' => ['type' => 'groups', 'id' => 'included_group_1']

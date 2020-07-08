@@ -27,7 +27,7 @@ class DefaultOwnerHelperTest extends \PHPUnit\Framework\TestCase
     /** @var DefaultOwnerHelper */
     protected $helper;
 
-    public function setUp()
+    protected function setUp(): void
     {
         $this->em               = $this->getMockBuilder('Doctrine\ORM\EntityManager')
             ->disableOriginalConstructor()->getMock();
@@ -40,14 +40,14 @@ class DefaultOwnerHelperTest extends \PHPUnit\Framework\TestCase
         $this->em->expects($this->any())->method('getUnitOfWork')
             ->will($this->returnValue($this->uow));
 
-        $registry = $this->createMock('Symfony\Bridge\Doctrine\RegistryInterface');
+        $registry = $this->createMock('Doctrine\Common\Persistence\ManagerRegistry');
         $registry->expects($this->any())->method('getManager')
             ->will($this->returnValue($this->em));
 
         $this->helper = new DefaultOwnerHelper($registry, $this->metadataProvider);
     }
 
-    public function tearDown()
+    protected function tearDown(): void
     {
         unset($this->em, $this->uow, $this->metadataProvider, $this->helper);
     }

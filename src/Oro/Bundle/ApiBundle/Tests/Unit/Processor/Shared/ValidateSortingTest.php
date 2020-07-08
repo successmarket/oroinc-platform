@@ -15,19 +15,19 @@ use Oro\Bundle\ApiBundle\Model\Error;
 use Oro\Bundle\ApiBundle\Model\ErrorSource;
 use Oro\Bundle\ApiBundle\Processor\Shared\ValidateSorting;
 use Oro\Bundle\ApiBundle\Request\DataType;
-use Oro\Bundle\ApiBundle\Tests\Unit\Filter\TestFilterValueAccessor;
 use Oro\Bundle\ApiBundle\Tests\Unit\Fixtures\Entity\Category;
 use Oro\Bundle\ApiBundle\Tests\Unit\Fixtures\Entity\User;
 use Oro\Bundle\ApiBundle\Tests\Unit\Fixtures\Entity\UserProfile;
 use Oro\Bundle\ApiBundle\Tests\Unit\Processor\GetList\GetListProcessorOrmRelatedTestCase;
 use Oro\Bundle\ApiBundle\Util\RequestExpressionMatcher;
+use Oro\Component\Testing\Unit\TestContainerBuilder;
 
 class ValidateSortingTest extends GetListProcessorOrmRelatedTestCase
 {
     /** @var ValidateSorting */
     private $processor;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -41,7 +41,11 @@ class ValidateSortingTest extends GetListProcessorOrmRelatedTestCase
         $this->processor = new ValidateSorting(
             $this->doctrineHelper,
             $this->configProvider,
-            new FilterNamesRegistry([[$filterNames, null]], new RequestExpressionMatcher())
+            new FilterNamesRegistry(
+                [['filter_names', null]],
+                TestContainerBuilder::create()->add('filter_names', $filterNames)->getContainer($this),
+                new RequestExpressionMatcher()
+            )
         );
     }
 
@@ -433,7 +437,7 @@ class ValidateSortingTest extends GetListProcessorOrmRelatedTestCase
      */
     private function prepareFilters($sortBy = '-id')
     {
-        $filterValues = new TestFilterValueAccessor();
+        $filterValues = $this->context->getFilterValues();
         $filterValues->set('sort', new FilterValue('sort', $sortBy));
 
         // emulate sort normalizer

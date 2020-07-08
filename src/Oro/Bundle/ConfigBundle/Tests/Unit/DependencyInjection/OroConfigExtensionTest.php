@@ -1,7 +1,8 @@
 <?php
 
-namespace Oro\Bundle\ConfigBundle\DependencyInjection;
+namespace Oro\Bundle\ConfigBundle\Tests\Unit\DependencyInjection;
 
+use Oro\Bundle\ConfigBundle\DependencyInjection\OroConfigExtension;
 use Oro\Component\Config\CumulativeResourceManager;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Yaml\Parser;
@@ -75,7 +76,7 @@ class OroConfigExtensionTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals($value, $this->configuration->getParameter($key), sprintf('%s parameter is correct', $key));
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         unset($this->configuration);
     }

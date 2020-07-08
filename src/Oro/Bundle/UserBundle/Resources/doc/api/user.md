@@ -26,27 +26,27 @@ The created record is returned in the response.
 Example:
 
 ```JSON
-{  
-   "data":{  
-      "type":"users",
-      "attributes":{  
-         "username":"testapiuser",
-         "email":"testuser@oroinc.com",
-         "firstName":"Bob",
-         "lastName":"Fedeson",
+{
+   "data": {
+      "type": "users",
+      "attributes": {
+         "username": "testapiuser",
+         "email": "testuser@oroinc.com",
+         "firstName": "Bob",
+         "lastName": "Fedeson",
          "password": "Password000!"
       },
-      "relationships":{  
-         "owner":{  
-            "data":{  
-               "type":"businessunits",
-               "id":"1"
+      "relationships": {
+         "owner": {
+            "data": {
+               "type": "businessunits",
+               "id": "1"
             }
          },
-         "organization":{  
-            "data":{  
-               "type":"organizations",
-               "id":"1"
+         "organization": {
+            "data": {
+               "type": "organizations",
+               "id": "1"
             }
          }
       }
@@ -59,57 +59,59 @@ Example:
 
 Edit a specific user record.
 
+The updated record is returned in the response.
+
 {@inheritdoc}
 
 {@request:json_api}
 Example:
 
 ```JSON
-{  
-   "data":{  
-      "type":"users",
-      "id":"54",
-      "attributes":{  
-         "phone":"455-78-54",
-         "title":"administrator",
-         "password_expires_at":"2017-01-01T00:00:00Z",
-         "middleName":"Karl",
-         "birthday":"1964-07-05",
-         "enabled":true
+{
+   "data": {
+      "type": "users",
+      "id": "54",
+      "attributes": {
+         "phone": "455-78-54",
+         "title": "administrator",
+         "password_expires_at": "2017-01-01T00:00:00Z",
+         "middleName": "Karl",
+         "birthday": "1964-07-05",
+         "enabled": true
       },
-      "relationships":{  
-         "businessUnits":{  
-            "data":[  
-               {  
-                  "type":"businessunits",
-                  "id":"1"
+      "relationships": {
+         "businessUnits": {
+            "data": [
+               {
+                  "type": "businessunits",
+                  "id": "1"
                }
             ]
          },
-         "roles":{  
-            "data":[  
-               {  
-                  "type":"userroles",
-                  "id":"3"
+         "roles": {
+            "data": [
+               {
+                  "type": "userroles",
+                  "id": "3"
                }
             ]
          },
-         "organizations":{  
-            "data":[  
-               {  
-                  "type":"organizations",
-                  "id":"1"
+         "organizations": {
+            "data": [
+               {
+                  "type": "organizations",
+                  "id": "1"
                },
-               {  
-                  "type":"organizations",
-                  "id":"2"
+               {
+                  "type": "organizations",
+                  "id": "2"
                }
             ]
          },
-         "auth_status":{  
-            "data":{  
-               "type":"authstatuses",
-               "id":"active"
+         "auth_status": {
+            "data": {
+               "type": "userauthstatuses",
+               "id": "active"
             }
          }
       }
@@ -131,14 +133,6 @@ Delete a collection of user records.
 {@inheritdoc}
 
 ## FIELDS
-
-### id
-
-#### update
-
-{@inheritdoc}
-
-**The required field**
 
 ### emails
 
@@ -166,7 +160,7 @@ Example of data: **\[{"email": "first@email.com"}, {"email": "second@email.com"}
 
 {@inheritdoc}
 
-**The required field**
+**The required field.**
 
 #### update
 
@@ -182,7 +176,7 @@ Example of data: **\[{"email": "first@email.com"}, {"email": "second@email.com"}
 
 {@inheritdoc}
 
-**The required field**
+**The required field.**
 
 #### update
 
@@ -198,7 +192,7 @@ Example of data: **\[{"email": "first@email.com"}, {"email": "second@email.com"}
 
 {@inheritdoc}
 
-**The required field**
+**The required field.**
 
 #### update
 
@@ -214,7 +208,7 @@ Example of data: **\[{"email": "first@email.com"}, {"email": "second@email.com"}
 
 {@inheritdoc}
 
-**The required field**
+**The required field.**
 
 #### update
 
@@ -223,6 +217,38 @@ Example of data: **\[{"email": "first@email.com"}, {"email": "second@email.com"}
 **Please note:**
 
 *This field is **required** and must remain defined.*
+
+### passwordChangedAt
+
+#### create, update
+
+{@inheritdoc}
+
+**The read-only field. A passed value will be ignored.**
+
+### passwordRequestedAt
+
+#### create, update
+
+{@inheritdoc}
+
+**The read-only field. A passed value will be ignored.**
+
+### loginCount
+
+#### create, update
+
+{@inheritdoc}
+
+**The read-only field. A passed value will be ignored.**
+
+### lastLogin
+
+#### create, update
+
+{@inheritdoc}
+
+**The read-only field. A passed value will be ignored.**
 
 ## SUBRESOURCES
 
@@ -567,7 +593,7 @@ Example:
 ```JSON
 {
   "data": {
-    "type": "authstatuses",
+    "type": "userauthstatuses",
     "id": "active"
   }
 }

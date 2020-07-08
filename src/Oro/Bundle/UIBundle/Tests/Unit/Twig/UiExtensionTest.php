@@ -2,7 +2,7 @@
 
 namespace Oro\Bundle\UIBundle\Tests\Unit\Twig;
 
-use Oro\Bundle\UIBundle\ContentProvider\ContentProviderManager;
+use Oro\Bundle\UIBundle\ContentProvider\TwigContentProviderManager;
 use Oro\Bundle\UIBundle\Event\BeforeFormRenderEvent;
 use Oro\Bundle\UIBundle\Event\BeforeListRenderEvent;
 use Oro\Bundle\UIBundle\Event\Events;
@@ -14,11 +14,13 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Routing\RouterInterface;
 use Twig\Environment;
 use Twig\Template;
 
 /**
  * @SuppressWarnings(PHPMD.TooManyPublicMethods)
+ * @SuppressWarnings(PHPMD.TooManyMethods)
  */
 class UiExtensionTest extends \PHPUnit\Framework\TestCase
 {
@@ -39,26 +41,27 @@ class UiExtensionTest extends \PHPUnit\Framework\TestCase
     /** @var \PHPUnit\Framework\MockObject\MockObject */
     protected $userAgentProvider;
 
+    /** @var RouterInterface|\PHPUnit\Framework\MockObject\MockObject */
+    private $router;
+
     /** @var UiExtension */
     protected $extension;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->environment = $this->createMock(Environment::class);
         $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
-        $this->requestStack = $this->getMockBuilder(RequestStack::class)
-            ->disableOriginalConstructor()
-            ->getMock();
-        $this->contentProviderManager = $this->getMockBuilder(ContentProviderManager::class)
-            ->disableOriginalConstructor()
-            ->getMock();
+        $this->requestStack = $this->createMock(RequestStack::class);
+        $this->contentProviderManager = $this->createMock(TwigContentProviderManager::class);
         $this->userAgentProvider = $this->createMock(UserAgentProviderInterface::class);
+        $this->router = $this->createMock(RouterInterface::class);
 
         $container = self::getContainerBuilder()
             ->add(EventDispatcherInterface::class, $this->eventDispatcher)
             ->add(RequestStack::class, $this->requestStack)
-            ->add(ContentProviderManager::class, $this->contentProviderManager)
-            ->add(UserAgentProviderInterface::class, $this->userAgentProvider)
+            ->add(RouterInterface::class, $this->router)
+            ->add('oro_ui.content_provider.manager.twig', $this->contentProviderManager)
+            ->add('oro_ui.user_agent_provider', $this->userAgentProvider)
             ->getContainer($this);
 
         $this->extension = new UiExtension($container);
@@ -212,16 +215,16 @@ class UiExtensionTest extends \PHPUnit\Framework\TestCase
     {
         return [
             [
-                'content'           => ['b' => 'c'],
+                'content' => ['b' => 'c'],
                 'additionalContent' => ['a' => 'b'],
-                'keys'              => ['a', 'b', 'c'],
-                'expected'          => ['a' => 'b', 'b' => 'c']
+                'keys' => ['a', 'b', 'c'],
+                'expected' => ['a' => 'b', 'b' => 'c']
             ],
             [
-                'content'           => ['b' => 'c'],
+                'content' => ['b' => 'c'],
                 'additionalContent' => null,
-                'keys'              => null,
-                'expected'          => ['b' => 'c']
+                'keys' => null,
+                'expected' => ['b' => 'c']
             ],
         ];
     }
@@ -240,27 +243,27 @@ class UiExtensionTest extends \PHPUnit\Framework\TestCase
     public function prepareJsTemplateContentProvider()
     {
         return [
-            'null'                                  => [
+            'null' => [
                 null,
                 null,
             ],
-            'empty'                                 => [
+            'empty' => [
                 '',
                 '',
             ],
-            'no script, no js template'             => [
+            'no script, no js template' => [
                 '<div>test</div>',
                 '<div>test</div>',
             ],
-            'no script, with js template'           => [
+            'no script, with js template' => [
                 '<div><%= test %></div>',
                 '<div><%= test %></div>',
             ],
-            'with script, no js template'           => [
+            'with script, no js template' => [
                 '<script type="text/javascript">var a = 1;</script>',
                 '<% print("<sc" + "ript") %> type="text/javascript">var a = 1;<% print("</sc" + "ript>") %>',
             ],
-            'js template inside script'             => [
+            'js template inside script' => [
                 '<script type="text/javascript">var a = "<%= var %>";</script>',
                 '<% print("<sc" + "ript") %> type="text/javascript">'
                 . 'var a = "<% print("<" + "%") %>= var <% print("%" + ">") %>";'
@@ -304,25 +307,25 @@ class UiExtensionTest extends \PHPUnit\Framework\TestCase
     {
         return [
             'pattern 1' => [
-                'expected'    => 'aaaaa aaaaaabbccccccccaaaaad d d d d d d ddde',
-                'subject'     => 'aaaaa   aaaaaabbccccccccaaaaad d d d   d      d d ddde',
-                'pattern'     => '/(\s){2,}/',
+                'expected' => 'aaaaa aaaaaabbccccccccaaaaad d d d d d d ddde',
+                'subject' => 'aaaaa   aaaaaabbccccccccaaaaad d d d   d      d d ddde',
+                'pattern' => '/(\s){2,}/',
                 'replacement' => '$1',
-                'limit'       => -1
+                'limit' => -1
             ],
             'pattern 2' => [
-                'expected'    => '-asd-',
-                'subject'     => '------------asd----------',
-                'pattern'     => '/(-){2,}/',
+                'expected' => '-asd-',
+                'subject' => '------------asd----------',
+                'pattern' => '/(-){2,}/',
                 'replacement' => '$1',
-                'limit'       => -1,
+                'limit' => -1,
             ],
             'pattern 3' => [
-                'expected'    => '-asd-',
-                'subject'     => '-asd----------',
-                'pattern'     => '/(-){2,}/',
+                'expected' => '-asd-',
+                'subject' => '-asd----------',
+                'pattern' => '/(-){2,}/',
                 'replacement' => '$1',
-                'limit'       => 1,
+                'limit' => 1,
             ],
         ];
     }
@@ -347,59 +350,59 @@ class UiExtensionTest extends \PHPUnit\Framework\TestCase
     public function addUrlQueryProvider()
     {
         return [
-            'no request'                                                 => [
+            'no request' => [
                 'expected' => 'http://test.url/',
-                'source'   => 'http://test.url/',
+                'source' => 'http://test.url/',
             ],
-            'no query params'                                            => [
+            'no query params' => [
                 'expected' => 'http://test.url/',
-                'source'   => 'http://test.url/',
-                'query'    => [],
+                'source' => 'http://test.url/',
+                'query' => [],
             ],
-            'no query params without host'                               => [
+            'no query params without host' => [
                 'expected' => '/',
-                'source'   => '/',
-                'query'    => [],
+                'source' => '/',
+                'query' => [],
             ],
-            'same query params'                                          => [
+            'same query params' => [
                 'expected' => 'http://test.url/?foo=1#bar',
-                'source'   => 'http://test.url/?foo=1#bar',
-                'query'    => ['foo' => 1],
+                'source' => 'http://test.url/?foo=1#bar',
+                'query' => ['foo' => 1],
             ],
-            'same query params without host'                             => [
+            'same query params without host' => [
                 'expected' => '/?foo=1#bar',
-                'source'   => '/?foo=1#bar',
-                'query'    => ['foo' => 1],
+                'source' => '/?foo=1#bar',
+                'query' => ['foo' => 1],
             ],
-            'only new query params'                                      => [
+            'only new query params' => [
                 'expected' => 'http://test.url/?foo=1#bar',
-                'source'   => 'http://test.url/#bar',
-                'query'    => ['foo' => 1],
+                'source' => 'http://test.url/#bar',
+                'query' => ['foo' => 1],
             ],
-            'only new query params without host'                         => [
+            'only new query params without host' => [
                 'expected' => '/?foo=1#bar',
-                'source'   => '/#bar',
-                'query'    => ['foo' => 1],
+                'source' => '/#bar',
+                'query' => ['foo' => 1],
             ],
-            'existing and new query params'                              => [
+            'existing and new query params' => [
                 'expected' => 'http://test.url/?baz=2&foo=1#bar',
-                'source'   => 'http://test.url/?foo=1#bar',
-                'query'    => ['baz' => 2],
+                'source' => 'http://test.url/?foo=1#bar',
+                'query' => ['baz' => 2],
             ],
-            'existing and new query params without host'                 => [
+            'existing and new query params without host' => [
                 'expected' => '/?baz=2&foo=1#bar',
-                'source'   => '/?foo=1#bar',
-                'query'    => ['baz' => 2],
+                'source' => '/?foo=1#bar',
+                'query' => ['baz' => 2],
             ],
-            'existing and new query params without host with path'       => [
+            'existing and new query params without host with path' => [
                 'expected' => '/path/?baz=2&foo=1#bar',
-                'source'   => '/path/?foo=1#bar',
-                'query'    => ['baz' => 2],
+                'source' => '/path/?foo=1#bar',
+                'query' => ['baz' => 2],
             ],
             'existing and new query params without host with short path' => [
                 'expected' => '/path?baz=2&foo=1#bar',
-                'source'   => '/path?foo=1#bar',
-                'query'    => ['baz' => 2],
+                'source' => '/path?foo=1#bar',
+                'query' => ['baz' => 2],
             ],
         ];
     }
@@ -427,64 +430,64 @@ class UiExtensionTest extends \PHPUnit\Framework\TestCase
     public function isUrlLocalProvider()
     {
         return [
-            'same page'                    => [
+            'same page' => [
                 'expected' => true,
-                'server'   => [
+                'server' => [
                     'REQUEST_SCHEME' => 'http',
-                    'SERVER_NAME'    => 'test.url',
-                    'SERVER_PORT'    => 80,
-                    'REQUEST_URI'    => '/info',
+                    'SERVER_NAME' => 'test.url',
+                    'SERVER_PORT' => 80,
+                    'REQUEST_URI' => '/info',
                 ],
                 'link_url' => 'http://test.url/info',
             ],
-            'different path'               => [
+            'different path' => [
                 'expected' => true,
-                'server'   => [
+                'server' => [
                     'REQUEST_SCHEME' => 'http',
-                    'SERVER_NAME'    => 'test.url',
-                    'SERVER_PORT'    => 80,
-                    'REQUEST_URI'    => '/contact',
+                    'SERVER_NAME' => 'test.url',
+                    'SERVER_PORT' => 80,
+                    'REQUEST_URI' => '/contact',
                 ],
                 'link_url' => 'http://test.url/info',
             ],
-            'different host'               => [
+            'different host' => [
                 'expected' => false,
-                'server'   => [
+                'server' => [
                     'REQUEST_SCHEME' => 'http',
-                    'SERVER_NAME'    => 'test.com',
-                    'SERVER_PORT'    => 80,
-                    'REQUEST_URI'    => '/info',
+                    'SERVER_NAME' => 'test.com',
+                    'SERVER_PORT' => 80,
+                    'REQUEST_URI' => '/info',
                 ],
                 'link_url' => 'http://test.url/info',
             ],
-            'different port'               => [
+            'different port' => [
                 'expected' => false,
-                'server'   => [
+                'server' => [
                     'REQUEST_SCHEME' => 'http',
-                    'SERVER_NAME'    => 'test.url',
-                    'SERVER_PORT'    => 80,
-                    'REQUEST_URI'    => '/info',
+                    'SERVER_NAME' => 'test.url',
+                    'SERVER_PORT' => 80,
+                    'REQUEST_URI' => '/info',
                 ],
                 'link_url' => 'http://test.url:8080/info',
             ],
             'link from secure to insecure' => [
                 'expected' => false,
-                'server'   => [
+                'server' => [
                     'REQUEST_SCHEME' => 'https',
-                    'SERVER_NAME'    => 'test.url',
-                    'SERVER_PORT'    => 443,
-                    'REQUEST_URI'    => '/contact',
-                    'HTTPS'          => 'on',
+                    'SERVER_NAME' => 'test.url',
+                    'SERVER_PORT' => 443,
+                    'REQUEST_URI' => '/contact',
+                    'HTTPS' => 'on',
                 ],
                 'link_url' => 'http://test.url/info',
             ],
             'link from insecure to secure' => [
                 'expected' => true,
-                'server'   => [
+                'server' => [
                     'REQUEST_SCHEME' => 'http',
-                    'SERVER_NAME'    => 'test.url',
-                    'SERVER_PORT'    => 80,
-                    'REQUEST_URI'    => '/contact',
+                    'SERVER_NAME' => 'test.url',
+                    'SERVER_PORT' => 80,
+                    'REQUEST_URI' => '/contact',
                 ],
                 'link_url' => 'https://test.url/info',
             ],
@@ -552,7 +555,7 @@ class UiExtensionTest extends \PHPUnit\Framework\TestCase
                     ['name' => 'b'],
                 ],
                 [
-                    'property'     => 'name',
+                    'property' => 'name',
                     'sorting-type' => 'string'
                 ]
             ]
@@ -579,7 +582,7 @@ class UiExtensionTest extends \PHPUnit\Framework\TestCase
                     ['name' => 'b'],
                 ],
                 [
-                    'property'     => 'name',
+                    'property' => 'name',
                     'sorting-type' => 'string-case'
                 ]
             ]
@@ -591,6 +594,20 @@ class UiExtensionTest extends \PHPUnit\Framework\TestCase
                 ['name' => 'C'],
             ],
             $result
+        );
+    }
+
+    public function testRenderContent(): void
+    {
+        $this->assertSame(
+            'render_content data',
+            self::callTwigFilter(
+                $this->extension,
+                'render_content',
+                [
+                    'render_content data'
+                ]
+            )
         );
     }
 
@@ -616,7 +633,7 @@ class UiExtensionTest extends \PHPUnit\Framework\TestCase
                             $options['options']['participants']
                         );
                         \PHPUnit\Framework\TestCase::assertArrayHasKey('element', $options['options']);
-                        \PHPUnit\Framework\TestCase::assertContains(
+                        \PHPUnit\Framework\TestCase::assertStringContainsString(
                             'skype_button_' . md5($username),
                             $options['options']['element']
                         );
@@ -639,7 +656,7 @@ class UiExtensionTest extends \PHPUnit\Framework\TestCase
                 [],
                 [
                     'participants' => ['echo123'],
-                    'name'         => 'call',
+                    'name' => 'call',
                 ],
                 UiExtension::SKYPE_BUTTON_TEMPLATE
             ],
@@ -647,12 +664,12 @@ class UiExtensionTest extends \PHPUnit\Framework\TestCase
                 'echo123',
                 [
                     'participants' => ['test'],
-                    'name'         => 'chat',
-                    'template'     => 'test_template'
+                    'name' => 'chat',
+                    'template' => 'test_template'
                 ],
                 [
                     'participants' => ['test'],
-                    'name'         => 'chat',
+                    'name' => 'chat',
                 ],
                 'test_template'
             ]
@@ -675,6 +692,86 @@ class UiExtensionTest extends \PHPUnit\Framework\TestCase
         return [
             [5, 4.6],
             [5, 4.1]
+        ];
+    }
+
+    public function testRenderAdditionalData()
+    {
+        $childView = new FormView();
+        $childView->vars['extra_field'] = true;
+        $childView->vars['name'] = 'some_field_name';
+        $form = new FormView();
+        $form->children = [$childView];
+        $actualResult = self::callTwigFunction(
+            $this->extension,
+            'oro_form_additional_data',
+            [$this->environment, $form, 'Label']
+        );
+
+        $this->assertSame(
+            [
+                UiExtension::ADDITIONAL_SECTION_KEY => [
+                    'title' => 'Label',
+                    'priority' => UiExtension::ADDITIONAL_SECTION_PRIORITY,
+                    'subblocks' => [
+                        [
+                            'title' => '',
+                            'useSpan' => false,
+                            'data' => ['some_field_name' => null]
+                        ]
+                    ]
+                ]
+            ],
+            $actualResult
+        );
+    }
+
+    public function testGetDefaultPage(): void
+    {
+        $this->router
+            ->expects($this->once())
+            ->method('generate')
+            ->with($routeName = 'oro_default')
+            ->willReturn($url = 'http://sample-app/sample-url');
+
+        $this->assertEquals(
+            $url,
+            self::callTwigFunction($this->extension, 'oro_default_page', [$this->environment])
+        );
+    }
+
+    /**
+     * @dataProvider urlAddQueryParametersDataProvider
+     * @param string $url
+     * @param array $parameters
+     * @param string $expected
+     */
+    public function testUrlAddQueryParameters(string $url, array $parameters, string $expected)
+    {
+        $this->assertEquals(
+            $expected,
+            self::callTwigFilter($this->extension, 'url_add_query_parameters', [$url, $parameters])
+        );
+    }
+
+    /**
+     * @return array
+     */
+    public function urlAddQueryParametersDataProvider()
+    {
+        return [
+            ['http://example.com/test', [], 'http://example.com/test'],
+            [
+                'https://example.com:8080/test',
+                ['hello' => 2, 'second' => 'abc'],
+                'https://example.com:8080/test?hello=2&second=abc'
+            ],
+            [
+                'https://example.com:8080/test?hello=1&third=def',
+                ['hello' => 2, 'second' => 'abc'],
+                'https://example.com:8080/test?hello=2&third=def&second=abc'
+            ],
+            ['/test', ['hello' => 2, 'second' => 'abc'], '/test?hello=2&second=abc'],
         ];
     }
 }

@@ -5,6 +5,7 @@ namespace Oro\Bundle\WorkflowBundle\Tests\Unit\Configuration\Import;
 use Oro\Bundle\WorkflowBundle\Configuration\Import\WorkflowFileImportProcessor;
 use Oro\Bundle\WorkflowBundle\Configuration\Import\WorkflowFileImportProcessorFactory;
 use Oro\Bundle\WorkflowBundle\Configuration\Reader\ConfigFileReaderInterface;
+use Symfony\Component\Config\FileLocatorInterface;
 
 class WorkflowFileImportProcessorFactoryTest extends \PHPUnit\Framework\TestCase
 {
@@ -14,10 +15,12 @@ class WorkflowFileImportProcessorFactoryTest extends \PHPUnit\Framework\TestCase
     /** @var ConfigFileReaderInterface|\PHPUnit\Framework\MockObject\MockObject */
     private $reader;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->reader = $this->createMock(ConfigFileReaderInterface::class);
-        $this->factory = new WorkflowFileImportProcessorFactory($this->reader);
+        /** @var FileLocatorInterface|\PHPUnit\Framework\MockObject\MockObject $fileLocator */
+        $fileLocator = $this->createMock(FileLocatorInterface::class);
+        $this->factory = new WorkflowFileImportProcessorFactory($this->reader, $fileLocator);
     }
 
     /**

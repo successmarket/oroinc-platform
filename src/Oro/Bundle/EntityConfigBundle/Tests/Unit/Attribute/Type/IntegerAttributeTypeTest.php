@@ -11,12 +11,7 @@ class IntegerAttributeTypeTest extends AttributeTypeTestCase
      */
     protected function getAttributeType()
     {
-        return new IntegerAttributeType('integer');
-    }
-
-    public function testGetType()
-    {
-        $this->assertEquals('integer', $this->getAttributeType()->getType());
+        return new IntegerAttributeType();
     }
 
     /**
@@ -31,12 +26,11 @@ class IntegerAttributeTypeTest extends AttributeTypeTestCase
         ];
     }
 
-    /**
-     * @expectedException \RuntimeException
-     * @expectedExceptionMessage Not supported
-     */
     public function testGetSearchableValue()
     {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Not supported');
+
         $this->getAttributeType()->getSearchableValue($this->attribute, true, $this->localization);
     }
 

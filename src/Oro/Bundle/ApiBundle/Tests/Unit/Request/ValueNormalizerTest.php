@@ -6,6 +6,7 @@ use Doctrine\Common\Collections\Criteria;
 use Oro\Bundle\ApiBundle\Filter\StandaloneFilter;
 use Oro\Bundle\ApiBundle\Model\Range;
 use Oro\Bundle\ApiBundle\Processor\NormalizeValue as Processor;
+use Oro\Bundle\ApiBundle\Processor\NormalizeValue\NormalizeValueContext;
 use Oro\Bundle\ApiBundle\Processor\NormalizeValueProcessor;
 use Oro\Bundle\ApiBundle\Provider\EntityAliasResolverRegistry;
 use Oro\Bundle\ApiBundle\Request\DataType;
@@ -14,6 +15,7 @@ use Oro\Bundle\ApiBundle\Request\ValueNormalizer;
 use Oro\Bundle\EntityBundle\ORM\EntityAliasResolver;
 use Oro\Component\ChainProcessor\ProcessorBag;
 use Oro\Component\ChainProcessor\ProcessorBagConfigBuilder;
+use Oro\Component\ChainProcessor\ProcessorBagInterface;
 use Oro\Component\ChainProcessor\ProcessorRegistryInterface;
 
 /**
@@ -29,7 +31,7 @@ class ValueNormalizerTest extends \PHPUnit\Framework\TestCase
     /**
      * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $processorRegistry = $this->createMock(ProcessorRegistryInterface::class);
         $builder = new ProcessorBagConfigBuilder();
@@ -101,7 +103,7 @@ class ValueNormalizerTest extends \PHPUnit\Framework\TestCase
             ],
             [
                 $this->addProcessor($builder, 'guid', DataType::GUID),
-                new Processor\NormalizeString()
+                new Processor\NormalizeGuid()
             ],
             [
                 $this->addProcessor($builder, 'entityClass', DataType::ENTITY_CLASS),
@@ -163,7 +165,7 @@ class ValueNormalizerTest extends \PHPUnit\Framework\TestCase
             [Processor\NormalizeDecimal::REQUIREMENT, DataType::MONEY, [RequestType::REST]],
             [Processor\NormalizeNumber::REQUIREMENT, DataType::FLOAT, [RequestType::REST]],
             [Processor\NormalizeNumber::REQUIREMENT, DataType::PERCENT, [RequestType::REST]],
-            [ValueNormalizer::DEFAULT_REQUIREMENT, DataType::GUID, [RequestType::REST]],
+            [Processor\NormalizeGuid::REQUIREMENT, DataType::GUID, [RequestType::REST]],
             [Processor\Rest\NormalizeDateTime::REQUIREMENT, DataType::DATETIME, [RequestType::REST]],
             [Processor\Rest\NormalizeDate::REQUIREMENT, DataType::DATE, [RequestType::REST]],
             [Processor\Rest\NormalizeTime::REQUIREMENT, DataType::TIME, [RequestType::REST]],
@@ -259,7 +261,7 @@ class ValueNormalizerTest extends \PHPUnit\Framework\TestCase
                 [RequestType::REST]
             ],
             [
-                ValueNormalizer::DEFAULT_REQUIREMENT,
+                $this->getArrayRequirement(Processor\NormalizeGuid::REQUIREMENT),
                 DataType::GUID,
                 [RequestType::REST]
             ],
@@ -364,7 +366,7 @@ class ValueNormalizerTest extends \PHPUnit\Framework\TestCase
                 [RequestType::REST]
             ],
             [
-                ValueNormalizer::DEFAULT_REQUIREMENT,
+                Processor\NormalizeGuid::REQUIREMENT,
                 DataType::GUID,
                 [RequestType::REST]
             ],
@@ -469,7 +471,7 @@ class ValueNormalizerTest extends \PHPUnit\Framework\TestCase
                 [RequestType::REST]
             ],
             [
-                ValueNormalizer::DEFAULT_REQUIREMENT,
+                $this->getArrayRequirement(Processor\NormalizeGuid::REQUIREMENT),
                 DataType::GUID,
                 [RequestType::REST]
             ],
@@ -921,8 +923,41 @@ class ValueNormalizerTest extends \PHPUnit\Framework\TestCase
                 [RequestType::REST],
                 true
             ],
-            ['test', 'test', DataType::GUID, [RequestType::REST], true],
-            ['test', 'test', DataType::GUID, [RequestType::REST], false],
+            [
+                'EAC12975-D94D-4E96-88B1-101B99914DEF',
+                'EAC12975-D94D-4E96-88B1-101B99914DEF',
+                DataType::GUID,
+                [RequestType::REST],
+                true
+            ],
+            [
+                'EAC12975-D94D-4E96-88B1-101B99914DEF',
+                'EAC12975-D94D-4E96-88B1-101B99914DEF',
+                DataType::GUID,
+                [RequestType::REST],
+                false
+            ],
+            [
+                ['EAC12975-D94D-4E96-88B1-101B99914DEF', '7eab7435-44bb-493a-9bda-dea3fda3c0d9'],
+                ['EAC12975-D94D-4E96-88B1-101B99914DEF', '7eab7435-44bb-493a-9bda-dea3fda3c0d9'],
+                DataType::GUID,
+                [RequestType::REST],
+                true
+            ],
+            [
+                ['EAC12975-D94D-4E96-88B1-101B99914DEF', '7eab7435-44bb-493a-9bda-dea3fda3c0d9'],
+                ['EAC12975-D94D-4E96-88B1-101B99914DEF', '7eab7435-44bb-493a-9bda-dea3fda3c0d9'],
+                DataType::GUID,
+                [RequestType::REST],
+                false
+            ],
+            [
+                ['EAC12975-D94D-4E96-88B1-101B99914DEF', '7eab7435-44bb-493a-9bda-dea3fda3c0d9'],
+                'EAC12975-D94D-4E96-88B1-101B99914DEF,7eab7435-44bb-493a-9bda-dea3fda3c0d9',
+                DataType::GUID,
+                [RequestType::REST],
+                true
+            ],
             [['fld1' => Criteria::ASC], ['fld1' => Criteria::ASC], DataType::ORDER_BY, [RequestType::REST], true],
             [['fld1' => Criteria::ASC], 'fld1', DataType::ORDER_BY, [RequestType::REST], true],
             [['fld1' => Criteria::DESC], '-fld1', DataType::ORDER_BY, [RequestType::REST], true],
@@ -1378,6 +1413,31 @@ class ValueNormalizerTest extends \PHPUnit\Framework\TestCase
                 '10:30:59,test',
                 DataType::TIME,
                 [RequestType::REST]
+            ],
+            [
+                'Expected GUID value. Given "test"',
+                'test',
+                DataType::GUID,
+                [RequestType::REST]
+            ],
+            [
+                'Expected GUID value. Given "7eab7435-44bb-493a-9bda-dea3fda3c0dh"',
+                '7eab7435-44bb-493a-9bda-dea3fda3c0dh',
+                DataType::GUID,
+                [RequestType::REST]
+            ],
+            [
+                'Expected GUID value. Given "7eab7435-44bb-493a-9bda-dea3fda3c0d91"',
+                '7eab7435-44bb-493a-9bda-dea3fda3c0d91',
+                DataType::GUID,
+                [RequestType::REST]
+            ],
+            [
+                'Expected an array of GUIDs. Given '
+                . '"EAC12975-D94D-4E96-88B1-101B99914DEF,7eab7435-44bb-493a-9bda-dea3fda3c0dh".',
+                'EAC12975-D94D-4E96-88B1-101B99914DEF,7eab7435-44bb-493a-9bda-dea3fda3c0dh',
+                DataType::GUID,
+                [RequestType::REST]
             ]
         ];
     }
@@ -1696,5 +1756,85 @@ class ValueNormalizerTest extends \PHPUnit\Framework\TestCase
         } else {
             self::assertSame($expected, $actual, $message);
         }
+    }
+
+    public function testGetRequirementCache()
+    {
+        $processor = $this->getMockBuilder(NormalizeValueProcessor::class)
+            ->setConstructorArgs([$this->createMock(ProcessorBagInterface::class), 'normalize_value'])
+            ->setMethods(['process'])
+            ->getMock();
+        $processor->expects(self::exactly(4))
+            ->method('process')
+            ->willReturnCallback(function (NormalizeValueContext $context) {
+                $context->setRequirement((string)$context->getRequestType());
+            });
+
+        $requestType1 = new RequestType([RequestType::REST]);
+        $requestType2 = new RequestType([RequestType::JSON_API]);
+        $valueNormalizer = new ValueNormalizer($processor);
+
+        self::assertEquals((string)$requestType1, $valueNormalizer->getRequirement(DataType::INTEGER, $requestType1));
+        self::assertEquals((string)$requestType2, $valueNormalizer->getRequirement(DataType::INTEGER, $requestType2));
+
+        // test cached values
+        self::assertEquals((string)$requestType1, $valueNormalizer->getRequirement(DataType::INTEGER, $requestType1));
+        self::assertEquals((string)$requestType2, $valueNormalizer->getRequirement(DataType::INTEGER, $requestType2));
+
+        // clear the memory cache
+        $valueNormalizer->reset();
+
+        // test that the memory cache was cleared
+        self::assertEquals((string)$requestType1, $valueNormalizer->getRequirement(DataType::INTEGER, $requestType1));
+        self::assertEquals((string)$requestType2, $valueNormalizer->getRequirement(DataType::INTEGER, $requestType2));
+    }
+
+    public function testNormalizeValueCache()
+    {
+        $processor = $this->getMockBuilder(NormalizeValueProcessor::class)
+            ->setConstructorArgs([$this->createMock(ProcessorBagInterface::class), 'normalize_value'])
+            ->setMethods(['process'])
+            ->getMock();
+        $processor->expects(self::exactly(4))
+            ->method('process')
+            ->willReturnCallback(function (NormalizeValueContext $context) {
+                $context->setResult($context->getRequestType() . '_' . $context->getResult());
+            });
+
+        $requestType1 = new RequestType([RequestType::REST]);
+        $requestType2 = new RequestType([RequestType::JSON_API]);
+        $valueNormalizer = new ValueNormalizer($processor);
+
+        self::assertEquals(
+            $requestType1 . '_val',
+            $valueNormalizer->normalizeValue('val', DataType::ENTITY_TYPE, $requestType1)
+        );
+        self::assertEquals(
+            $requestType2 . '_val',
+            $valueNormalizer->normalizeValue('val', DataType::ENTITY_TYPE, $requestType2)
+        );
+
+        // test cached values
+        self::assertEquals(
+            $requestType1 . '_val',
+            $valueNormalizer->normalizeValue('val', DataType::ENTITY_TYPE, $requestType1)
+        );
+        self::assertEquals(
+            $requestType2 . '_val',
+            $valueNormalizer->normalizeValue('val', DataType::ENTITY_TYPE, $requestType2)
+        );
+
+        // clear the memory cache
+        $valueNormalizer->reset();
+
+        // test that the memory cache was cleared
+        self::assertEquals(
+            $requestType1 . '_val',
+            $valueNormalizer->normalizeValue('val', DataType::ENTITY_TYPE, $requestType1)
+        );
+        self::assertEquals(
+            $requestType2 . '_val',
+            $valueNormalizer->normalizeValue('val', DataType::ENTITY_TYPE, $requestType2)
+        );
     }
 }

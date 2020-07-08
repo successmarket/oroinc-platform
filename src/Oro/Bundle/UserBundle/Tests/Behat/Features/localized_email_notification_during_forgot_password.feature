@@ -12,7 +12,7 @@ Feature: Localized email notification during forgot password
     When I go to System / Configuration
     And I follow "System Configuration/General Setup/Localization" on configuration sidebar
     And I fill form with:
-      | Enabled Localizations | [English, French Localization, German Localization] |
+      | Enabled Localizations | [English (United States), French Localization, German Localization] |
       | Default Localization  | French Localization                                 |
     And I submit form
     Then I should see "Configuration saved" flash message
@@ -29,7 +29,7 @@ Feature: Localized email notification during forgot password
     And I follow "System Configuration/General Setup/Localization" on configuration sidebar
     And uncheck "Use Organization" for "Default Localization" field
     And I fill form with:
-      | Default Localization | English |
+      | Default Localization | English (United States) |
     And I submit form
     Then I should see "Configuration saved" flash message
 
@@ -41,12 +41,16 @@ Feature: Localized email notification during forgot password
       | Content | English Forgot Password Body    |
     And I click "French"
     And fill "Email Template Form" with:
-      | Subject | French Forgot Password Subject |
-      | Content | French Forgot Password Body    |
+      | Subject Fallback | false                          |
+      | Content Fallback | false                          |
+      | Subject          | French Forgot Password Subject |
+      | Content          | French Forgot Password Body    |
     And I click "German"
     And fill "Email Template Form" with:
-      | Subject | German Forgot Password Subject |
-      | Content | German Forgot Password Body    |
+      | Subject Fallback | false                          |
+      | Content Fallback | false                          |
+      | Subject          | German Forgot Password Subject |
+      | Content          | German Forgot Password Body    |
     And I submit form
     Then I should see "Template saved" flash message
     And I click Logout in user menu

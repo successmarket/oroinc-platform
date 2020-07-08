@@ -1,16 +1,17 @@
 <?php
+
 namespace Oro\Bundle\ImportExportBundle\Tests\Unit\Async\Export;
 
 use Oro\Bundle\EntityBundle\ORM\DoctrineHelper;
 use Oro\Bundle\ImportExportBundle\Async\Export\ExportMessageProcessor;
 use Oro\Bundle\ImportExportBundle\Async\Topics;
+use Oro\Bundle\ImportExportBundle\File\FileManager;
 use Oro\Bundle\ImportExportBundle\Handler\ExportHandler;
 use Oro\Bundle\MessageQueueBundle\Entity\Job;
 use Oro\Bundle\OrganizationBundle\Entity\Organization;
 use Oro\Bundle\OrganizationBundle\Entity\Repository\OrganizationRepository;
 use Oro\Component\MessageQueue\Job\JobRunner;
-use Oro\Component\MessageQueue\Job\JobStorage;
-use Oro\Component\MessageQueue\Transport\Null\NullMessage;
+use Oro\Component\MessageQueue\Transport\Message;
 use Oro\Component\MessageQueue\Transport\SessionInterface;
 use Psr\Log\LoggerInterface;
 
@@ -21,6 +22,9 @@ class ExportMessageProcessorTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals([Topics::EXPORT], ExportMessageProcessor::getSubscribedTopics());
     }
 
+    /**
+     * @return array
+     */
     public function invalidMessageProvider()
     {
         return [
@@ -54,12 +58,12 @@ class ExportMessageProcessorTest extends \PHPUnit\Framework\TestCase
             ->with($this->equalTo($loggerMessage))
         ;
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(json_encode($messageBody));
 
         $processor = new ExportMessageProcessor(
             $this->createJobRunnerMock(),
-            $this->createJobStorageMock(),
+            $this->createMock(FileManager::class),
             $logger
         );
 
@@ -91,12 +95,6 @@ class ExportMessageProcessorTest extends \PHPUnit\Framework\TestCase
             ->with($this->equalTo('Export result. Success: Yes. ReadsCount: 10. ErrorsCount: 0'))
         ;
 
-        $jobStorage = $this->createJobStorageMock();
-        $jobStorage
-            ->expects($this->once())
-            ->method('saveJob')
-        ;
-
         $organizationRepository = $this->createOrganizationRepositoryMock();
         $organizationRepository
             ->expects($this->once())
@@ -120,14 +118,14 @@ class ExportMessageProcessorTest extends \PHPUnit\Framework\TestCase
 
         $processor = new ExportMessageProcessor(
             $jobRunner,
-            $jobStorage,
+            $this->createMock(FileManager::class),
             $logger
         );
         $processor->setDoctrineHelper($doctrineHelper);
         $processor->setExportHandler($exportHandler);
 
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(json_encode([
             'jobId' => 1,
             'jobName' => 'name',
@@ -146,14 +144,6 @@ class ExportMessageProcessorTest extends \PHPUnit\Framework\TestCase
     private function createJobRunnerMock()
     {
         return $this->createMock(JobRunner::class);
-    }
-
-    /**
-     * @return \PHPUnit\Framework\MockObject\MockObject|JobStorage
-     */
-    private function createJobStorageMock()
-    {
-        return $this->createMock(JobStorage::class);
     }
 
     /**

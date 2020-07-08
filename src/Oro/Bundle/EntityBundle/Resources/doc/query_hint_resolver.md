@@ -24,7 +24,7 @@ Please pay attention on `walker_hint_provider` attribute. It is optional and can
         public: false
         class: Oro\Bundle\SecurityBundle\ORM\Walker\CurrentUserWalkerHintProvider
         arguments:
-             - @security.token_storage
+             - '@security.token_storage'
 ```
 
 To map a hint to a custom output walker use the attribute `output_walker` instead of `tree_walker` in DI container configuration, for example:
@@ -38,7 +38,7 @@ To map a hint to a custom output walker use the attribute `output_walker` instea
                 name: oro_entity.query_hint
                 hint: oro_translation.translatable
                 alias: HINT_TRANSLATABLE
-                output_walker: %oro_translation.translation_walker.class%
+                output_walker: Oro\Component\DoctrineUtils\ORM\Walker\TranslatableSqlWalker
 ``` 
 
 The following example shows how hints can be used in YAML configuration files:
@@ -52,7 +52,7 @@ datagrids:
                 select:
                     - origin
                 from:
-                    - { table: %oro_email.email_origin.entity.class%, alias: origin }
+                    - { table: Oro\Bundle\EmailBundle\Entity\EmailOrigin, alias: origin }
             hints:
                 - HINT_FILTER_BY_CURRENT_USER
 ```

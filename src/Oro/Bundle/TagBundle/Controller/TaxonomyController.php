@@ -5,11 +5,14 @@ namespace Oro\Bundle\TagBundle\Controller;
 use Oro\Bundle\SecurityBundle\Annotation\Acl;
 use Oro\Bundle\SecurityBundle\Annotation\AclAncestor;
 use Oro\Bundle\TagBundle\Entity\Taxonomy;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\Routing\Annotation\Route;
 
+/**
+ * CRUD for tag taxonomies.
+ */
 class TaxonomyController extends Controller
 {
     /**
@@ -30,7 +33,7 @@ class TaxonomyController extends Controller
     public function indexAction()
     {
         return array(
-            'entity_class' => $this->container->getParameter('oro_tag.taxonomy.entity.class')
+            'entity_class' => Taxonomy::class
         );
     }
 

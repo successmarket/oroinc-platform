@@ -8,9 +8,10 @@ use Oro\Bundle\UserBundle\Form\Handler\AclRoleHandler;
 use Oro\Bundle\UserBundle\Model\PrivilegeCategory;
 use Oro\Bundle\UserBundle\Provider\RolePrivilegeCapabilityProvider;
 use Oro\Bundle\UserBundle\Provider\RolePrivilegeCategoryProvider;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Acl\Util\ClassUtils;
 
 /**
  * This controller covers CRUD functionality for Role entity.
@@ -51,6 +52,7 @@ class RoleController extends Controller
     {
         return [
             'entity' => $role,
+            'entity_class' => ClassUtils::getRealClass($role),
             'tabsOptions' => [
                 'data' => $this->getTabListOptions()
             ],
@@ -104,7 +106,7 @@ class RoleController extends Controller
     public function indexAction()
     {
         return [
-            'entity_class' => $this->container->getParameter('oro_user.role.entity.class')
+            'entity_class' => Role::class
         ];
     }
 

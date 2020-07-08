@@ -18,6 +18,7 @@ use Oro\Bundle\FilterBundle\Form\Type\Filter\ChoiceFilterType;
 use Oro\Bundle\FilterBundle\Form\Type\Filter\EntityFilterType;
 use Oro\Bundle\FilterBundle\Form\Type\Filter\FilterType;
 use Oro\Bundle\QueryDesignerBundle\QueryDesigner\SubQueryLimitHelper;
+use Oro\Bundle\SecurityBundle\ORM\Walker\AclHelper;
 use Oro\Bundle\SegmentBundle\Entity\Manager\SegmentManager;
 use Oro\Bundle\SegmentBundle\Entity\Segment;
 use Oro\Bundle\SegmentBundle\Entity\SegmentType;
@@ -69,7 +70,7 @@ class SegmentFilterTest extends OrmTestCase
     /** @var SubQueryLimitHelper|\PHPUnit\Framework\MockObject\MockObject */
     protected $subqueryLimitHelper;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->em = $this->getMockBuilder('Doctrine\ORM\EntityManager')
             ->disableOriginalConstructor()->getMock();
@@ -153,7 +154,8 @@ class SegmentFilterTest extends OrmTestCase
             $this->em,
             $segmentQueryBuilderRegistry,
             $this->subqueryLimitHelper,
-            new ArrayCache()
+            new ArrayCache(),
+            $this->createMock(AclHelper::class)
         );
 
         $this->filter = new SegmentFilter(
@@ -195,7 +197,7 @@ class SegmentFilterTest extends OrmTestCase
         return $classMetaData;
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         unset($this->formFactory, $this->dynamicSegmentQueryBuilder, $this->filter);
     }

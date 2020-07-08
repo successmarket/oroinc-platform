@@ -5,6 +5,9 @@ namespace Oro\Bundle\CurrencyBundle\Rounding;
 use Oro\Bundle\ConfigBundle\Config\ConfigManager;
 use Oro\Bundle\CurrencyBundle\Exception\InvalidRoundingTypeException;
 
+/**
+ * The base class for rounding services.
+ */
 abstract class AbstractRoundingService implements RoundingServiceInterface
 {
     /**
@@ -23,7 +26,7 @@ abstract class AbstractRoundingService implements RoundingServiceInterface
     /**
      * @param float|int $value
      * @param int $precision
-     * @param int $roundType
+     * @param int|null $roundType
      * @return float|int
      * @throws InvalidRoundingTypeException
      *
@@ -42,7 +45,7 @@ abstract class AbstractRoundingService implements RoundingServiceInterface
         // shift number to maintain the correct scale during rounding
         /** @var int $roundingCoef */
         $roundingCoef = pow(10, $precision);
-        $value *= $roundingCoef;
+        $value = (float)$value * $roundingCoef;
 
         switch ($roundType) {
             case self::ROUND_CEILING:

@@ -9,23 +9,20 @@ use Doctrine\ORM\EntityManagerInterface;
 use Oro\Bundle\NotificationBundle\Entity\EmailNotification;
 use Oro\Bundle\NotificationBundle\Event\Handler\EventHandlerInterface;
 use Oro\Bundle\NotificationBundle\Event\NotificationEvent;
-use Psr\Container\ContainerInterface;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * Provides a functionality to handle notification events by all registered notification event handlers.
  */
-class NotificationManager
+class NotificationManager implements ResetInterface
 {
     private const RULES_CACHE_KEY = 'rules';
 
-    /** @var string[] */
-    private $handlerIds;
+    /** @var iterable|EventHandlerInterface[] */
+    private $handlers;
 
     /** @var ManagerRegistry */
     private $doctrine;
-
-    /** @var ContainerInterface */
-    private $handlerLocator;
 
     /** @var Cache */
     private $cache;
@@ -34,19 +31,13 @@ class NotificationManager
     private $notificationRules;
 
     /**
-     * @param string[]           $handlerIds
-     * @param ContainerInterface $handlerLocator
-     * @param Cache              $cache
-     * @param ManagerRegistry    $doctrine
+     * @param iterable|EventHandlerInterface[] $handlers
+     * @param Cache                            $cache
+     * @param ManagerRegistry                  $doctrine
      */
-    public function __construct(
-        array $handlerIds,
-        ContainerInterface $handlerLocator,
-        Cache $cache,
-        ManagerRegistry $doctrine
-    ) {
-        $this->handlerIds = $handlerIds;
-        $this->handlerLocator = $handlerLocator;
+    public function __construct(iterable $handlers, Cache $cache, ManagerRegistry $doctrine)
+    {
+        $this->handlers = $handlers;
         $this->cache = $cache;
         $this->doctrine = $doctrine;
     }
@@ -63,8 +54,8 @@ class NotificationManager
     {
         $notificationRules = $this->getRulesByCriteria(ClassUtils::getClass($event->getEntity()), $eventName);
         if (!empty($notificationRules)) {
-            foreach ($this->handlerIds as $handlerId) {
-                $this->getHandler($handlerId)->handle($event, $notificationRules);
+            foreach ($this->handlers as $handler) {
+                $handler->handle($event, $notificationRules);
                 if ($event->isPropagationStopped()) {
                     break;
                 }
@@ -79,18 +70,16 @@ class NotificationManager
      */
     public function clearCache(): void
     {
-        $this->notificationRules = null;
+        $this->reset();
         $this->cache->delete(self::RULES_CACHE_KEY);
     }
 
     /**
-     * @param string $handlerId
-     *
-     * @return EventHandlerInterface
+     * {@inheritDoc}
      */
-    private function getHandler(string $handlerId): EventHandlerInterface
+    public function reset()
     {
-        return $this->handlerLocator->get($handlerId);
+        $this->notificationRules = null;
     }
 
     /**
@@ -105,7 +94,7 @@ class NotificationManager
         if ($this->hasRules($entityName, $eventName)) {
             $rules = $this->getRules();
             foreach ($rules as $rule) {
-                if ($rule->getEntityName() === $entityName && $rule->getEvent()->getName() === $eventName) {
+                if ($rule->getEntityName() === $entityName && $rule->getEventName() === $eventName) {
                     $filteredRules[] = $rule;
                 }
             }
@@ -142,8 +131,7 @@ class NotificationManager
             ->createQueryBuilder()
             ->from(EmailNotification::class, 'e')
             ->distinct()
-            ->select('e.entityName, event.name as eventName')
-            ->innerJoin('e.event', 'event')
+            ->select('e.entityName, e.eventName')
             ->getQuery()
             ->getArrayResult();
 
@@ -175,8 +163,7 @@ class NotificationManager
         return $this->getEntityManager()
             ->createQueryBuilder()
             ->from(EmailNotification::class, 'e')
-            ->select(['e', 'event'])
-            ->leftJoin('e.event', 'event')
+            ->select('e')
             ->getQuery()
             ->getResult();
     }

@@ -9,7 +9,7 @@
         {%- if required -%}
             {% set label_attr = label_attr|merge({'class': (label_attr.class|default('') ~ ' required')|trim}) %}
         {%- endif -%}
-        <label{{ block('block_label_attributes') }}>{{ label|block_text(translation_domain) }}{% if required %}<em>*</em>{% endif %}</label>
+        <label{{ block('block_label_attributes') }}>{{ label|block_text(translation_domain) }}{% if required %}<em aria-hidden="true">*</em>{% endif %}</label>
     {%- endif %}
 {%- endblock %}
 
@@ -38,11 +38,12 @@
         }) %}
     {%- endif -%}
     {% set attributesThatContainsUri = ['src', 'href', 'action', 'cite', 'data', 'poster'] %}
+    {% set attributesThatNeedToTranslate = ['title', 'aria-label'] %}
     {%- for attrname, attrvalue in attr -%}
         {%- if (attrvalue is iterable) -%}
             {% set attrvalue = attrvalue|json_encode() %}
         {%- endif -%}
-        {%- if attrname is same as('title') -%}
+        {%- if attrname in attributesThatNeedToTranslate -%}
             {{- ' ' ~ attrname }}="{{ attrvalue|block_text(translation_domain)|e('html_attr') }}"
         {% elseif attrname in attributesThatContainsUri %}
             {{- ' ' ~ attrname }}="{{ attrvalue|e('html')|replace({'&amp;': '&'})|raw }}"
@@ -286,6 +287,9 @@
 
 {% block form_fields_widget %}
     {{ form_widget(form) }}
+    {% if render_rest %}
+        {{ form_rest(form) }}
+    {% endif %}
 {% endblock %}
 
 {% block form_end_widget %}

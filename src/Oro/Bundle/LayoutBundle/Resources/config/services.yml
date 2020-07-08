@@ -99,6 +99,9 @@ services:
     oro_layout.expression_language.expression_manipulator:
         class: Oro\Component\Layout\ExpressionLanguage\ExpressionManipulator
 
+    oro_layout.expression_language.expression_validator:
+        class: Oro\Component\Layout\ExpressionLanguage\ExpressionValidator
+
     oro_layout.expression.json_encoder:
         class: Oro\Component\Layout\ExpressionLanguage\Encoder\JsonExpressionEncoder
         arguments:
@@ -120,28 +123,11 @@ services:
     Oro\Bundle\LayoutBundle\Provider\ImageTypeProvider:
         alias: oro_layout.provider.image_type
 
-    oro_layout.provider.requirejs_config:
-        class: Oro\Bundle\LayoutBundle\Provider\RequireJSConfigProvider
-        arguments:
-            - '@templating'
-            - '@oro_requirejs.cache'
-            - '%oro_require_js%'
-            - '%kernel.bundles%'
-            - '%oro_require_js.web_root%'
-        calls:
-            - [ setThemeManager, [ '@oro_layout.theme_manager' ] ]
-            - [ setContextHolder, [ '@oro_layout.layout_context_holder' ] ]
-        tags:
-            - { name: requirejs.config_provider, alias: oro_layout_requirejs_config_provider }
-        lazy: true
-
     oro_layout.helper:
         class: Oro\Bundle\LayoutBundle\Request\LayoutHelper
         public: true
         arguments:
             - '@request_stack'
-        tags:
-            - { name: container.hot_path }
 
     oro_layout.imports_storage:
         class: Doctrine\Common\Collections\ArrayCollection
@@ -149,6 +135,14 @@ services:
 
     oro_layout.layout_context_holder:
         class: Oro\Bundle\LayoutBundle\Layout\LayoutContextHolder
+
+    oro_layout.cache_warmer.layout_updates:
+        class: Oro\Bundle\LayoutBundle\Cache\LayoutUpdatesCacheWarmer
+        arguments:
+            - '@oro_layout.loader'
+            - '@kernel'
+        tags:
+            - { name: 'kernel.cache_warmer' }
 
     oro_layout.expression_language.cache:
         public: false
@@ -160,6 +154,7 @@ services:
         class: Symfony\Component\Cache\Adapter\DoctrineAdapter
         arguments:
             - '@oro_layout.expression_language.cache'
+            - 'oro_layout_expression_language'
 
     oro_layout.expression_language:
         class: Symfony\Component\ExpressionLanguage\ExpressionLanguage
@@ -211,6 +206,11 @@ services:
         tags:
             - { name: layout.data_provider, alias: property_accessor }
 
+    oro_layout.layout.data_provider.filtered_image.abstract:
+        class: 'Oro\Bundle\LayoutBundle\Layout\DataProvider\FilteredImageProvider'
+        public: false
+        abstract: true
+
     oro_layout.provider.abstract_form:
         abstract: true
         class: 'Oro\Bundle\LayoutBundle\Layout\DataProvider\AbstractFormProvider'
@@ -232,3 +232,8 @@ services:
         arguments:
             - '@oro_layout.loader.imagine_filter_configuration_decorator.inner'
             - '@oro_layout.loader.image_filter.link'
+
+    oro_layout.expression_language_provider.instanceof:
+        class: 'Oro\Bundle\LayoutBundle\Layout\ExpressionLanguageProvider\InstanceofExpressionFunctionProvider'
+        tags:
+            - { name: layout.expression_language_provider }

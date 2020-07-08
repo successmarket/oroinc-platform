@@ -2,11 +2,9 @@
 
 namespace Oro\Bundle\EntityExtendBundle\Entity\Manager;
 
-use Doctrine\DBAL\Types\Type;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\QueryBuilder;
 use Oro\Bundle\EntityBundle\ORM\DoctrineHelper;
-use Oro\Bundle\EntityBundle\ORM\SqlQueryBuilder;
-use Oro\Bundle\EntityBundle\ORM\UnionQueryBuilder;
 use Oro\Bundle\EntityBundle\Provider\EntityNameResolver;
 use Oro\Bundle\EntityConfigBundle\Config\ConfigManager;
 use Oro\Bundle\EntityConfigBundle\Config\Id\FieldConfigId;
@@ -16,6 +14,8 @@ use Oro\Bundle\FeatureToggleBundle\Checker\FeatureChecker;
 use Oro\Bundle\SecurityBundle\ORM\Walker\AclHelper;
 use Oro\Component\DependencyInjection\ServiceLink;
 use Oro\Component\DoctrineUtils\ORM\QueryBuilderUtil;
+use Oro\Component\DoctrineUtils\ORM\SqlQueryBuilder;
+use Oro\Component\DoctrineUtils\ORM\UnionQueryBuilder;
 
 /**
  * Provides a set of methods to manage extended associations (see "Resources/doc/associations.md").
@@ -213,8 +213,8 @@ class AssociationManager
         $criteria = QueryBuilderUtil::normalizeCriteria($filters);
 
         $qb = $this->getUnionQueryBuilder($associationOwnerClass)
-            ->addSelect('id', 'ownerId', Type::INTEGER)
-            ->addSelect('entityId', 'id', Type::INTEGER)
+            ->addSelect('id', 'ownerId', Types::INTEGER)
+            ->addSelect('entityId', 'id', Types::INTEGER)
             ->addSelect('entityClass', 'entity')
             ->addSelect('entityTitle', 'title');
         foreach ($associationTargets as $entityClass => $fieldName) {
@@ -340,7 +340,7 @@ class AssociationManager
         $criteria = QueryBuilderUtil::normalizeCriteria($filters);
 
         $qb = $this->getUnionQueryBuilder($associationTargetClass)
-            ->addSelect('entityId', 'id', Type::INTEGER)
+            ->addSelect('entityId', 'id', Types::INTEGER)
             ->addSelect('entityClass', 'entity')
             ->addSelect('entityTitle', 'title');
         $targetIdFieldName = $this->doctrineHelper->getSingleEntityIdentifierFieldName($associationTargetClass);
@@ -434,6 +434,7 @@ class AssociationManager
     private function setSorting(UnionQueryBuilder $qb, $orderBy = null)
     {
         if ($orderBy) {
+            QueryBuilderUtil::checkField($orderBy);
             $qb->addOrderBy($orderBy);
         }
     }

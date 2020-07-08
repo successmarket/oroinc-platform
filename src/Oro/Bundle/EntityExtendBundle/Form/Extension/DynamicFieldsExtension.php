@@ -8,43 +8,75 @@ use Oro\Bundle\EntityConfigBundle\Config\ConfigManager;
 use Oro\Bundle\EntityConfigBundle\Config\Id\FieldConfigId;
 use Oro\Bundle\EntityConfigBundle\Provider\ConfigProvider;
 use Oro\Bundle\EntityExtendBundle\Form\Util\DynamicFieldsHelper;
-use Oro\Bundle\FormBundle\Form\Extension\Traits\FormExtendedTypeTrait;
 use Oro\Component\PhpUtils\ArrayUtil;
+use Psr\Container\ContainerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Form\AbstractTypeExtension;
+use Symfony\Component\Form\Event\PreSetDataEvent;
+use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormEvents;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Contracts\Service\ServiceSubscriberInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
- * Adds extended fields to the form based on the configuration for the entity/field.
+ * Adds extended fields to a form based on the configuration for an entity/field.
  */
-class DynamicFieldsExtension extends AbstractTypeExtension
+class DynamicFieldsExtension extends AbstractTypeExtension implements ServiceSubscriberInterface
 {
-    use FormExtendedTypeTrait;
-    
     /** @var ConfigManager */
     protected $configManager;
 
     /** @var DoctrineHelper */
     protected $doctrineHelper;
 
-    /** @var DynamicFieldsHelper */
-    private $dynamicFieldsHelper;
+    /** @var ContainerInterface */
+    protected $container;
+
+    /** @var LoggerInterface */
+    private $logger;
+
+    /** @var TranslatorInterface */
+    private $translator;
+
+    /** @var bool */
+    private $debug;
 
     /**
-     * @param ConfigManager                        $configManager
-     * @param DoctrineHelper                       $doctrineHelper
-     * @param DynamicFieldsHelper                  $dynamicFieldsHelper
+     * @param ConfigManager $configManager
+     * @param DoctrineHelper $doctrineHelper
+     * @param LoggerInterface $logger
+     * @param TranslatorInterface $translator
+     * @param ContainerInterface $container
+     * @param bool $debug
      */
     public function __construct(
         ConfigManager $configManager,
         DoctrineHelper $doctrineHelper,
-        DynamicFieldsHelper $dynamicFieldsHelper
+        LoggerInterface $logger,
+        TranslatorInterface $translator,
+        ContainerInterface $container,
+        bool $debug
     ) {
-        $this->configManager    = $configManager;
-        $this->doctrineHelper   = $doctrineHelper;
-        $this->dynamicFieldsHelper = $dynamicFieldsHelper;
+        $this->configManager = $configManager;
+        $this->doctrineHelper = $doctrineHelper;
+        $this->logger = $logger;
+        $this->translator = $translator;
+        $this->container = $container;
+        $this->debug = $debug;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public static function getSubscribedServices()
+    {
+        return [
+            'oro_entity_extend.form.extension.dynamic_fields_helper' => DynamicFieldsHelper::class
+        ];
     }
 
     /**
@@ -52,11 +84,18 @@ class DynamicFieldsExtension extends AbstractTypeExtension
      */
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
-        if (!$this->isApplicable($options)) {
-            return;
+        if ($this->isApplicable($options)) {
+            $builder->addEventListener(FormEvents::PRE_SET_DATA, [$this, 'preSetData'], -255);
         }
+    }
 
-        $className = $options['data_class'];
+    /**
+     * @param PreSetDataEvent $event
+     */
+    public function preSetData(PreSetDataEvent $event): void
+    {
+        $form = $event->getForm();
+        $className = $form->getConfig()->getOption('data_class');
 
         $extendConfigProvider = $this->configManager->getProvider('extend');
         $viewConfigProvider   = $this->configManager->getProvider('view');
@@ -89,9 +128,10 @@ class DynamicFieldsExtension extends AbstractTypeExtension
         }
 
         ArrayUtil::sortBy($fields, true);
-
         foreach ($fields as $fieldName => $priority) {
-            $builder->add($fieldName);
+            if (!$this->fieldExists($form, $fieldName)) {
+                $form->add($fieldName, null, ['is_dynamic_field' => true]);
+            }
         }
     }
 
@@ -126,20 +166,25 @@ class DynamicFieldsExtension extends AbstractTypeExtension
                 continue;
             }
 
-            if (!$this->dynamicFieldsHelper->shouldBeInitialized($className, $formConfig, $view, true)) {
+            $extraField = false;
+            if (array_key_exists($fieldName, $view->children)) {
+                $extraField = $this->isDynamicField($form, $fieldName);
+            }
+
+            if (!$this->getDynamicFieldsHelper()->shouldBeInitialized($className, $formConfig, $view, $extraField)) {
                 continue;
             }
 
             $extendConfig = $extendConfigProvider->getConfig($className, $fieldName);
 
-            $this->dynamicFieldsHelper->addInitialElements($view, $form, $extendConfig);
+            $this->getDynamicFieldsHelper()->addInitialElements($view, $form, $extendConfig);
         }
     }
 
     /**
      * {@inheritdoc}
      */
-    public function configureOptions(OptionsResolver $resolver)
+    public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults(
             [
@@ -155,7 +200,7 @@ class DynamicFieldsExtension extends AbstractTypeExtension
      */
     protected function isApplicable(array $options)
     {
-        if ($options['dynamic_fields_disabled'] || empty($options['data_class'])) {
+        if ($options['dynamic_fields_disabled'] || empty($options['data_class']) || empty($options['compound'])) {
             return false;
         }
 
@@ -175,10 +220,85 @@ class DynamicFieldsExtension extends AbstractTypeExtension
      * @param ConfigProvider  $extendConfigProvider
      *
      * @return bool
-     * @deprecated please use \Oro\Bundle\EntityExtendBundle\Form\Util\DynamicFieldsHelper::isApplicableField()
      */
     protected function isApplicableField(ConfigInterface $extendConfig, ConfigProvider $extendConfigProvider)
     {
-        return $this->dynamicFieldsHelper->isApplicableField($extendConfig, $extendConfigProvider);
+        return $this->getDynamicFieldsHelper()->isApplicableField($extendConfig, $extendConfigProvider);
+    }
+
+    /**
+     * @return DynamicFieldsHelper
+     */
+    protected function getDynamicFieldsHelper(): DynamicFieldsHelper
+    {
+        return $this->container->get('oro_entity_extend.form.extension.dynamic_fields_helper');
+    }
+
+    /**
+     * @param FormInterface $form
+     * @param string $fieldName
+     *
+     * @return bool
+     */
+    private function fieldExists(FormInterface $form, string $fieldName): bool
+    {
+        if ($form->has($fieldName)) {
+            if ($this->isDynamicField($form, $fieldName)) {
+                return true;
+            }
+
+            if (!$this->isIgnoreException($form, $fieldName)) {
+                $this->createException($fieldName);
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * @param FormInterface $form
+     * @param string $fieldName
+     *
+     * @return bool
+     */
+    private function isDynamicField(FormInterface $form, string $fieldName): bool
+    {
+        return $form->get($fieldName)->getConfig()->getOption('is_dynamic_field', false);
+    }
+
+    /**
+     * @param FormInterface $form
+     * @param string $fieldName
+     *
+     * @return bool
+     */
+    private function isIgnoreException(FormInterface $form, string $fieldName): bool
+    {
+        return $form->get($fieldName)->getConfig()->getOption('dynamic_fields_ignore_exception', false);
+    }
+
+    /**
+     * @param string $fieldName
+     */
+    private function createException(string $fieldName): void
+    {
+        $message = $this->translator->trans('oro.entity_extend.form.field_exists', ['%fieldName%' => $fieldName]);
+        if ($this->debug) {
+            throw new \LogicException($message);
+        } else {
+            $this->logger->critical($message);
+        }
+    }
+
+    /**
+     * Does not return any values ​​since the extension has a specific using.
+     *
+     * @return array
+     */
+    public static function getExtendedTypes(): array
+    {
+        return [FormType::class];
     }
 }

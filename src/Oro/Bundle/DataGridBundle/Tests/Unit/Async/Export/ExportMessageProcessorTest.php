@@ -7,13 +7,13 @@ use Oro\Bundle\DataGridBundle\Async\Topics;
 use Oro\Bundle\DataGridBundle\Datagrid\ParameterBag;
 use Oro\Bundle\DataGridBundle\Handler\ExportHandler;
 use Oro\Bundle\DataGridBundle\ImportExport\DatagridExportConnector;
+use Oro\Bundle\ImportExportBundle\File\FileManager;
 use Oro\Bundle\ImportExportBundle\Processor\ExportProcessor;
 use Oro\Bundle\ImportExportBundle\Writer\FileStreamWriter;
 use Oro\Bundle\ImportExportBundle\Writer\WriterChain;
 use Oro\Bundle\MessageQueueBundle\Entity\Job;
 use Oro\Component\MessageQueue\Job\JobRunner;
-use Oro\Component\MessageQueue\Job\JobStorage;
-use Oro\Component\MessageQueue\Transport\Null\NullMessage;
+use Oro\Component\MessageQueue\Transport\Message;
 use Oro\Component\MessageQueue\Transport\SessionInterface;
 use Psr\Log\LoggerInterface;
 
@@ -27,6 +27,9 @@ class ExportMessageProcessorTest extends \PHPUnit\Framework\TestCase
         );
     }
 
+    /**
+     * @return array
+     */
     public function invalidMessageProvider()
     {
         return [
@@ -61,11 +64,11 @@ class ExportMessageProcessorTest extends \PHPUnit\Framework\TestCase
 
         $processor = new ExportMessageProcessor(
             $this->createJobRunnerMock(),
-            $this->createJobStorageMock(),
+            $this->createMock(FileManager::class),
             $logger
         );
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(json_encode($messageBody));
 
         $result = $processor->process($message, $this->createSessionMock());
@@ -90,12 +93,12 @@ class ExportMessageProcessorTest extends \PHPUnit\Framework\TestCase
 
         $processor = new ExportMessageProcessor(
             $this->createJobRunnerMock(),
-            $this->createJobStorageMock(),
+            $this->createMock(FileManager::class),
             $logger
         );
         $processor->setWriterChain($writerChain);
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(json_encode([
             'jobId' => 1,
             'parameters' => ['gridName' => 'grid_name'],
@@ -128,11 +131,6 @@ class ExportMessageProcessorTest extends \PHPUnit\Framework\TestCase
                 return $callback($jobRunner, $job);
             }));
 
-        $jobStorage = $this->createJobStorageMock();
-        $jobStorage
-            ->expects($this->once())
-            ->method('saveJob');
-
         $fileStreamWriter = $this->createFileStreamWriterMock();
 
         $writerChain = $this->createWriterChainMock();
@@ -147,7 +145,7 @@ class ExportMessageProcessorTest extends \PHPUnit\Framework\TestCase
 
         $processor = new ExportMessageProcessor(
             $jobRunner,
-            $jobStorage,
+            $this->createMock(FileManager::class),
             $logger
         );
         $processor->setWriterChain($writerChain);
@@ -176,7 +174,7 @@ class ExportMessageProcessorTest extends \PHPUnit\Framework\TestCase
             ->willReturn($exportResult);
         $processor->setExportHandler($exportHandler);
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(json_encode([
             'jobId' => 1,
             'parameters' => ['gridName' => 'grid_name'],
@@ -195,14 +193,6 @@ class ExportMessageProcessorTest extends \PHPUnit\Framework\TestCase
     private function createJobRunnerMock()
     {
         return $this->createMock(JobRunner::class);
-    }
-
-    /**
-     * @return \PHPUnit\Framework\MockObject\MockObject|JobStorage
-     */
-    private function createJobStorageMock()
-    {
-        return $this->createMock(JobStorage::class);
     }
 
     /**

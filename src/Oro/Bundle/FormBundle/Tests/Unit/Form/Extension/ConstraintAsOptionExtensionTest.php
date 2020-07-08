@@ -1,6 +1,6 @@
 <?php
 
-namespace Oro\Bundle\FormBundle\Tests\Unit\Extension;
+namespace Oro\Bundle\FormBundle\Tests\Unit\Form\Extension;
 
 use Oro\Bundle\FormBundle\Form\Extension\ConstraintAsOptionExtension;
 use Oro\Bundle\FormBundle\Validator\ConstraintFactory;
@@ -14,12 +14,12 @@ class ConstraintAsOptionExtensionTest extends \PHPUnit\Framework\TestCase
      */
     protected $extension;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->extension = new ConstraintAsOptionExtension(new ConstraintFactory());
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         unset($this->extension);
     }

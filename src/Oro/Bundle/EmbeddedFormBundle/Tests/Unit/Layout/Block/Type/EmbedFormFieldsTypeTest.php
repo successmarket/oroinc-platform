@@ -42,6 +42,7 @@ class EmbedFormFieldsTypeTest extends BlockTypeTestCase
                     'form_group_prefix' => 'form:group_',
                     'instance_name'     => '',
                     'visible'           => true,
+                    'render_rest'       => true,
                 ]
             ],
             'with form_name'                 => [
@@ -58,6 +59,7 @@ class EmbedFormFieldsTypeTest extends BlockTypeTestCase
                     'form_group_prefix' => 'test:group_',
                     'instance_name'     => '',
                     'visible'           => true,
+                    'render_rest'       => true,
                 ]
             ],
             'with form_name and form_prefix' => [
@@ -75,6 +77,7 @@ class EmbedFormFieldsTypeTest extends BlockTypeTestCase
                     'form_group_prefix' => 'test_prefix:group_',
                     'instance_name'     => '',
                     'visible'           => true,
+                    'render_rest'       => true,
                 ]
             ],
             'all options'                    => [
@@ -96,6 +99,7 @@ class EmbedFormFieldsTypeTest extends BlockTypeTestCase
                     'form_group_prefix' => 'form_group_prefix_',
                     'instance_name'     => '',
                     'visible'           => true,
+                    'render_rest'       => true,
                 ]
             ]
         ];
@@ -136,12 +140,11 @@ class EmbedFormFieldsTypeTest extends BlockTypeTestCase
         );
     }
 
-    /**
-     * @expectedException \OutOfBoundsException
-     * @expectedExceptionMessage Undefined index: test_form.
-     */
     public function testBuildBlockWithoutForm()
     {
+        $this->expectException(\OutOfBoundsException::class);
+        $this->expectExceptionMessage('Undefined index: test_form.');
+
         $builder = $this->createMock('Oro\Component\Layout\BlockBuilderInterface');
         $builder->expects($this->any())
             ->method('getContext')
@@ -155,15 +158,14 @@ class EmbedFormFieldsTypeTest extends BlockTypeTestCase
         $type->buildBlock($builder, new Options($options));
     }
 
-    // @codingStandardsIgnoreStart
-    /**
-     * @expectedException \Oro\Component\Layout\Exception\UnexpectedTypeException
-     * @expectedExceptionMessage Invalid "context[test_form]" argument type. Expected
-     *                           "Oro\Bundle\EmbeddedFormBundle\Layout\Form\FormAccessorInterface", "integer" given.
-     */
-    // @codingStandardsIgnoreEnd
     public function testBuildBlockWithInvalidForm()
     {
+        $this->expectException(\Oro\Component\Layout\Exception\UnexpectedTypeException::class);
+        $this->expectExceptionMessage(\sprintf(
+            'Invalid "context[test_form]" argument type. Expected "%s", "integer" given.',
+            \Oro\Bundle\EmbeddedFormBundle\Layout\Form\FormAccessorInterface::class
+        ));
+
         $formName = 'test_form';
 
         $this->context->set($formName, 123);

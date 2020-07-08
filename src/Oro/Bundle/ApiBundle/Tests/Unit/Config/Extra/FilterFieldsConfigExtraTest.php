@@ -3,7 +3,7 @@
 namespace Oro\Bundle\ApiBundle\Tests\Unit\Config\Extra;
 
 use Oro\Bundle\ApiBundle\Config\Extra\FilterFieldsConfigExtra;
-use Oro\Bundle\ApiBundle\Processor\Config\ConfigContext;
+use Oro\Bundle\ApiBundle\Processor\GetConfig\ConfigContext;
 
 class FilterFieldsConfigExtraTest extends \PHPUnit\Framework\TestCase
 {
@@ -15,7 +15,7 @@ class FilterFieldsConfigExtraTest extends \PHPUnit\Framework\TestCase
     /** @var FilterFieldsConfigExtra */
     private $extra;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->extra = new FilterFieldsConfigExtra(self::FIELD_FILTERS);
     }

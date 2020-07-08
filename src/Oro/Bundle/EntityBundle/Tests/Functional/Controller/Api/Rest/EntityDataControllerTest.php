@@ -2,10 +2,10 @@
 
 namespace Oro\Bundle\EntityBundle\Tests\Functional\Controller\Api\Rest;
 
+use Doctrine\Common\Persistence\ManagerRegistry;
 use Oro\Bundle\TestFrameworkBundle\Test\WebTestCase;
 use Oro\Bundle\UserBundle\Entity\User;
 use Oro\Component\Testing\ResponseExtension;
-use Symfony\Bridge\Doctrine\RegistryInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PropertyAccess\PropertyAccess;
 
@@ -16,7 +16,7 @@ class EntityDataControllerTest extends WebTestCase
 {
     use ResponseExtension;
 
-    public function setUp()
+    protected function setUp(): void
     {
         $this->initClient([], $this->generateWsseAuthHeader());
         $this->loadFixtures([
@@ -269,7 +269,7 @@ class EntityDataControllerTest extends WebTestCase
      */
     protected function refreshEntity($entity)
     {
-        /** @var RegistryInterface $registry */
+        /** @var ManagerRegistry $registry */
         $registry = $this->getContainer()->get('doctrine');
 
         $registry->getManager()->clear();

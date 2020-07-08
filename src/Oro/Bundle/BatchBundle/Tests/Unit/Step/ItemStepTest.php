@@ -32,7 +32,7 @@ class ItemStepTest extends \PHPUnit\Framework\TestCase
     /**
      * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->eventDispatcher = $this->createMock('Symfony\\Component\\EventDispatcher\\EventDispatcherInterface');
         $this->jobRepository   = $this->createMock('Akeneo\\Bundle\\BatchBundle\\Job\\JobRepositoryInterface');
@@ -89,6 +89,17 @@ class ItemStepTest extends \PHPUnit\Framework\TestCase
         $this->itemStep->setWriter($writer);
         $this->itemStep->setBatchSize(5);
         $this->itemStep->execute($stepExecution);
+    }
+
+    public function testGetBatchSize(): void
+    {
+        $this->assertNull($this->itemStep->getBatchSize());
+
+        $batchSize = 100;
+
+        $this->itemStep->setBatchSize($batchSize);
+
+        $this->assertSame($batchSize, $this->itemStep->getBatchSize());
     }
 
     /**

@@ -46,7 +46,7 @@ class OroFeatureContext extends RawMinkContext
     }
 
     /**
-     * Returns fixed step argument (with \\" replaced back to ")
+     * Returns fixed step argument (\\" replaced back to ", \\# replaced back to #)
      *
      * @param string $argument
      *
@@ -54,7 +54,7 @@ class OroFeatureContext extends RawMinkContext
      */
     protected function fixStepArgument($argument)
     {
-        return str_replace('\\"', '"', $argument);
+        return str_replace(['\\"', '\\#'], ['"', '#'], $argument);
     }
 
     /**
@@ -105,7 +105,7 @@ class OroFeatureContext extends RawMinkContext
         $imageUrl = $this->locatePath($imageUrl);
         $imageUrl = filter_var($imageUrl, FILTER_VALIDATE_URL);
 
-        self::assertInternalType('string', $imageUrl, sprintf('Image src "%s" is not valid', $imageUrl));
+        self::assertIsString($imageUrl, sprintf('Image src "%s" is not valid', $imageUrl));
 
         $cookieJar = $this->getCookieJar($this->getSession());
         $client = new Client([

@@ -24,7 +24,7 @@ your content will be tagged automatically, in cases when tags should be added dy
 **Example**
 ``` twig
     <script type="text/javascript">
-        require(['orosync/js/content-manager'],
+        loadModules(['orosync/js/content-manager'],
         function(contentManager) {
             contentManager.tagContent(['users']);
         });
@@ -46,5 +46,5 @@ In case when your template extends base template, but content depends on some ad
 Backend implementation
 ----------------------
 
-For doctrine entities tag generation are covered in onFlush event listener. For each entity modified into UnitOfWork `TagGeneratorChain#generate` method will be invoked.
+For doctrine entities tag generation are covered in onFlush event listener. For each entity modified into UnitOfWork `ChainTagGenerator#generate` method will be invoked.
 To add your own generator into chain you should develop a class that implements `TagGeneratorInterface` and register it as service with `oro_sync.tag_generator` tag.

@@ -14,7 +14,7 @@ class EnumFieldConfigExtensionTest extends \PHPUnit\Framework\TestCase
     /** @var EnumFieldConfigSubscriber */
     protected $subscriber;
 
-    public function setUp()
+    protected function setUp(): void
     {
         $this->subscriber = $this->getMockBuilder(EnumFieldConfigSubscriber::class)
             ->disableOriginalConstructor()
@@ -23,9 +23,9 @@ class EnumFieldConfigExtensionTest extends \PHPUnit\Framework\TestCase
         $this->extension = new EnumFieldConfigExtension($this->subscriber);
     }
 
-    public function testGetExtendedType()
+    public function testGetExtendedTypes()
     {
-        $this->assertEquals(ConfigType::class, $this->extension->getExtendedType());
+        $this->assertEquals([ConfigType::class], EnumFieldConfigExtension::getExtendedTypes());
     }
 
     public function testBuildForm()

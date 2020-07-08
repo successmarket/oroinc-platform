@@ -32,8 +32,6 @@ use Oro\Component\ChainProcessor\ProcessorInterface;
  */
 class NormalizeIncludedData implements ProcessorInterface
 {
-    const UPDATE_META = 'update';
-
     /** @var DoctrineHelper */
     protected $doctrineHelper;
 
@@ -222,15 +220,15 @@ class NormalizeIncludedData implements ProcessorInterface
      */
     protected function getUpdateFlag($pointer, $data)
     {
-        if (empty($data[JsonApiDoc::META]) || !array_key_exists(self::UPDATE_META, $data[JsonApiDoc::META])) {
+        if (empty($data[JsonApiDoc::META]) || !array_key_exists(JsonApiDoc::META_UPDATE, $data[JsonApiDoc::META])) {
             return false;
         }
 
-        $flag = $data[JsonApiDoc::META][self::UPDATE_META];
+        $flag = $data[JsonApiDoc::META][JsonApiDoc::META_UPDATE];
         if (true !== $flag && false !== $flag) {
             $this->addValidationError(
                 Constraint::VALUE,
-                $this->buildPointer($this->buildPointer($pointer, JsonApiDoc::META), self::UPDATE_META),
+                $this->buildPointer($this->buildPointer($pointer, JsonApiDoc::META), JsonApiDoc::META_UPDATE),
                 'This value should be boolean.'
             );
             $flag = null;
@@ -372,14 +370,14 @@ class NormalizeIncludedData implements ProcessorInterface
     }
 
     /**
-     * @param string $parentPath
+     * @param string $parentPointer
      * @param string $property
      *
      * @return string
      */
-    protected function buildPointer($parentPath, $property)
+    protected function buildPointer($parentPointer, $property)
     {
-        return $parentPath . '/' . $property;
+        return $parentPointer . '/' . $property;
     }
 
     /**

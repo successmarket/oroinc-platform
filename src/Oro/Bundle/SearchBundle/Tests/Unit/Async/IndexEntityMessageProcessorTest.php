@@ -1,16 +1,17 @@
 <?php
+
 namespace Oro\Bundle\SearchBundle\Tests\Unit\Async;
 
+use Doctrine\Common\Persistence\ManagerRegistry;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityRepository;
 use Oro\Bundle\SearchBundle\Async\IndexEntityMessageProcessor;
 use Oro\Bundle\SearchBundle\Async\Topics;
 use Oro\Bundle\SearchBundle\Engine\IndexerInterface;
 use Oro\Component\MessageQueue\Consumption\MessageProcessorInterface;
-use Oro\Component\MessageQueue\Transport\Null\NullMessage;
+use Oro\Component\MessageQueue\Transport\Message;
 use Oro\Component\MessageQueue\Transport\SessionInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Bridge\Doctrine\RegistryInterface;
 
 class IndexEntityMessageProcessorTest extends \PHPUnit\Framework\TestCase
 {
@@ -38,7 +39,7 @@ class IndexEntityMessageProcessorTest extends \PHPUnit\Framework\TestCase
 
         $doctrine = $this->createDoctrineMock();
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(json_encode(
             [
                 'key' => 'value',
@@ -66,7 +67,7 @@ class IndexEntityMessageProcessorTest extends \PHPUnit\Framework\TestCase
 
         $doctrine = $this->createDoctrineMock();
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(json_encode(
             [
                 'class' => 'class-name',
@@ -105,7 +106,7 @@ class IndexEntityMessageProcessorTest extends \PHPUnit\Framework\TestCase
             ->with('Entity manager is not defined for class: "class-name"')
         ;
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(json_encode(
             [
                 'class' => 'class-name',
@@ -159,7 +160,7 @@ class IndexEntityMessageProcessorTest extends \PHPUnit\Framework\TestCase
             ->method('error')
         ;
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(json_encode(
             [
                 'class' => 'class-name',
@@ -219,7 +220,7 @@ class IndexEntityMessageProcessorTest extends \PHPUnit\Framework\TestCase
             ->method('error')
         ;
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(json_encode(
             [
                 'class' => 'class-name',
@@ -266,11 +267,11 @@ class IndexEntityMessageProcessorTest extends \PHPUnit\Framework\TestCase
     }
 
     /**
-     * @return \PHPUnit\Framework\MockObject\MockObject|RegistryInterface
+     * @return \PHPUnit\Framework\MockObject\MockObject|ManagerRegistry
      */
     protected function createDoctrineMock()
     {
-        return $this->createMock(RegistryInterface::class);
+        return $this->createMock(ManagerRegistry::class);
     }
 
     /**

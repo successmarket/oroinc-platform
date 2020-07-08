@@ -18,8 +18,21 @@ use Oro\Bundle\ApiBundle\Exception\InvalidFilterOperatorException;
  * Note: this filter can be used only for entities based on the nested tree from Gedmo extensions for Doctrine.
  * @link http://atlantic18.github.io/DoctrineExtensions/doc/tree.html
  */
-class NestedTreeFilter extends StandaloneFilter
+class NestedTreeFilter extends StandaloneFilter implements FieldFilterInterface
 {
+    /** @var string|null */
+    private $field;
+
+    /**
+     * Sets an association name by which the data is filtered.
+     *
+     * @param string $field The association name
+     */
+    public function setField(string $field): void
+    {
+        $this->field = $field;
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -48,7 +61,7 @@ class NestedTreeFilter extends StandaloneFilter
         }
 
         return new Comparison(
-            $path,
+            $this->field ?? '',
             $this->getComparisonExpressionOperator($value->getOperator()),
             new Value($value->getValue())
         );
@@ -62,14 +75,14 @@ class NestedTreeFilter extends StandaloneFilter
     private function getComparisonExpressionOperator(?string $operator): string
     {
         if ($operator && \in_array($operator, $this->getSupportedOperators(), true)) {
-            if (ComparisonFilter::GT === $operator) {
+            if (FilterOperator::GT === $operator) {
                 return 'NESTED_TREE';
             }
-            if (ComparisonFilter::GTE === $operator) {
+            if (FilterOperator::GTE === $operator) {
                 return 'NESTED_TREE_WITH_ROOT';
             }
         }
 
-        throw new InvalidFilterOperatorException($operator ?? self::EQ);
+        throw new InvalidFilterOperatorException($operator ?? FilterOperator::EQ);
     }
 }

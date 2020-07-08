@@ -23,7 +23,13 @@ class Select2Entities extends Element implements ClearableInterface
 
         foreach ($values as $value) {
             $this->type($value);
-            $searchResults = $this->getSearchResults();
+            $searchResults = array_filter(
+                $this->getSearchResults(),
+                static function ($element) {
+                    return !empty(trim($element->getText()));
+                }
+            );
+
             self::assertCount(
                 1,
                 $searchResults,
@@ -125,7 +131,7 @@ class Select2Entities extends Element implements ClearableInterface
     {
         $driver = $this->getDriver();
         $closeLinks = $this->getParent()->getParent()
-            ->findAll('css', 'a.select2-search-choice-close');
+            ->findAll('css', '.select2-search-choice-close');
 
         if (!$closeLinks) {
             return;

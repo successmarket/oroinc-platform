@@ -2,11 +2,9 @@
 
 namespace Oro\Bundle\SegmentBundle\Tests\Unit\Grid;
 
-use Doctrine\ORM\Query;
 use Oro\Bundle\DataGridBundle\Datagrid\DatagridGuesser;
 use Oro\Bundle\DataGridBundle\Tests\Unit\Datagrid\ColumnOptionsGuesserMock;
 use Oro\Bundle\EntityBundle\Provider\EntityNameResolver;
-use Oro\Bundle\QueryDesignerBundle\QueryDesigner\SqlWalker;
 use Oro\Bundle\SegmentBundle\Grid\SegmentDatagridConfigurationBuilder;
 use Oro\Bundle\SegmentBundle\Tests\Unit\SegmentDefinitionTestCase;
 
@@ -17,7 +15,7 @@ class SegmentDatagridConfigurationBuilderTest extends SegmentDefinitionTestCase
     /** @var EntityNameResolver */
     protected $entityNameResolver;
 
-    public function setUp()
+    protected function setUp(): void
     {
         $this->entityNameResolver = $this->getMockBuilder(EntityNameResolver::class)
             ->disableOriginalConstructor()
@@ -122,12 +120,6 @@ class SegmentDatagridConfigurationBuilderTest extends SegmentDefinitionTestCase
                     'column_aliases' => ['userName' => 'c1',]
                 ],
                 'type'         => 'orm',
-                'hints'        => [
-                    [
-                        'name'  => Query::HINT_CUSTOM_OUTPUT_WALKER,
-                        'value' => SqlWalker::class,
-                    ]
-                ],
                 'acl_resource' => 'oro_segment_view',
             ],
             'options' => ['export' => true],
@@ -159,6 +151,7 @@ class SegmentDatagridConfigurationBuilderTest extends SegmentDefinitionTestCase
                 ]
             );
             $definition['source']['query']['select'] = ['t1.userName as c1', 't1.' . self::TEST_IDENTIFIER_NAME];
+            $definition['source']['hints'][] = 'HINT_TRANSLATABLE';
         }
 
         return $definition;

@@ -1,10 +1,11 @@
 define(function(require) {
     'use strict';
 
-    var _ = require('underscore');
-    var $ = require('jquery');
-    var mediator = require('oroui/js/mediator');
-    var persistentStorage = require('oroui/js/persistent-storage');
+    const _ = require('underscore');
+    const __ = require('orotranslation/js/translator');
+    const $ = require('jquery');
+    const mediator = require('oroui/js/mediator');
+    const persistentStorage = require('oroui/js/persistent-storage');
 
     require('jquery-ui');
 
@@ -25,13 +26,15 @@ define(function(require) {
             animationSpeed: 250
         },
 
+        _triggerAriaHidden: void 0,
+
         _create: function() {
             this._super();
             this.$el = this.element;
         },
 
         _init: function() {
-            var storedState = null;
+            let storedState = null;
             if (this.options.storageKey) {
                 storedState = JSON.parse(persistentStorage.getItem(this.options.storageKey + this.options.uid));
             }
@@ -59,15 +62,42 @@ define(function(require) {
             if (!this.options.keepState) {
                 this._setState(true, true);
             }
-            this.$el.removeClass('init');
+
+            this.$el.removeClass(this.options.openClass + ' init ' + this.options.closeClass);
             this._off(this.$trigger, 'click');
+
+            this.$trigger.removeAttr('aria-expanded');
+            this.$trigger.removeAttr('aria-controls');
+
+            if (this._triggerAriaHidden !== void 0) {
+                this.$trigger.attr('aria-hidden', this._triggerAriaHidden);
+            }
+
+            if (!this.elementHasLabel(this.$trigger)) {
+                this.$trigger.removeAttr('aria-label');
+            }
+
             mediator.off(null, null, this);
             this._super();
         },
 
         _setElements: function() {
+            let id = _.uniqueId('collapse-');
+
             this.$trigger = this.$el.find(this.options.trigger);
             this.$container = this.$el.find(this.options.container);
+
+            if (this.$container.attr('id')) {
+                id = this.$container.attr('id');
+            }
+
+            this.$container.attr('id', id);
+            this.$trigger.attr('aria-controls', id);
+
+            if (this.$trigger.attr('aria-hidden') !== void 0) {
+                this._triggerAriaHidden = this.$trigger.attr('aria-hidden');
+                this.$trigger.removeAttr('aria-hidden');
+            }
         },
 
         _initEvents: function() {
@@ -77,7 +107,7 @@ define(function(require) {
 
             mediator.on('layout:reposition', _.debounce(this._updateState.bind(this), 0));
 
-            var group = this.options.group;
+            const group = this.options.group;
             if (group) {
                 mediator.on('collapse-group-widgets:' + group + ':setState', this._setState, this);
                 mediator.on('collapse-group-widgets:' + group + ':collectStates', this._collectStates, this);
@@ -121,15 +151,17 @@ define(function(require) {
         _applyStateOnEl: function(isOpen) {
             this.$el.toggleClass(this.options.openClass, isOpen);
             this.$el.toggleClass(this.options.closeClass, !isOpen);
+            this.$el.attr('aria-expanded', isOpen);
         },
 
         _applyStateOnContainer: function(isOpen) {
             if (this.options.animationSpeed) {
-                if (isOpen) {
-                    this.$container.slideDown(this.options.animationSpeed);
-                } else {
-                    this.$container.slideUp(this.options.animationSpeed);
-                }
+                this.$container[isOpen ? 'slideDown' : 'slideUp'](
+                    this.options.animationSpeed,
+                    () => this.$container.attr('aria-hidden', !isOpen)
+                );
+            } else {
+                this.$container.attr('aria-hidden', !isOpen);
             }
         },
 
@@ -140,12 +172,22 @@ define(function(require) {
         },
 
         _applyStateOnTrigger: function(isOpen) {
-            this.$trigger.trigger('collapse:toggle', {
-                isOpen: isOpen,
-                $el: this.$el,
-                $trigger: this.$trigger,
-                $container: this.$container
-            });
+            this.$trigger
+                .attr('aria-expanded', isOpen)
+                .trigger('collapse:toggle', {
+                    isOpen: isOpen,
+                    $el: this.$el,
+                    $trigger: this.$trigger,
+                    $container: this.$container
+                });
+
+            if (!this.elementHasLabel(this.$trigger)) {
+                this.$trigger.attr('aria-label', __(`oro.ui.collapse.${isOpen ? 'less' : 'more'}`));
+            }
+        },
+
+        elementHasLabel: function($el) {
+            return $el.text().trim().length > 0;
         },
 
         _applyStateOnGroup: function(isOpen) {

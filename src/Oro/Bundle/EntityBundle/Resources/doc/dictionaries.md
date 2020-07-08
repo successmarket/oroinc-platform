@@ -29,11 +29,11 @@ And second, you should register your provider service in the DI container by the
 
 ```yml
     oro_entity.dictionary_value_list_provider.default:
-        class: %oro_entity.dictionary_value_list_provider.default.class%
+        class: Oro\Bundle\EntityBundle\Provider\DictionaryValueListProvider
         public: false
         arguments:
-            - @oro_entity_config.config_manager
-            - @doctrine
+            - '@oro_entity_config.config_manager'
+            - '@doctrine'
         tags:
             - { name: oro_entity.dictionary_value_list_provider, priority: -100 }
 ```

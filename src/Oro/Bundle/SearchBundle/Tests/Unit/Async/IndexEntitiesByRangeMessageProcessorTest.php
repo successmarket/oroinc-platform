@@ -1,16 +1,17 @@
 <?php
+
 namespace Oro\Bundle\SearchBundle\Tests\Unit\Async;
 
+use Doctrine\Common\Persistence\ManagerRegistry;
 use Oro\Bundle\SearchBundle\Async\IndexEntitiesByRangeMessageProcessor;
 use Oro\Bundle\SearchBundle\Async\Topics;
 use Oro\Bundle\SearchBundle\Engine\IndexerInterface;
 use Oro\Component\MessageQueue\Consumption\MessageProcessorInterface;
 use Oro\Component\MessageQueue\Job\JobRunner;
-use Oro\Component\MessageQueue\Transport\Null\NullMessage;
+use Oro\Component\MessageQueue\Transport\Message;
 use Oro\Component\MessageQueue\Transport\SessionInterface;
 use Oro\Component\MessageQueue\Util\JSON;
 use Psr\Log\LoggerInterface;
-use Symfony\Bridge\Doctrine\RegistryInterface;
 
 class IndexEntitiesByRangeMessageProcessorTest extends \PHPUnit\Framework\TestCase
 {
@@ -37,8 +38,7 @@ class IndexEntitiesByRangeMessageProcessorTest extends \PHPUnit\Framework\TestCa
     {
         $doctrine = $this->createDoctrineMock();
 
-
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(JSON::encode([
             'offset' => 123,
             'limit' => 1000,
@@ -72,8 +72,7 @@ class IndexEntitiesByRangeMessageProcessorTest extends \PHPUnit\Framework\TestCa
     {
         $doctrine = $this->createDoctrineMock();
 
-
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(JSON::encode([
             'entityClass' => 'entity-name',
             'limit' => 6789,
@@ -111,8 +110,7 @@ class IndexEntitiesByRangeMessageProcessorTest extends \PHPUnit\Framework\TestCa
     {
         $doctrine = $this->createDoctrineMock();
 
-
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(JSON::encode([
             'entityClass' => 'entity-name',
             'offset' => 6789,
@@ -155,8 +153,7 @@ class IndexEntitiesByRangeMessageProcessorTest extends \PHPUnit\Framework\TestCa
             ->method('getManagerForClass')
         ;
 
-
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(json_encode([
             'entityClass' => 'entity-name',
             'offset' => 1235,
@@ -208,11 +205,11 @@ class IndexEntitiesByRangeMessageProcessorTest extends \PHPUnit\Framework\TestCa
     }
 
     /**
-     * @return \PHPUnit\Framework\MockObject\MockObject|RegistryInterface
+     * @return \PHPUnit\Framework\MockObject\MockObject|ManagerRegistry
      */
     protected function createDoctrineMock()
     {
-        return $this->createMock(RegistryInterface::class);
+        return $this->createMock(ManagerRegistry::class);
     }
 
     /**

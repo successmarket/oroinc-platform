@@ -4,11 +4,15 @@ namespace Oro\Bundle\AttachmentBundle\Tests\Unit\Provider;
 
 use Liip\ImagineBundle\Imagine\Filter\FilterConfiguration;
 use Oro\Bundle\AttachmentBundle\Provider\AttachmentFilterAwareUrlGenerator;
+use Oro\Bundle\TestFrameworkBundle\Test\Logger\LoggerAwareTraitTestTrait;
+use Symfony\Component\Routing\Exception\InvalidParameterException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\RequestContext;
 
 class AttachmentFilterAwareUrlGeneratorTest extends \PHPUnit\Framework\TestCase
 {
+    use LoggerAwareTraitTestTrait;
+
     /**
      * @var UrlGeneratorInterface|\PHPUnit\Framework\MockObject\MockObject
      */
@@ -24,7 +28,7 @@ class AttachmentFilterAwareUrlGeneratorTest extends \PHPUnit\Framework\TestCase
      */
     private $filterAwareGenerator;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->urlGenerator = $this->createMock(UrlGeneratorInterface::class);
         $this->filterConfiguration = $this->createMock(FilterConfiguration::class);
@@ -33,6 +37,8 @@ class AttachmentFilterAwareUrlGeneratorTest extends \PHPUnit\Framework\TestCase
             $this->urlGenerator,
             $this->filterConfiguration
         );
+
+        $this->setUpLoggerMock($this->filterAwareGenerator);
     }
 
     public function testSetContext()
@@ -88,5 +94,55 @@ class AttachmentFilterAwareUrlGeneratorTest extends \PHPUnit\Framework\TestCase
             ->with($route, ['id' => 1, 'filter' => 'test_filter', 'filterMd5' => $filterMd5])
             ->willReturn('/test/1');
         $this->assertSame('/test/1', $this->filterAwareGenerator->generate($route, $parameters));
+    }
+
+    public function testGenerateWhenException()
+    {
+        $route = 'test';
+        $parameters = ['id' => 1];
+
+        $this->filterConfiguration->expects($this->never())
+            ->method($this->anything());
+
+        $this->urlGenerator->expects($this->once())
+            ->method('generate')
+            ->with($route, $parameters)
+            ->willThrowException(new InvalidParameterException());
+
+        $this->assertLoggerWarningMethodCalled();
+
+        $this->assertEquals('', $this->filterAwareGenerator->generate($route, $parameters));
+    }
+
+    public function testGenerateWhenGeneratorReturnsNull()
+    {
+        $route = 'test';
+        $parameters = ['id' => 1];
+
+        $this->filterConfiguration->expects($this->never())
+            ->method($this->anything());
+
+        $this->urlGenerator->expects($this->once())
+            ->method('generate')
+            ->with($route, $parameters)
+            ->willReturn(null);
+
+        $this->assertLoggerNotCalled();
+
+        $this->assertEquals('', $this->filterAwareGenerator->generate($route, $parameters));
+    }
+
+    public function testGetFilterHash()
+    {
+        $filterName = 'filterName';
+        $filterConfig = ['filterConfig'];
+        $this->filterConfiguration->expects($this->once())
+            ->method('get')
+            ->with($filterName)
+            ->willReturn($filterConfig);
+
+        $expected = md5(json_encode($filterConfig));
+
+        $this->assertEquals($expected, $this->filterAwareGenerator->getFilterHash($filterName));
     }
 }

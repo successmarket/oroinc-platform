@@ -5,11 +5,10 @@ namespace Oro\Bundle\NavigationBundle\Tests\Unit\Provider;
 use Knp\Menu\ItemInterface;
 use Oro\Bundle\ConfigBundle\Config\ConfigManager;
 use Oro\Bundle\LocaleBundle\Entity\LocalizedFallbackValue;
-use Oro\Bundle\NavigationBundle\Menu\BreadcrumbManager;
+use Oro\Bundle\NavigationBundle\Menu\BreadcrumbManagerInterface;
 use Oro\Bundle\NavigationBundle\Provider\TitleService;
 use Oro\Bundle\NavigationBundle\Provider\TitleTranslator;
 use Oro\Bundle\NavigationBundle\Title\TitleReader\TitleReaderRegistry;
-use Oro\Component\DependencyInjection\ServiceLink;
 
 /**
  * @SuppressWarnings(PHPMD.TooManyPublicMethods)
@@ -22,7 +21,7 @@ class TitleServiceTest extends \PHPUnit\Framework\TestCase
     /** @var TitleTranslator|\PHPUnit\Framework\MockObject\MockObject */
     private $titleTranslator;
 
-    /** @var BreadcrumbManager|\PHPUnit\Framework\MockObject\MockObject */
+    /** @var BreadcrumbManagerInterface|\PHPUnit\Framework\MockObject\MockObject */
     private $breadcrumbManager;
 
     /** @var ConfigManager|\PHPUnit\Framework\MockObject\MockObject */
@@ -34,23 +33,18 @@ class TitleServiceTest extends \PHPUnit\Framework\TestCase
     /**
      * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->titleReaderRegistry = $this->createMock(TitleReaderRegistry::class);
         $this->titleTranslator = $this->createMock(TitleTranslator::class);
         $this->userConfigManager = $this->createMock(ConfigManager::class);
-        $this->breadcrumbManager = $this->createMock(BreadcrumbManager::class);
-
-        $breadcrumbLink = $this->createMock(ServiceLink::class);
-        $breadcrumbLink->expects($this->any())
-            ->method('getService')
-            ->willReturn($this->breadcrumbManager);
+        $this->breadcrumbManager = $this->createMock(BreadcrumbManagerInterface::class);
 
         $this->titleService = new TitleService(
             $this->titleReaderRegistry,
             $this->titleTranslator,
             $this->userConfigManager,
-            $breadcrumbLink
+            $this->breadcrumbManager
         );
     }
 
@@ -182,12 +176,13 @@ class TitleServiceTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals($dataArray['params'], $this->titleService->getParams());
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Object of type stdClass used for "foo" title param don't have __toString() method.
-     */
     public function testSetParamsObjectWithoutToString()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'Object of type stdClass used for "foo" title param don\'t have __toString() method.'
+        );
+
         $this->titleService->setParams(
             [
                 'foo' => new \stdClass(),

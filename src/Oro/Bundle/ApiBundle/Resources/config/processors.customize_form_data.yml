@@ -1,4 +1,10 @@
 services:
+    oro_api.customize_form_data.processor:
+        class: Oro\Bundle\ApiBundle\Processor\CustomizeFormDataProcessor
+        arguments:
+            - '@oro_api.processor_bag'
+            - customize_form_data
+
     oro_api.customize_form_data.handle_unidirectional_associations:
         class: Oro\Bundle\ApiBundle\Processor\CustomizeFormData\HandleUnidirectionalAssociations
         arguments:

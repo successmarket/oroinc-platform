@@ -21,7 +21,6 @@ services:
 
     oro_security.token_accessor:
         class: Oro\Bundle\SecurityBundle\Authentication\TokenAccessor
-        # This service marked as public for compatibility with Symfony 4. All dependencies must be refactored after BAP-17037
         public: true
         arguments:
             - '@security.token_storage'
@@ -46,7 +45,6 @@ services:
 
     oro_security.acl.manager:
         class: Oro\Bundle\SecurityBundle\Acl\Persistence\AclManager
-        # This service marked as public for compatibility with Symfony 4. All dependencies must be refactored after BAP-17037
         public: true
         arguments:
             - '@oro_security.acl.object_identity_factory'
@@ -87,6 +85,7 @@ services:
         public: false
         class: Oro\Bundle\SecurityBundle\Acl\Extension\AclExtensionSelector
         arguments:
+            - [] # extensions
             - '@oro_security.acl.object_id_accessor'
 
     oro_security.acl.extension.entity:
@@ -118,6 +117,7 @@ services:
         class: Oro\Bundle\SecurityBundle\Acl\Domain\RootBasedAclProvider
         arguments:
             - '@oro_security.acl.object_identity_factory'
+            - '@oro_security.acl.security_identity_to_string_converter'
         calls:
             - [setUnderlyingCache, ['@security.acl.underlying.cache']]
 
@@ -164,8 +164,6 @@ services:
         class: Oro\Bundle\SecurityBundle\Acl\Permission\PermissionManager
         arguments:
             - '@oro_entity.doctrine_helper'
-            - '@oro_security.configuration.provider.permission_configuration'
-            - '@oro_security.configuration.builder.permission_configuration'
             - '@oro_security.cache.provider.permission'
 
     Oro\Bundle\SecurityBundle\Acl\Permission\PermissionManager:
@@ -193,6 +191,9 @@ services:
         arguments:
             - '@oro_security.acl.configurable_permission_provider'
 
+    oro_security.acl.security_identity_to_string_converter:
+        class: Oro\Bundle\SecurityBundle\Acl\Domain\SecurityIdentityToStringConverter
+
     oro_security.acl.object_identity_factory:
         class: Oro\Bundle\SecurityBundle\Acl\Domain\ObjectIdentityFactory
         arguments:
@@ -212,6 +213,8 @@ services:
 
     oro_security.acl.group_provider.chain:
         class: Oro\Bundle\SecurityBundle\Acl\Group\ChainAclGroupProvider
+        arguments:
+            - [] # providers
 
     oro_security.owner.decision_maker:
         public: false
@@ -282,6 +285,7 @@ services:
             - '%kernel.cache_dir%/oro/acl_annotations.php'
             - '%kernel.debug%'
             - '@oro_entity.orm.entity_class_resolver'
+            - !tagged_iterator oro_security.acl.config_loader
 
     oro_security.acl.config_loader:
         class: Oro\Bundle\SecurityBundle\Annotation\Loader\AclConfigLoader
@@ -340,13 +344,17 @@ services:
         public: true
         arguments: [ '%kernel.secret%']
 
-    oro_security.acl_helper:
-        class: Oro\Bundle\SecurityBundle\ORM\Walker\AclHelper
-        # This service marked as public for compatibility with Symfony 4. All dependencies must be refactored after BAP-17037
-        public: true
+    oro_security.access_rule_walker_context_factory:
+        class: Oro\Bundle\SecurityBundle\ORM\Walker\AccessRuleWalkerContextFactory
         arguments:
             - '@security.token_storage'
             - '@oro_security.access_rule_executor'
+
+    oro_security.acl_helper:
+        class: Oro\Bundle\SecurityBundle\ORM\Walker\AclHelper
+        public: true
+        arguments:
+            - '@oro_security.access_rule_walker_context_factory'
 
     Oro\Bundle\SecurityBundle\ORM\Walker\AclHelper:
         alias: oro_security.acl_helper
@@ -375,8 +383,8 @@ services:
 
     oro_security.ownership_tree_provider.chain:
         class: Oro\Bundle\SecurityBundle\Owner\ChainOwnerTreeProvider
-        calls:
-            - [setDefaultProvider, ['@oro_security.ownership_tree_provider']]
+        arguments:
+            - !tagged_iterator oro_security.ownership.tree_provider
 
     oro_security.ownership_tree_provider:
         public: false
@@ -421,15 +429,14 @@ services:
         arguments:
             - '@oro_security.ownership_tree_provider.chain'
         calls:
-            - ['addSupportedClass', ['%oro_user.entity.class%', [owner, organization], [businessUnits, organizations]]]
-            - ['addSupportedClass', ['%oro_organization.business_unit.entity.class%', [owner, organization], [users]]]
-            - ['addSupportedClass', ['%oro_organization.organization.entity.class%']]
+            - ['addSupportedClass', ['Oro\Bundle\UserBundle\Entity\User', [owner, organization], [businessUnits, organizations]]]
+            - ['addSupportedClass', ['Oro\Bundle\OrganizationBundle\Entity\BusinessUnit', [owner, organization], [users]]]
+            - ['addSupportedClass', ['Oro\Bundle\OrganizationBundle\Entity\Organization']]
         tags:
             - { name: doctrine.event_listener, event: onFlush }
 
     oro_security.token.factory.username_password_organization:
         class: Oro\Bundle\SecurityBundle\Authentication\Token\UsernamePasswordOrganizationTokenFactory
-        # This service marked as public for compatibility with Symfony 4. All dependencies must be refactored after BAP-17037
         public: true
 
     oro_security.token.factory.organization_rememberme:
@@ -558,12 +565,12 @@ services:
         arguments:
             - '@oro_entity.doctrine_helper'
             - '@validator'
+            - '@doctrine.orm.entity_manager'
 
     oro_security.layout.data_provider.acl:
         class: Oro\Bundle\SecurityBundle\Layout\DataProvider\AclProvider
         arguments:
             - '@security.authorization_checker'
-            - '@oro_security.token_accessor'
             - '@doctrine'
         tags:
             - { name: layout.data_provider, alias: acl }
@@ -583,13 +590,21 @@ services:
             - '@oro_entity_config.config_manager'
             - '@oro_entity.doctrine_helper'
 
+    # the form extension registered with `oro_security.form.extension.decorator` decorator service
+    # and cannot be registered with form.type_extension tag because
+    # this extension should be registered as first extension for all forms.
     oro_security.form.extension.aclprotected_fields_type:
         class: Oro\Bundle\SecurityBundle\Form\Extension\AclProtectedFieldTypeExtension
         arguments:
             - '@oro_security.form.field_acl_helper'
             - '@logger'
-        tags:
-            - { name: form.type_extension, alias: form, extended_type: Symfony\Component\Form\Extension\Core\Type\FormType }
+
+    oro_security.form.extension.decorator:
+        class: Oro\Bundle\SecurityBundle\Form\Extension\AclFormExtension
+        decorates: 'form.extension'
+        arguments:
+            - '@oro_security.form.extension.aclprotected_fields_type'
+            - '@oro_security.form.extension.decorator.inner'
 
     oro_security.acl.extension.field:
         public: false
@@ -629,16 +644,6 @@ services:
         parent: sensio_framework_extra.converter.doctrine.orm
         arguments:
             - '@oro_security.request_authorization_checker'
-
-    oro_security.acl.cache.doctrine_decorator:
-        class: Oro\Bundle\SecurityBundle\Acl\Cache\AclCache
-        decorates: security.acl.cache.doctrine
-        parent: security.acl.cache.doctrine
-        arguments:
-            index_1: '@oro_security.acl.permission_granting_strategy'
-        calls:
-            - [setUnderlyingCache, ['@security.acl.underlying.cache']]
-            - [setEventDispatcher, ['@event_dispatcher']]
 
     oro_security.security.acl.security_identity_retrieval_strategy.cacheable:
         class: Oro\Bundle\SecurityBundle\Acl\Domain\CacheableSecurityIdentityRetrievalStrategy
@@ -737,13 +742,12 @@ services:
             - { name: kernel.event_listener, event: kernel.controller, method: onKernelController, priority: -10 }
             - { name: kernel.event_listener, event: kernel.response, method: onKernelResponse, priority: -10 }
 
-    # this service is initialized by Oro\Bundle\SecurityBundle\DependencyInjection\Compiler\AccessRulesPass
     oro_security.access_rule_executor:
         class: Oro\Bundle\SecurityBundle\AccessRule\AccessRuleExecutor
         public: false
         arguments:
-            - []
-            - ~
+            - [] # rules
+            - ~ # service locator
             - '@oro_security.access_rule_option_matcher'
 
     oro_security.access_rule_option_matcher:

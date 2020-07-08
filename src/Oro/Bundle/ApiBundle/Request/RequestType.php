@@ -15,13 +15,18 @@ class RequestType implements ToArrayInterface
     public const REST = 'rest';
 
     /**
-     * A request that conforms JSON API specification.
+     * A request that conforms JSON:API specification.
      * @link http://jsonapi.org
      */
     public const JSON_API = 'json_api';
 
+    /**
+     * Indicates that a request is the part of a batch request.
+     */
+    public const BATCH = 'batch';
+
     /** @var string[] */
-    private $aspects = [];
+    private $aspects;
 
     /** @var string */
     private $str;

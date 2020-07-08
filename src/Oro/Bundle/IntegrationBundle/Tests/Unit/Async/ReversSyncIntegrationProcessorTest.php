@@ -1,4 +1,5 @@
 <?php
+
 namespace Oro\Bundle\IntegrationBundle\Tests\Unit\Async;
 
 use Doctrine\DBAL\Connection;
@@ -17,8 +18,8 @@ use Oro\Bundle\OrganizationBundle\Entity\Organization;
 use Oro\Component\MessageQueue\Client\TopicSubscriberInterface;
 use Oro\Component\MessageQueue\Consumption\MessageProcessorInterface;
 use Oro\Component\MessageQueue\Test\JobRunner;
-use Oro\Component\MessageQueue\Transport\Null\NullMessage;
-use Oro\Component\MessageQueue\Transport\Null\NullSession;
+use Oro\Component\MessageQueue\Transport\Message;
+use Oro\Component\MessageQueue\Transport\SessionInterface;
 use Oro\Component\MessageQueue\Util\JSON;
 use Oro\Component\Testing\ClassExtensionTrait;
 use Psr\Log\LoggerInterface;
@@ -78,20 +79,21 @@ class ReversSyncIntegrationProcessorTest extends \PHPUnit\Framework\TestCase
             $logger
         );
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody('[]');
 
-        $status = $processor->process($message, new NullSession());
+        /** @var SessionInterface|\PHPUnit\Framework\MockObject\MockObject $session */
+        $session = $this->createMock(SessionInterface::class);
+        $status = $processor->process($message, $session);
 
         $this->assertEquals(MessageProcessorInterface::REJECT, $status);
     }
 
-    /**
-     * @expectedException \LogicException
-     * @expectedExceptionMessage The malformed json given.
-     */
     public function testThrowIfMessageBodyInvalidJson()
     {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('The malformed json given.');
+
         $processor = new ReversSyncIntegrationProcessor(
             $this->createDoctrineHelperStub(),
             $this->createReversSyncProcessorMock(),
@@ -101,10 +103,12 @@ class ReversSyncIntegrationProcessorTest extends \PHPUnit\Framework\TestCase
             $this->createLoggerMock()
         );
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody('[}');
 
-        $processor->process($message, new NullSession());
+        /** @var SessionInterface|\PHPUnit\Framework\MockObject\MockObject $session */
+        $session = $this->createMock(SessionInterface::class);
+        $processor->process($message, $session);
     }
 
     public function testRejectAndLogIfMessageBodyMissConnector()
@@ -126,10 +130,12 @@ class ReversSyncIntegrationProcessorTest extends \PHPUnit\Framework\TestCase
             $logger
         );
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(JSON::encode(['integration_id' => 'theIntegrationId']));
 
-        $status = $processor->process($message, new NullSession());
+        /** @var SessionInterface|\PHPUnit\Framework\MockObject\MockObject $session */
+        $session = $this->createMock(SessionInterface::class);
+        $status = $processor->process($message, $session);
 
         $this->assertEquals(MessageProcessorInterface::REJECT, $status);
     }
@@ -161,10 +167,12 @@ class ReversSyncIntegrationProcessorTest extends \PHPUnit\Framework\TestCase
             $logger
         );
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(JSON::encode(['integration_id' => 'theIntegrationId', 'connector' => 'connector']));
 
-        $status = $processor->process($message, new NullSession());
+        /** @var SessionInterface|\PHPUnit\Framework\MockObject\MockObject $session */
+        $session = $this->createMock(SessionInterface::class);
+        $status = $processor->process($message, $session);
 
         $this->assertEquals(MessageProcessorInterface::REJECT, $status);
     }
@@ -199,10 +207,12 @@ class ReversSyncIntegrationProcessorTest extends \PHPUnit\Framework\TestCase
             $logger
         );
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(JSON::encode(['integration_id' => 'theIntegrationId', 'connector' => 'connector']));
 
-        $status = $processor->process($message, new NullSession());
+        /** @var SessionInterface|\PHPUnit\Framework\MockObject\MockObject $session */
+        $session = $this->createMock(SessionInterface::class);
+        $status = $processor->process($message, $session);
 
         $this->assertEquals(MessageProcessorInterface::REJECT, $status);
     }
@@ -244,10 +254,12 @@ class ReversSyncIntegrationProcessorTest extends \PHPUnit\Framework\TestCase
             $this->createLoggerMock()
         );
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(JSON::encode(['integration_id' => 'theIntegrationId', 'connector' => 'theConnector']));
 
-        $status = $processor->process($message, new NullSession());
+        /** @var SessionInterface|\PHPUnit\Framework\MockObject\MockObject $session */
+        $session = $this->createMock(SessionInterface::class);
+        $status = $processor->process($message, $session);
 
         $this->assertEquals(MessageProcessorInterface::REJECT, $status);
     }
@@ -286,11 +298,13 @@ class ReversSyncIntegrationProcessorTest extends \PHPUnit\Framework\TestCase
             $this->createLoggerMock()
         );
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(JSON::encode(['integration_id' => 'theIntegrationId', 'connector' => 'theConnector']));
         $message->setMessageId('theMessageId');
 
-        $processor->process($message, new NullSession());
+        /** @var SessionInterface|\PHPUnit\Framework\MockObject\MockObject $session */
+        $session = $this->createMock(SessionInterface::class);
+        $processor->process($message, $session);
 
         $uniqueJobs = $jobRunner->getRunUniqueJobs();
         self::assertCount(1, $uniqueJobs);
@@ -331,10 +345,12 @@ class ReversSyncIntegrationProcessorTest extends \PHPUnit\Framework\TestCase
             $this->createLoggerMock()
         );
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(JSON::encode(['integration_id' => 'theIntegrationId', 'connector' => 'theConnector']));
 
-        $status = $processor->process($message, new NullSession());
+        /** @var SessionInterface|\PHPUnit\Framework\MockObject\MockObject $session */
+        $session = $this->createMock(SessionInterface::class);
+        $status = $processor->process($message, $session);
 
         $this->assertEquals(MessageProcessorInterface::ACK, $status);
     }

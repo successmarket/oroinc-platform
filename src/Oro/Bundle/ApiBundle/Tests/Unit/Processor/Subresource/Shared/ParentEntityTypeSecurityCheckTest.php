@@ -6,6 +6,8 @@ use Oro\Bundle\ApiBundle\Config\EntityDefinitionConfig;
 use Oro\Bundle\ApiBundle\Processor\Subresource\Shared\ParentEntityTypeSecurityCheck;
 use Oro\Bundle\ApiBundle\Tests\Unit\Fixtures\Entity\Product;
 use Oro\Bundle\ApiBundle\Tests\Unit\Processor\Subresource\GetSubresourceProcessorTestCase;
+use Oro\Bundle\ApiBundle\Util\DoctrineHelper;
+use Oro\Bundle\SecurityBundle\Acl\Group\AclGroupProviderInterface;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 
 class ParentEntityTypeSecurityCheckTest extends GetSubresourceProcessorTestCase
@@ -13,11 +15,25 @@ class ParentEntityTypeSecurityCheckTest extends GetSubresourceProcessorTestCase
     /** @var \PHPUnit\Framework\MockObject\MockObject|AuthorizationCheckerInterface */
     private $authorizationChecker;
 
-    protected function setUp()
+    /** @var \PHPUnit\Framework\MockObject\MockObject|DoctrineHelper */
+    private $doctrineHelper;
+
+    /** @var \PHPUnit\Framework\MockObject\MockObject|AclGroupProviderInterface */
+    private $aclGroupProvider;
+
+    protected function setUp(): void
     {
         parent::setUp();
 
         $this->authorizationChecker = $this->createMock(AuthorizationCheckerInterface::class);
+        $this->doctrineHelper = $this->createMock(DoctrineHelper::class);
+        $this->aclGroupProvider = $this->createMock(AclGroupProviderInterface::class);
+
+        $this->doctrineHelper->expects(self::any())
+            ->method('getManageableEntityClass')
+            ->willReturnCallback(function ($className) {
+                return $className;
+            });
     }
 
     /**
@@ -29,6 +45,8 @@ class ParentEntityTypeSecurityCheckTest extends GetSubresourceProcessorTestCase
     {
         return new ParentEntityTypeSecurityCheck(
             $this->authorizationChecker,
+            $this->doctrineHelper,
+            $this->aclGroupProvider,
             'VIEW',
             $forcePermissionUsage
         );
@@ -41,7 +59,7 @@ class ParentEntityTypeSecurityCheckTest extends GetSubresourceProcessorTestCase
 
         $this->authorizationChecker->expects(self::once())
             ->method('isGranted')
-            ->with('VIEW', $parentClassName)
+            ->with('VIEW', 'entity:' . $parentClassName)
             ->willReturn(true);
 
         $this->context->setParentClassName($parentClassName);
@@ -49,17 +67,15 @@ class ParentEntityTypeSecurityCheckTest extends GetSubresourceProcessorTestCase
         $this->getProcessor()->process($this->context);
     }
 
-    /**
-     * @expectedException \Symfony\Component\Security\Core\Exception\AccessDeniedException
-     */
     public function testProcessWhenAccessDeniedForManageableParentEntityWithoutConfigOfAclResource()
     {
+        $this->expectException(\Symfony\Component\Security\Core\Exception\AccessDeniedException::class);
         $parentClassName = Product::class;
         $parentConfig = new EntityDefinitionConfig();
 
         $this->authorizationChecker->expects(self::once())
             ->method('isGranted')
-            ->with('VIEW', $parentClassName)
+            ->with('VIEW', 'entity:' . $parentClassName)
             ->willReturn(false);
 
         $this->context->setParentClassName($parentClassName);
@@ -84,11 +100,9 @@ class ParentEntityTypeSecurityCheckTest extends GetSubresourceProcessorTestCase
         $this->getProcessor()->process($this->context);
     }
 
-    /**
-     * @expectedException \Symfony\Component\Security\Core\Exception\AccessDeniedException
-     */
     public function testProcessWhenAccessDeniedForParentEntityWithConfigOfAclResource()
     {
+        $this->expectException(\Symfony\Component\Security\Core\Exception\AccessDeniedException::class);
         $parentClassName = Product::class;
         $aclResource = 'acme_product_test';
         $parentConfig = new EntityDefinitionConfig();
@@ -112,7 +126,7 @@ class ParentEntityTypeSecurityCheckTest extends GetSubresourceProcessorTestCase
 
         $this->authorizationChecker->expects(self::once())
             ->method('isGranted')
-            ->with('VIEW', $parentClassName)
+            ->with('VIEW', 'entity:' . $parentClassName)
             ->willReturn(true);
 
         $this->context->setParentClassName($parentClassName);

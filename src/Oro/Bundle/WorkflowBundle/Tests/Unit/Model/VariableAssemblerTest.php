@@ -41,16 +41,15 @@ class VariableAssemblerTest extends \PHPUnit\Framework\TestCase
      */
     protected $workflow;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $attributeNormalizer = $this->createMock(AttributeNormalizer::class);
         $serializer = $this->createMock(WorkflowAwareSerializer::class);
 
         $this->variableNormalizer = $this->getMockBuilder(WorkflowVariableNormalizer::class)
-            ->setConstructorArgs([$this->createMock(ManagerRegistry::class)])
+            ->setConstructorArgs([[$attributeNormalizer], $this->createMock(ManagerRegistry::class)])
             ->setMethods(['denormalizeVariable'])
             ->getMock();
-        $this->variableNormalizer->addAttributeNormalizer($attributeNormalizer);
         $this->variableNormalizer->setSerializer($serializer);
 
         $this->variableGuesser = $this->createMock(VariableGuesser::class);
@@ -93,7 +92,7 @@ class VariableAssemblerTest extends \PHPUnit\Framework\TestCase
         if (false === @preg_match($message, $exception)) {
             $this->expectExceptionMessage($message);
         } else {
-            $this->expectExceptionMessageRegExp($message);
+            $this->expectExceptionMessageMatches($message);
         }
 
         $configuration = [

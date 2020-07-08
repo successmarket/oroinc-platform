@@ -22,7 +22,7 @@ class AttributeFamilyTypeTest extends FormIntegrationTestCase
      */
     protected $type;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->type = new AttributeFamilyType($this->getTranslator());
         parent::setUp();
@@ -70,7 +70,10 @@ class AttributeFamilyTypeTest extends FormIntegrationTestCase
                     AttributeFamilyType::class => $this->type,
                     LocalizedFallbackValueCollectionType::class => new LocalizedFallbackValueCollectionTypeStub(),
                     ImageType::class => new ImageTypeStub(),
-                    AttributeMultiSelectType::class => new AttributeMultiSelectType($attributeManagerMock),
+                    AttributeMultiSelectType::class => new AttributeMultiSelectType(
+                        $attributeManagerMock,
+                        $this->getTranslator()
+                    ),
                 ],
                 [
                     FormType::class => [

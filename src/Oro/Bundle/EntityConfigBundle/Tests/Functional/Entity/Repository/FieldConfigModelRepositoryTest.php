@@ -17,7 +17,7 @@ class FieldConfigModelRepositoryTest extends WebTestCase
      */
     protected $repository;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->initClient([], $this->generateBasicAuthHeader());
         $this->client->useHashNavigation(true);
@@ -185,6 +185,28 @@ class FieldConfigModelRepositoryTest extends WebTestCase
             }
             $extendOptions = $attribute->toArray('extend');
             self::assertEquals(ExtendScope::OWNER_CUSTOM, $extendOptions['owner'], $attributeName);
+        }
+        self::assertEquals([], $expectedAttributes);
+    }
+
+    public function testGetAllAttributes(): void
+    {
+        $expectedAttributes = [
+            LoadAttributeData::SYSTEM_ATTRIBUTE_1,
+            LoadAttributeData::SYSTEM_ATTRIBUTE_2,
+            LoadAttributeData::REGULAR_ATTRIBUTE_1,
+            LoadAttributeData::REGULAR_ATTRIBUTE_2,
+            LoadAttributeData::NOT_USED_ATTRIBUTE
+        ];
+        $attributes = $this->repository->getAllAttributes();
+
+        // Check only attributes added by this bundle because other bundles may add own attributes
+        foreach ($attributes as $attribute) {
+            self::assertInstanceOf(FieldConfigModel::class, $attribute);
+            $attributeName = $attribute->getFieldName();
+            if (in_array($attributeName, $expectedAttributes, true)) {
+                unset($expectedAttributes[array_search($attributeName, $expectedAttributes, true)]);
+            }
         }
         self::assertEquals([], $expectedAttributes);
     }

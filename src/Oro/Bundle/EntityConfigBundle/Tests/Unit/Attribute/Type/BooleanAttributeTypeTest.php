@@ -14,11 +14,6 @@ class BooleanAttributeTypeTest extends AttributeTypeTestCase
         return new BooleanAttributeType();
     }
 
-    public function testGetType()
-    {
-        $this->assertEquals('boolean', $this->getAttributeType()->getType());
-    }
-
     /**
      * {@inheritdoc}
      */
@@ -31,12 +26,11 @@ class BooleanAttributeTypeTest extends AttributeTypeTestCase
         ];
     }
 
-    /**
-     * @expectedException \RuntimeException
-     * @expectedExceptionMessage Not supported
-     */
     public function testGetSearchableValue()
     {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Not supported');
+
         $this->getAttributeType()->getSearchableValue($this->attribute, true, $this->localization);
     }
 

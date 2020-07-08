@@ -21,8 +21,13 @@ class Configuration implements ConfigurationInterface
      */
     public function getConfigTreeBuilder()
     {
-        $treeBuilder = new TreeBuilder();
-        $rootNode    = $treeBuilder->root('oro_notification');
+        $treeBuilder = new TreeBuilder('oro_notification');
+        $rootNode    = $treeBuilder->getRootNode();
+
+        $rootNode->children()
+            ->arrayNode('events')
+            ->info('List of notification events.')
+            ->prototype('scalar')->end();
 
         SettingsBuilder::append(
             $rootNode,

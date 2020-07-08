@@ -2,8 +2,9 @@ define([
     'jquery',
     'underscore',
     'jquery-ui',
+    'orotranslation/js/translator',
     'oroui/js/app/views/sticky-element/sticky-element-mixin'
-], function($, _, $ui, stickyElementMixin) {
+], function($, _, $ui, __, stickyElementMixin) {
     'use strict';
 
     /**
@@ -32,8 +33,11 @@ define([
         dropdown: null,
 
         _create: function() {
+            this._togglerId = _.uniqueId('dropdown-toggle-');
             // replaces button's separators
-            this.element.find(this.options.separator).replaceWith('<div class="dropdown-divider"></div>');
+            this.element
+                .find(this.options.separator)
+                .replaceWith('<div class="dropdown-divider" aria-hidden="true"></div>');
 
             this._renderButtons();
         },
@@ -47,7 +51,7 @@ define([
         },
 
         _renderButtons: function() {
-            var $elems = this._collectButtons();
+            let $elems = this._collectButtons();
             if ($elems.length <= 1) {
                 this._removeDropdownMenu();
                 return;
@@ -65,7 +69,7 @@ define([
             // pushes rest buttons to dropdown
             $elems = $elems.not(this.group);
             if ($elems.length > this.options.minItemQuantity) {
-                var $moreButton = this._moreButton();
+                const $moreButton = this._moreButton();
                 this.group.append($moreButton);
 
                 this.initializeSticky({
@@ -112,7 +116,7 @@ define([
          * @private
          */
         _mainButtons: function($buttons) {
-            var $main = $buttons.filter(this.options.mainButtons);
+            let $main = $buttons.filter(this.options.mainButtons);
             if (!$main.length) {
                 $main = $buttons.first();
             }
@@ -127,10 +131,15 @@ define([
          * @private
          */
         _moreButton: function() {
-            var $button = $('<a href="#"/>');
+            const $button = $('<a></a>');
             $button
                 .attr($.extend({
+                    'id': this._togglerId,
+                    'href': '#',
                     'role': 'button',
+                    'aria-label': __('oro.ui.dropdown_option_aria_label'),
+                    'aria-haspopup': true,
+                    'aria-expanded': false,
                     'data-toggle': 'dropdown',
                     'data-placement': 'bottom-end',
                     'data-inherit-parent-width': 'loosely'
@@ -151,7 +160,9 @@ define([
          */
         _dropdownMenu: function($buttons) {
             return $('<ul></ul>', {
-                'class': 'dropdown-menu'
+                'class': 'dropdown-menu',
+                'role': 'menu',
+                'aria-labelledby': this._togglerId
             }).append(this._prepareButtons($buttons));
         },
 
@@ -164,11 +175,18 @@ define([
         _prepareMainButton: function($main) {
             $main = $main.clone(true);
             if (this.options.truncateLength) {
-                var self = this;
+                const self = this;
                 // set text value string
                 $main.contents().each(function() {
                     if (this.nodeType === Node.TEXT_NODE) {
-                        this.nodeValue = _.trunc(this.nodeValue, self.options.truncateLength, false, '...');
+                        const text = this.nodeValue.trim();
+                        const shortText = text.substring(0, self.options.truncateLength);
+                        if (shortText !== text) {
+                            this.parentNode.setAttribute('title', text);
+                            this.parentNode
+                                .setAttribute('aria-label', __('oro.ui.dropdown_main_btn_prefix') + ' ' + text);
+                            this.nodeValue = shortText + '\u2026';
+                        }
                     }
                 });
             }
@@ -180,7 +198,7 @@ define([
             return $buttons.filter('.btn')
                 .removeClass(function(index, css) {
                     return (css.match(/\bbtn(-\S+)?/g) || []).join(' ');
-                }).wrap('<li></li>').parent();
+                }).wrap('<li role="menuitem"></li>').parent();
         }
     }));
 

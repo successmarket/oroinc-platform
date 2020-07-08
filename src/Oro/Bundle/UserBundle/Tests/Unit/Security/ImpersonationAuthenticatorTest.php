@@ -182,12 +182,11 @@ class ImpersonationAuthenticatorTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    /**
-     * @expectedException \Symfony\Component\Security\Core\Exception\BadCredentialsException
-     * @expectedExceptionMessage You don't have active organization assigned.
-     */
     public function testCreateAuthenticatedTokenWhenNoOrganization(): void
     {
+        $this->expectException(\Oro\Bundle\SecurityBundle\Exception\BadUserOrganizationException::class);
+        $this->expectExceptionMessage("You don't have active organization assigned.");
+
         $this->authenticator->createAuthenticatedToken(new User(), 'sample-key');
     }
 }

@@ -2,10 +2,16 @@
 
 namespace Oro\Bundle\SecurityBundle\Tests\Unit\Acl\Dbal;
 
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
+use Doctrine\DBAL\Platforms\AbstractPlatform;
+use Oro\Bundle\SecurityBundle\Acl\Cache\AclCache;
 use Oro\Bundle\SecurityBundle\Acl\Dbal\MutableAclProvider;
+use Symfony\Component\Security\Acl\Domain\Acl;
 use Symfony\Component\Security\Acl\Domain\ObjectIdentity;
 use Symfony\Component\Security\Acl\Domain\RoleSecurityIdentity;
 use Symfony\Component\Security\Acl\Domain\UserSecurityIdentity;
+use Symfony\Component\Security\Acl\Model\PermissionGrantingStrategyInterface;
 use Symfony\Component\Security\Acl\Model\SecurityIdentityInterface;
 
 class MutableAclProviderTest extends \PHPUnit\Framework\TestCase
@@ -13,52 +19,44 @@ class MutableAclProviderTest extends \PHPUnit\Framework\TestCase
     /** @var MutableAclProvider */
     private $provider;
 
-    /** @var \PHPUnit\Framework\MockObject\MockObject */
+    /** @var Connection|\PHPUnit\Framework\MockObject\MockObject */
     private $connection;
 
-    protected function setUp()
+    /** @var PermissionGrantingStrategyInterface|\PHPUnit\Framework\MockObject\MockObject */
+    private $permissionGrantingStrategy;
+
+    /** @var AclCache|\PHPUnit\Framework\MockObject\MockObject */
+    private $cache;
+
+    protected function setUp(): void
     {
-        $platform = $platform = $this->getMockForAbstractClass(
-            'Doctrine\DBAL\Platforms\AbstractPlatform',
-            [],
-            '',
-            true,
-            true,
-            true,
-            array('convertBooleans')
-        );
+        $platform = $platform = $this->getMockBuilder(AbstractPlatform::class)
+            ->setMethods(['convertBooleans'])
+            ->getMockForAbstractClass();
         $platform->expects($this->any())
             ->method('convertBooleans')
-            ->will(
-                $this->returnValueMap(
-                    array(
-                        array(false, '0'),
-                        array(true, '1'),
-                    )
-                )
-            );
-        $this->connection = $this->getMockBuilder('Doctrine\DBAL\Connection')
-            ->disableOriginalConstructor()
-            ->getMock();
+            ->willReturnMap([
+                [false, '0'],
+                [true, '1'],
+            ]);
+        $this->connection = $this->createMock(Connection::class);
         $this->connection->expects($this->any())
             ->method('getDatabasePlatform')
-            ->will($this->returnValue($platform));
+            ->willReturn($platform);
         $this->connection->expects($this->any())
             ->method('quote')
-            ->will(
-                $this->returnCallback(
-                    function ($input) {
-                        return '\'' . $input . '\'';
-                    }
-                )
-            );
+            ->willReturnCallback(function ($input) {
+                return "'" . $input . "'";
+            });
 
-        $strategy = $this->createMock('Symfony\Component\Security\Acl\Model\PermissionGrantingStrategyInterface');
+        $this->permissionGrantingStrategy = $this->createMock(PermissionGrantingStrategyInterface::class);
+        $this->cache = $this->createMock(AclCache::class);
 
         $this->provider = new MutableAclProvider(
             $this->connection,
-            $strategy,
-            array('sid_table_name' => 'acl_security_identities')
+            $this->permissionGrantingStrategy,
+            ['sid_table_name' => 'acl_security_identities'],
+            $this->cache
         );
     }
 
@@ -86,74 +84,80 @@ class MutableAclProviderTest extends \PHPUnit\Framework\TestCase
     /**
      * @dataProvider deleteSecurityIdentityProvider
      */
-    public function testDeleteSecurityIdentity(SecurityIdentityInterface $sid, $sql)
+    public function testDeleteSecurityIdentity(SecurityIdentityInterface $sid, $parameters)
     {
         $this->connection->expects($this->once())
-            ->method('executeQuery')
-            ->with($this->equalTo($sql));
+            ->method('executeUpdate')
+            ->with(
+                'DELETE FROM acl_security_identities WHERE identifier = ? AND username = ?',
+                $parameters,
+                [ParameterType::STRING, ParameterType::BOOLEAN]
+            );
         $this->provider->deleteSecurityIdentity($sid);
     }
 
     /**
      * @dataProvider updateSecurityIdentityProvider
      */
-    public function testUpdateSecurityIdentity(SecurityIdentityInterface $sid, $oldName, $sql)
+    public function testUpdateSecurityIdentity(SecurityIdentityInterface $sid, $oldName, $parameters)
     {
         $this->connection->expects($this->once())
-            ->method('executeQuery')
-            ->with($this->equalTo($sql));
+            ->method('executeUpdate')
+            ->with(
+                'UPDATE acl_security_identities SET identifier = ? WHERE identifier = ? AND username = ?',
+                $parameters,
+                [ParameterType::STRING, ParameterType::STRING, ParameterType::BOOLEAN]
+            );
         $this->provider->updateSecurityIdentity($sid, $oldName);
     }
 
     /**
      * @dataProvider updateSecurityIdentityNoChangesProvider
-     * @expectedException \InvalidArgumentException
      */
     public function testUpdateSecurityIdentityShouldThrowInvalidArgumentException(
         SecurityIdentityInterface $sid,
         $oldName
     ) {
+        $this->expectException(\InvalidArgumentException::class);
         $this->provider->updateSecurityIdentity($sid, $oldName);
     }
 
     public static function deleteSecurityIdentityProvider()
     {
-        return array(
-            array(
+        return [
+            [
                 new UserSecurityIdentity('test', 'Acme\User'),
-                'DELETE FROM acl_security_identities WHERE identifier = \'Acme\User-test\' AND username = 1'
-            ),
-            array(
+                ['Acme\User-test', true]
+            ],
+            [
                 new RoleSecurityIdentity('ROLE_TEST'),
-                'DELETE FROM acl_security_identities WHERE identifier = \'ROLE_TEST\' AND username = 0'
-            ),
-        );
+                ['ROLE_TEST', false]
+            ]
+        ];
     }
 
     public static function updateSecurityIdentityProvider()
     {
-        return array(
-            array(
+        return [
+            [
                 new UserSecurityIdentity('test', 'Acme\User'),
                 'old',
-                'UPDATE acl_security_identities SET identifier = \'Acme\User-test\' WHERE '
-                . 'identifier = \'Acme\User-old\' AND username = 1'
-            ),
-            array(
+                ['Acme\User-test', 'Acme\User-old', true]
+            ],
+            [
                 new RoleSecurityIdentity('ROLE_TEST'),
                 'ROLE_OLD',
-                'UPDATE acl_security_identities SET identifier = \'ROLE_TEST\' WHERE '
-                . 'identifier = \'ROLE_OLD\' AND username = 0'
-            )
-        );
+                ['ROLE_TEST', 'ROLE_OLD', false]
+            ]
+        ];
     }
 
     public static function updateSecurityIdentityNoChangesProvider()
     {
-        return array(
-            array(new UserSecurityIdentity('test', 'Acme\User'), 'test'),
-            array(new RoleSecurityIdentity('ROLE_TEST'), 'ROLE_TEST'),
-        );
+        return [
+            [new UserSecurityIdentity('test', 'Acme\User'), 'test'],
+            [new RoleSecurityIdentity('ROLE_TEST'), 'ROLE_TEST'],
+        ];
     }
 
     public function testDeleteAclClass()
@@ -161,11 +165,11 @@ class MutableAclProviderTest extends \PHPUnit\Framework\TestCase
         $oid = new ObjectIdentity('entity', 'Test\Class');
 
         /** @var \PHPUnit\Framework\MockObject\MockObject|MutableAclProvider $provider */
-        $provider = $this->getMockBuilder('Oro\Bundle\SecurityBundle\Acl\Dbal\MutableAclProvider')
+        $provider = $this->getMockBuilder(MutableAclProvider::class)
             ->setMethods(['deleteAcl'])
             ->setConstructorArgs([
                 $this->connection,
-                $this->createMock('Symfony\Component\Security\Acl\Model\PermissionGrantingStrategyInterface'),
+                $this->createMock(PermissionGrantingStrategyInterface::class),
                 ['class_table_name' => 'acl_classes']
             ])
             ->getMock();
@@ -176,28 +180,31 @@ class MutableAclProviderTest extends \PHPUnit\Framework\TestCase
             ->method('deleteAcl')
             ->with($this->identicalTo($oid));
         $this->connection->expects($this->once())
-            ->method('executeQuery')
-            ->with('DELETE FROM acl_classes WHERE class_type = \'Test\\Class\'');
+            ->method('executeUpdate')
+            ->with(
+                'DELETE FROM acl_classes WHERE class_type = ?',
+                ['Test\Class'],
+                [ParameterType::STRING]
+            );
         $this->connection->expects($this->once())
             ->method('commit');
 
         $provider->deleteAclClass($oid);
     }
 
-    /**
-     * @expectedException \Exception
-     * @expectedExceptionMessage some exception
-     */
     public function testDeleteAclClassFailure()
     {
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('some exception');
+
         $oid = new ObjectIdentity('entity', 'Test\Class');
 
         /** @var \PHPUnit\Framework\MockObject\MockObject|MutableAclProvider $provider */
-        $provider = $this->getMockBuilder('Oro\Bundle\SecurityBundle\Acl\Dbal\MutableAclProvider')
+        $provider = $this->getMockBuilder(MutableAclProvider::class)
             ->setMethods(['deleteAcl'])
             ->setConstructorArgs([
                 $this->connection,
-                $this->createMock('Symfony\Component\Security\Acl\Model\PermissionGrantingStrategyInterface'),
+                $this->createMock(PermissionGrantingStrategyInterface::class),
                 ['class_table_name' => 'acl_classes']
             ])
             ->getMock();
@@ -208,11 +215,33 @@ class MutableAclProviderTest extends \PHPUnit\Framework\TestCase
             ->method('deleteAcl')
             ->with($this->identicalTo($oid));
         $this->connection->expects($this->once())
-            ->method('executeQuery')
-            ->will($this->throwException(new \Exception('some exception')));
+            ->method('executeUpdate')
+            ->willThrowException(new \Exception('some exception'));
         $this->connection->expects($this->once())
             ->method('rollBack');
 
         $provider->deleteAclClass($oid);
+    }
+
+    public function testCacheEmptyAcl(): void
+    {
+        $oid = new ObjectIdentity('test_id', 'test_type');
+
+        $this->cache->expects($this->once())
+            ->method('putInCacheBySids')
+            ->with(new Acl(0, $oid, $this->permissionGrantingStrategy, [], false), []);
+
+        $this->provider->cacheEmptyAcl($oid, []);
+    }
+
+    public function testClearOidCache(): void
+    {
+        $oid = new ObjectIdentity('test_id', 'test_type');
+
+        $this->cache->expects($this->once())
+            ->method('evictFromCacheByIdentity')
+            ->with($oid);
+
+        $this->provider->clearOidCache($oid);
     }
 }

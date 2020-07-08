@@ -12,7 +12,14 @@ class TimePicker extends Element
      */
     public function setValue($dateTime)
     {
-        $this->click();
+        $this->spin(
+            function () {
+                $this->click();
+
+                return true;
+            },
+            5
+        );
 
         $timeSelect = $this->getPage()->findVisible('css', '.ui-timepicker-wrapper');
         $time = $this->formatTime($dateTime);
@@ -21,7 +28,11 @@ class TimePicker extends Element
         foreach ($timeSelect->findAll('css', 'li') as $li) {
             if ($time == $this->formatTime(new \DateTime($li->getText()))) {
                 $li->mouseOver();
-                $li->click();
+                $this->spin(function () use ($li) {
+                    $li->click();
+                    return true;
+                }, 5);
+
                 $mask = $this->getPage()->findVisible('css', '#oro-dropdown-mask');
                 if (!empty($mask)) {
                     $mask->click();

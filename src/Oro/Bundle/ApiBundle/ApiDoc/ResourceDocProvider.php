@@ -38,6 +38,105 @@ class ResourceDocProvider
             'description'   => 'Update {name}',
             'documentation' => 'Update an entity'
         ],
+        ApiAction::UPDATE_LIST           => [
+            'description'   => 'Create or update a list of {name}',
+            // @codingStandardsIgnoreStart
+            'documentation' => <<<MARKDOWN
+Create or update a list of {singular_name|lower} records.
+
+The request is processed asynchronously, and the details of the corresponding asynchronous operation
+are returned in the response.
+
+**Note:** *The server may process records in any order regardless of the order
+in which they are specified in the request.*
+
+The input data for each record is the same as for the API resources to create or update
+a single {singular_name|lower} record.
+
+Example:
+
+```JSON
+{
+   "data": [
+      {
+          "type":"entityType",
+          "attributes": {...},
+          "relationships": {...}
+      },
+      {
+          "type":"entityType",
+          "attributes": {...},
+          "relationships": {...}
+       }
+   ]
+}
+```
+
+Use the **update** meta property to mark the records that should be updated.
+See [Creating and Updating Related Resources with Primary API Resource](https://doc.oroinc.com/api/create-update-related-resources/#creating-and-updating-related-resources-with-primary-api-resource)
+for more details about this meta property.
+
+Example:
+
+```JSON
+{
+   "data": [
+      {
+          "meta": {"update": true},
+          "type":"entityType",
+          "id": "1",
+          "attributes": {...},
+          "relationships": {...}
+      },
+      {
+          "meta": {"update": true},
+          "type":"entityType",
+          "id": "2",
+          "attributes": {...},
+          "relationships": {...}
+       }
+   ]
+}
+```
+
+The related entities can be created or updated when processing primary entities.
+The list of related entities should be specified in the **included** section
+that must be placed at the root level, the same as the **data** section.
+
+Example:
+
+```JSON
+{
+   "data": [
+      {
+          "type":"entityType",
+          "attributes": {...},
+          "relationships": {
+              "relation": {
+                  "data": {
+                      "type":"entityType1",
+                      "id": "included_entity_1"
+                  }
+              },
+              ...
+          }
+      },
+      ...
+   ],
+   "included": [
+       {
+          "type":"entityType1",
+          "id": "included_entity_1",
+          "attributes": {...},
+          "relationships": {...}
+      },
+      ...
+   ]
+}
+```
+MARKDOWN
+        // @codingStandardsIgnoreEnd
+        ],
         ApiAction::GET_SUBRESOURCE     => [
             'description'   => 'Get {association}',
             'documentation' => [
@@ -94,14 +193,14 @@ class ResourceDocProvider
      * Gets a short, human-readable description of API resource.
      *
      * @param string $action
-     * @param string $entityDescription
+     * @param string $entityName
      *
      * @return string|null
      */
-    public function getResourceDescription(string $action, string $entityDescription): ?string
+    public function getResourceDescription(string $action, string $entityName): ?string
     {
         return isset(self::TEMPLATES[$action])
-            ? \strtr(self::TEMPLATES[$action]['description'], ['{name}' => $entityDescription])
+            ? strtr(self::TEMPLATES[$action]['description'], ['{name}' => $entityName])
             : null;
     }
 
@@ -109,29 +208,43 @@ class ResourceDocProvider
      * Gets a detailed documentation of API resource.
      *
      * @param string $action
-     * @param string $entityDescription
+     * @param string $entitySingularName
+     * @param string $entityPluralName
      *
      * @return string|null
      */
-    public function getResourceDocumentation(string $action, string $entityDescription): ?string
-    {
-        return isset(self::TEMPLATES[$action]['documentation'])
-            ? \strtr(self::TEMPLATES[$action]['documentation'], ['{name}' => $entityDescription])
-            : null;
+    public function getResourceDocumentation(
+        string $action,
+        string $entitySingularName,
+        string $entityPluralName
+    ): ?string {
+        if (!isset(self::TEMPLATES[$action]['documentation'])) {
+            return null;
+        }
+
+        return strtr(
+            self::TEMPLATES[$action]['documentation'],
+            [
+                '{singular_name}'       => $entitySingularName,
+                '{singular_name|lower}' => strtolower($entitySingularName),
+                '{plural_name}'         => $entityPluralName,
+                '{plural_name|lower}'   => strtolower($entityPluralName)
+            ]
+        );
     }
 
     /**
      * Gets a short, human-readable description of API sub-resource.
      *
      * @param string $action
-     * @param string $associationDescription
+     * @param string $associationName
      * @param bool   $isCollection
      *
      * @return string|null
      */
     public function getSubresourceDescription(
         string $action,
-        string $associationDescription,
+        string $associationName,
         bool $isCollection
     ): ?string {
         if (!isset(self::TEMPLATES[$action])) {
@@ -143,21 +256,21 @@ class ResourceDocProvider
             $template = $isCollection ? $template['collection'] : $template['single_item'];
         }
 
-        return \strtr($template, ['{association}' => $associationDescription]);
+        return strtr($template, ['{association}' => $associationName]);
     }
 
     /**
      * Gets a detailed documentation of API sub-resource.
      *
      * @param string $action
-     * @param string $associationDescription
+     * @param string $associationName
      * @param bool   $isCollection
      *
      * @return string|null
      */
     public function getSubresourceDocumentation(
         string $action,
-        string $associationDescription,
+        string $associationName,
         bool $isCollection
     ): ?string {
         if (!isset(self::TEMPLATES[$action])) {
@@ -169,6 +282,6 @@ class ResourceDocProvider
             $template = $isCollection ? $template['collection'] : $template['single_item'];
         }
 
-        return \strtr($template, ['{association}' => $associationDescription]);
+        return strtr($template, ['{association}' => $associationName]);
     }
 }

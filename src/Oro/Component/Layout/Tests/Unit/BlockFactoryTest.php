@@ -45,7 +45,7 @@ class BlockFactoryTest extends LayoutTestCase
     /** @var BlockFactory */
     protected $blockFactory;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->registry = new LayoutRegistry();
         $this->registry->addExtension(new CoreExtension());
@@ -90,6 +90,8 @@ class BlockFactoryTest extends LayoutTestCase
 
     public function testSimpleLayout()
     {
+        $this->context->resolve();
+
         $this->layoutManipulator
             ->add('root', null, 'root')
             ->add('header', 'root', 'header')
@@ -117,6 +119,8 @@ class BlockFactoryTest extends LayoutTestCase
 
     public function testCoreVariablesForRootItemOnly()
     {
+        $this->context->resolve();
+
         $this->layoutManipulator
             ->add('rootId', null, 'root');
 
@@ -136,7 +140,7 @@ class BlockFactoryTest extends LayoutTestCase
                         'root',
                         '_rootId'
                     ],
-                    'cache_key'            => '_rootId_root'
+                    'cache_key'            => '_rootId_root_ad7b81dea42cf2ef7525c274471e3ce6'
                 ],
                 'children' => []
             ],
@@ -147,6 +151,8 @@ class BlockFactoryTest extends LayoutTestCase
 
     public function testCoreVariables()
     {
+        $this->context->resolve();
+
         $this->layoutManipulator
             ->add('rootId', null, 'root')
             ->add('headerId', 'rootId', 'header')
@@ -168,7 +174,7 @@ class BlockFactoryTest extends LayoutTestCase
                         'root',
                         '_rootId'
                     ],
-                    'cache_key'            => '_rootId_root'
+                    'cache_key'            => '_rootId_root_ad7b81dea42cf2ef7525c274471e3ce6'
                 ],
                 'children' => [
                     [ // header
@@ -184,7 +190,7 @@ class BlockFactoryTest extends LayoutTestCase
                                 'header',
                                 '_headerId'
                             ],
-                            'cache_key'            => '_headerId_header'
+                            'cache_key'            => '_headerId_header_ad7b81dea42cf2ef7525c274471e3ce6'
                         ],
                         'children' => [
                             [ // logo
@@ -199,7 +205,7 @@ class BlockFactoryTest extends LayoutTestCase
                                         'logo',
                                         '_logoId'
                                     ],
-                                    'cache_key'            => '_logoId_logo',
+                                    'cache_key'            => '_logoId_logo_ad7b81dea42cf2ef7525c274471e3ce6',
                                     'title'                => 'test'
                                 ]
                             ]
@@ -212,14 +218,16 @@ class BlockFactoryTest extends LayoutTestCase
         );
     }
 
-    // @codingStandardsIgnoreStart
-    /**
-     * @expectedException \Oro\Component\Layout\Exception\LogicException
-     * @expectedExceptionMessage The "header" item cannot be added as a child to "logo" item (block type: logo) because only container blocks can have children.
-     */
-    // @codingStandardsIgnoreEnd
     public function testAddChildToNotContainer()
     {
+        $this->expectException(\Oro\Component\Layout\Exception\LogicException::class);
+        $this->expectExceptionMessage(
+            'The "header" item cannot be added as a child to "logo" item (block type: logo)'
+            . ' because only container blocks can have children.'
+        );
+
+        $this->context->resolve();
+
         $this->layoutManipulator
             ->add('root', null, 'root')
             ->add('logo', 'root', 'logo')
@@ -318,6 +326,8 @@ class BlockFactoryTest extends LayoutTestCase
             )
         );
 
+        $this->context->resolve();
+
         $this->layoutManipulator
             ->add('root', null, 'root')
             ->add('header', 'root', 'header', ['test_option_1' => 'move_logo_to_root'])
@@ -363,9 +373,11 @@ class BlockFactoryTest extends LayoutTestCase
      */
     public function testProcessingExpressionsInBuildView($deferred)
     {
-        $this->context->set('expressions_evaluate', true);
-        $this->context->set('expressions_evaluate_deferred', $deferred);
-        $this->context->set('title', 'test title');
+        $this->context = new LayoutContext(
+            ['expressions_evaluate' => true, 'expressions_evaluate_deferred' => $deferred, 'title' => 'test title'],
+            ['expressions_evaluate', 'expressions_evaluate_deferred', 'title']
+        );
+        $this->context->resolve();
 
         $this->layoutManipulator
             ->add('root', null, 'root')
@@ -405,13 +417,14 @@ class BlockFactoryTest extends LayoutTestCase
         ];
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     */
     public function testBuildViewShouldFailWhenUsingNonProcessedExpressions()
     {
-        $this->context->set('expressions_evaluate', false);
-        $this->context->set('title', 'test title');
+        $this->expectException(\InvalidArgumentException::class);
+        $this->context = new LayoutContext(
+            ['expressions_evaluate' => false, 'title' => 'test title'],
+            ['expressions_evaluate', 'title']
+        );
+        $this->context->resolve();
 
         $this->layoutManipulator
             ->add('root', null, 'root')
@@ -423,14 +436,14 @@ class BlockFactoryTest extends LayoutTestCase
         $this->getLayoutView();
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     */
     public function testBuildViewShouldFailWhenUsingDataInExpressionsInDeferredMode()
     {
-        $this->context->set('expressions_evaluate', true);
-        $this->context->set('expressions_evaluate_deferred', true);
-        $this->context->data()->set('title', 'test title');
+        $this->expectException(\InvalidArgumentException::class);
+        $this->context = new LayoutContext(
+            ['expressions_evaluate' => true, 'expressions_evaluate_deferred' => true, 'title' => 'test title'],
+            ['expressions_evaluate', 'expressions_evaluate_deferred', 'title']
+        );
+        $this->context->resolve();
 
         $this->layoutManipulator
             ->add('root', null, 'root')
@@ -448,7 +461,8 @@ class BlockFactoryTest extends LayoutTestCase
         $valueBag->add('one');
         $valueBag->add('two');
 
-        $this->context->set('expressions_evaluate', true);
+        $this->context = new LayoutContext(['expressions_evaluate' => true], ['expressions_evaluate']);
+        $this->context->resolve();
 
         $this->layoutManipulator
             ->add('root', null, 'root')

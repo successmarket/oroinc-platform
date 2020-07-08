@@ -3,7 +3,7 @@
 namespace Oro\Bundle\ApiBundle\Tests\Unit\Config\Extra;
 
 use Oro\Bundle\ApiBundle\Config\Extra\MaxRelatedEntitiesConfigExtra;
-use Oro\Bundle\ApiBundle\Processor\Config\ConfigContext;
+use Oro\Bundle\ApiBundle\Processor\GetConfig\ConfigContext;
 
 class MaxRelatedEntitiesConfigExtraTest extends \PHPUnit\Framework\TestCase
 {
@@ -12,7 +12,7 @@ class MaxRelatedEntitiesConfigExtraTest extends \PHPUnit\Framework\TestCase
     /** @var MaxRelatedEntitiesConfigExtra */
     private $extra;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->extra = new MaxRelatedEntitiesConfigExtra(self::MAX_RELATED_ENTITIES);
     }

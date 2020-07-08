@@ -1,7 +1,7 @@
 define(function(require) {
     'use strict';
 
-    var FuzzySearch = require('oroui/js/fuzzy-search');
+    const FuzzySearch = require('oroui/js/fuzzy-search');
 
     describe('oroui/js/fuzzy-search', function() {
         it('check isMatched', function() {
@@ -19,6 +19,7 @@ define(function(require) {
         });
 
         it('check cache', function() {
+            FuzzySearch.isMatched('Localization', 'lcl');
             expect(FuzzySearch._cache.hasOwnProperty('Localization')).toBeTruthy();
             FuzzySearch.clearCache();
             expect(FuzzySearch._cache).toEqual({});

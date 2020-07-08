@@ -8,17 +8,12 @@ use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use Oro\Bundle\NotificationBundle\Entity\EmailNotification;
-use Oro\Bundle\NotificationBundle\Entity\Event;
 use Oro\Bundle\NotificationBundle\Event\Handler\EventHandlerInterface;
 use Oro\Bundle\NotificationBundle\Event\NotificationEvent;
 use Oro\Bundle\NotificationBundle\Provider\NotificationManager;
-use Psr\Container\ContainerInterface;
 
 class NotificationManagerTest extends \PHPUnit\Framework\TestCase
 {
-    /** @var \PHPUnit\Framework\MockObject\MockObject|ContainerInterface */
-    private $handlerLocator;
-
     /** @var \PHPUnit\Framework\MockObject\MockObject|Cache */
     private $cache;
 
@@ -28,9 +23,8 @@ class NotificationManagerTest extends \PHPUnit\Framework\TestCase
     /** @var \PHPUnit\Framework\MockObject\MockObject|ManagerRegistry */
     private $doctrine;
 
-    protected function setUp()
+    protected function setUp(): void
     {
-        $this->handlerLocator = $this->createMock(ContainerInterface::class);
         $this->cache = $this->createMock(Cache::class);
         $this->em = $this->createMock(EntityManagerInterface::class);
         $this->doctrine = $this->createMock(ManagerRegistry::class);
@@ -38,21 +32,6 @@ class NotificationManagerTest extends \PHPUnit\Framework\TestCase
             ->method('getManagerForClass')
             ->with(EmailNotification::class)
             ->willReturn($this->em);
-    }
-
-    /**
-     * @param string[] $handlerIds
-     *
-     * @return NotificationManager
-     */
-    private function getNotificationManager(array $handlerIds)
-    {
-        return new NotificationManager(
-            $handlerIds,
-            $this->handlerLocator,
-            $this->cache,
-            $this->doctrine
-        );
     }
 
     private function expectLoadRules(array $rules)
@@ -68,11 +47,7 @@ class NotificationManagerTest extends \PHPUnit\Framework\TestCase
             ->willReturnSelf();
         $qb->expects(self::once())
             ->method('select')
-            ->with(['e', 'event'])
-            ->willReturnSelf();
-        $qb->expects(self::once())
-            ->method('leftJoin')
-            ->with('e.event', 'event')
+            ->with('e')
             ->willReturnSelf();
         $qb->expects(self::once())
             ->method('getQuery')
@@ -106,7 +81,7 @@ class NotificationManagerTest extends \PHPUnit\Framework\TestCase
     {
         $rule = new EmailNotification();
         $rule->setEntityName(get_class($entity));
-        $rule->setEvent(new Event($eventName));
+        $rule->setEventName($eventName);
 
         return $rule;
     }
@@ -126,12 +101,6 @@ class NotificationManagerTest extends \PHPUnit\Framework\TestCase
 
         $handler1 = $this->createMock(EventHandlerInterface::class);
         $handler2 = $this->createMock(EventHandlerInterface::class);
-        $this->handlerLocator->expects(self::exactly(2))
-            ->method('get')
-            ->willReturnMap([
-                ['handler1', $handler1],
-                ['handler2', $handler2]
-            ]);
 
         $notificationEvent = new NotificationEvent($entity);
         $handler1->expects(self::once())
@@ -141,7 +110,7 @@ class NotificationManagerTest extends \PHPUnit\Framework\TestCase
             ->method('handle')
             ->with(self::identicalTo($notificationEvent), [$matchedRule]);
 
-        $manager = $this->getNotificationManager(['handler1', 'handler2']);
+        $manager = new NotificationManager([$handler1, $handler2], $this->cache, $this->doctrine);
         $manager->process($notificationEvent, $eventName);
         self::assertFalse($notificationEvent->isPropagationStopped());
     }
@@ -155,18 +124,17 @@ class NotificationManagerTest extends \PHPUnit\Framework\TestCase
         $this->expectLoadRules([$this->createRule($eventName, $entity)]);
 
         $handler1 = $this->createMock(EventHandlerInterface::class);
-        $this->handlerLocator->expects(self::once())
-            ->method('get')
-            ->with('handler1')
-            ->willReturn($handler1);
+        $handler2 = $this->createMock(EventHandlerInterface::class);
         $handler1->expects(self::once())
             ->method('handle')
             ->willReturnCallback(function (NotificationEvent $event) {
                 $event->stopPropagation();
             });
+        $handler2->expects(self::never())
+            ->method('handle');
 
         $notificationEvent = new NotificationEvent($entity);
-        $manager = $this->getNotificationManager(['handler1', 'handler2']);
+        $manager = new NotificationManager([$handler1, $handler2], $this->cache, $this->doctrine);
         $manager->process($notificationEvent, $eventName);
         self::assertTrue($notificationEvent->isPropagationStopped());
     }
@@ -205,11 +173,7 @@ class NotificationManagerTest extends \PHPUnit\Framework\TestCase
             ->willReturnSelf();
         $qb->expects(self::once())
             ->method('select')
-            ->with('e.entityName, event.name as eventName')
-            ->willReturnSelf();
-        $qb->expects(self::once())
-            ->method('innerJoin')
-            ->with('e.event', 'event')
+            ->with('e.entityName, e.eventName')
             ->willReturnSelf();
         $qb->expects(self::once())
             ->method('getQuery')
@@ -222,8 +186,12 @@ class NotificationManagerTest extends \PHPUnit\Framework\TestCase
                 ['entityName' => 'Test\AnotherEntity', 'eventName' => $eventName]
             ]);
 
+        $handler1 = $this->createMock(EventHandlerInterface::class);
+        $handler1->expects(self::never())
+            ->method('handle');
+
         $notificationEvent = new NotificationEvent($entity);
-        $manager = $this->getNotificationManager(['handler1']);
+        $manager = new NotificationManager([$handler1], $this->cache, $this->doctrine);
         $manager->process($notificationEvent, $eventName);
     }
 }

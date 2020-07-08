@@ -3,17 +3,23 @@
 namespace Oro\Bundle\ApiBundle\Tests\Unit\Processor\CustomizeLoadedData;
 
 use Oro\Bundle\ApiBundle\Config\EntityDefinitionConfig;
+use Oro\Bundle\ApiBundle\Config\Extra\HateoasConfigExtra;
 use Oro\Bundle\ApiBundle\Processor\CustomizeLoadedData\CustomizeLoadedDataContext;
 use Oro\Bundle\ApiBundle\Tests\Unit\Processor\TestConfigExtra;
 use Oro\Bundle\ApiBundle\Util\ConfigUtil;
 use Oro\Component\ChainProcessor\ParameterBagInterface;
 
+/**
+ * @SuppressWarnings(PHPMD.TooManyMethods)
+ * @SuppressWarnings(PHPMD.TooManyPublicMethods)
+ * @SuppressWarnings(PHPMD.ExcessivePublicCount)
+ */
 class CustomizeLoadedDataContextTest extends \PHPUnit\Framework\TestCase
 {
     /** @var CustomizeLoadedDataContext */
     private $context;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->context = new CustomizeLoadedDataContext();
     }
@@ -132,7 +138,7 @@ class CustomizeLoadedDataContextTest extends \PHPUnit\Framework\TestCase
         $propertyPath = 'test';
         $config = new EntityDefinitionConfig();
         $this->context->setConfig($config);
-        self::assertNull($this->context->getResultFieldName($propertyPath));
+        self::assertEquals($propertyPath, $this->context->getResultFieldName($propertyPath));
     }
 
     public function testGetResultFieldNameForNotRenamedField()
@@ -176,7 +182,7 @@ class CustomizeLoadedDataContextTest extends \PHPUnit\Framework\TestCase
         $data = [$propertyName => 'test value'];
         $config = new EntityDefinitionConfig();
         $this->context->setConfig($config);
-        self::assertNull($this->context->getResultFieldValue($propertyName, $data));
+        self::assertEquals($data[$propertyName], $this->context->getResultFieldValue($propertyName, $data));
     }
 
     public function testGetResultFieldValueForNotRenamedField()
@@ -209,6 +215,180 @@ class CustomizeLoadedDataContextTest extends \PHPUnit\Framework\TestCase
         $config->addField($fieldName)->setPropertyPath($propertyName);
         $this->context->setConfig($config);
         self::assertNull($this->context->getResultFieldValue($propertyName, $data));
+    }
+
+    public function testGetResultFieldValueByPropertyPathWithoutConfig()
+    {
+        $data = [
+            'prop1' => [
+                'prop11' => [
+                    'prop111' => 'value111'
+                ]
+            ]
+        ];
+        self::assertEquals(
+            $data['prop1'],
+            $this->context->getResultFieldValueByPropertyPath('prop1', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop2', $data)
+        );
+        self::assertEquals(
+            $data['prop1']['prop11'],
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop12', $data)
+        );
+        self::assertEquals(
+            $data['prop1']['prop11']['prop111'],
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11.prop111', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11.prop112', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11.prop111.prop1111', $data)
+        );
+    }
+
+    public function testGetResultFieldValueByPropertyPathWhenFieldDoesNotExist()
+    {
+        $data = [
+            'prop1' => [
+                'prop11' => [
+                    'prop111' => 'value111'
+                ]
+            ]
+        ];
+        $config = new EntityDefinitionConfig();
+        $this->context->setConfig($config);
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop2', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop12', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11.prop111', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11.prop112', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11.prop111.prop1111', $data)
+        );
+    }
+
+    public function testGetResultFieldValueByPropertyPathForNotRenamedField()
+    {
+        $data = [
+            'prop1' => [
+                'prop11' => [
+                    'prop111' => 'value111'
+                ]
+            ]
+        ];
+        $config = new EntityDefinitionConfig();
+        $field1 = $config->addField('prop1');
+        $field1TargetConfig = $field1->createAndSetTargetEntity();
+        $field11 = $field1TargetConfig->addField('prop11');
+        $field11TargetConfig = $field11->createAndSetTargetEntity();
+        $field11TargetConfig->addField('prop111');
+        $this->context->setConfig($config);
+        self::assertEquals(
+            $data['prop1'],
+            $this->context->getResultFieldValueByPropertyPath('prop1', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop2', $data)
+        );
+        self::assertEquals(
+            $data['prop1']['prop11'],
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop12', $data)
+        );
+        self::assertEquals(
+            $data['prop1']['prop11']['prop111'],
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11.prop111', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11.prop112', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11.prop111.prop1111', $data)
+        );
+    }
+
+    public function testGetResultFieldValueByPropertyPathForRenamedField()
+    {
+        $data = [
+            'renamedProp1' => [
+                'renamedProp11' => [
+                    'renamedProp111' => 'value111'
+                ]
+            ]
+        ];
+        $config = new EntityDefinitionConfig();
+        $field1 = $config->addField('renamedProp1');
+        $field1->setPropertyPath('prop1');
+        $field1TargetConfig = $field1->createAndSetTargetEntity();
+        $field11 = $field1TargetConfig->addField('renamedProp11');
+        $field11->setPropertyPath('prop11');
+        $field11TargetConfig = $field11->createAndSetTargetEntity();
+        $field111 = $field11TargetConfig->addField('renamedProp111');
+        $field111->setPropertyPath('prop111');
+        $this->context->setConfig($config);
+        self::assertEquals(
+            $data['renamedProp1'],
+            $this->context->getResultFieldValueByPropertyPath('prop1', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('renamedProp1', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop2', $data)
+        );
+        self::assertEquals(
+            $data['renamedProp1']['renamedProp11'],
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('renamedProp1.prop11', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('renamedProp1.renamedProp11', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop12', $data)
+        );
+        self::assertEquals(
+            $data['renamedProp1']['renamedProp11']['renamedProp111'],
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11.prop111', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11.renamedProp111', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.renamedProp11.renamedProp111', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('renamedProp1.renamedProp11.renamedProp111', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11.prop112', $data)
+        );
+        self::assertNull(
+            $this->context->getResultFieldValueByPropertyPath('prop1.prop11.prop111.prop1111', $data)
+        );
     }
 
     public function testIsFieldRequestedWithoutConfig()
@@ -511,5 +691,17 @@ class CustomizeLoadedDataContextTest extends \PHPUnit\Framework\TestCase
         self::assertSame($configExtra, $this->context->getConfigExtra('test'));
         self::assertFalse($this->context->hasConfigExtra('another'));
         self::assertNull($this->context->getConfigExtra('another'));
+    }
+
+    public function testHateoas()
+    {
+        $this->context->setConfigExtras([]);
+        self::assertFalse($this->context->isHateoasEnabled());
+
+        $this->context->setConfigExtras([new TestConfigExtra('test'), new HateoasConfigExtra()]);
+        self::assertTrue($this->context->isHateoasEnabled());
+
+        $this->context->setConfigExtras([new TestConfigExtra('test')]);
+        self::assertFalse($this->context->isHateoasEnabled());
     }
 }

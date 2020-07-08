@@ -12,39 +12,16 @@ use Oro\Bundle\ApiBundle\Filter\FilterValueAccessorInterface;
 use Oro\Bundle\ApiBundle\Metadata\EntityMetadata;
 use Oro\Bundle\ApiBundle\Metadata\Extra\MetadataExtraInterface;
 use Oro\Bundle\ApiBundle\Model\Error;
+use Oro\Bundle\ApiBundle\Model\NotResolvedIdentifier;
 use Oro\Bundle\ApiBundle\Request\DocumentBuilderInterface;
-use Oro\Bundle\ApiBundle\Request\RequestType;
 use Oro\Bundle\ApiBundle\Util\DoctrineHelper;
-use Oro\Component\ChainProcessor\ContextInterface as ComponentContextInterface;
 use Oro\Component\ChainProcessor\ParameterBagInterface;
 
 /**
  * Represents an execution context for API processors for public actions.
  */
-interface ContextInterface extends ComponentContextInterface
+interface ContextInterface extends SharedDataAwareContextInterface
 {
-    /**
-     * Gets the current request type.
-     * A request can belong to several types, e.g. "rest" and "json_api".
-     *
-     * @return RequestType
-     */
-    public function getRequestType();
-
-    /**
-     * Gets API version
-     *
-     * @return string
-     */
-    public function getVersion();
-
-    /**
-     * Sets API version
-     *
-     * @param string $version
-     */
-    public function setVersion($version);
-
     /**
      * Gets FQCN of an entity.
      *
@@ -209,22 +186,11 @@ interface ContextInterface extends ComponentContextInterface
     public function setHateoas(bool $flag);
 
     /**
-     * Gets an object that is used to share data between a primary action
-     * and actions that are executed as part of this action.
-     * Also, this object can be used to share data between different kind of child actions.
+     * Gets a context for response data normalization.
      *
-     * @return ParameterBagInterface
+     * @return array
      */
-    public function getSharedData(): ParameterBagInterface;
-
-    /**
-     * Sets an object that is used to share data between a primary action
-     * and actions that are executed as part of this action.
-     * Also, this object can be used to share data between different kind of child actions.
-     *
-     * @param ParameterBagInterface $sharedData
-     */
-    public function setSharedData(ParameterBagInterface $sharedData): void;
+    public function getNormalizationContext(): array;
 
     /**
      * Gets a list of records contains an additional information about collections,
@@ -254,6 +220,36 @@ interface ContextInterface extends ComponentContextInterface
      * @param mixed  $value
      */
     public function addInfoRecord(string $key, $value): void;
+
+    /**
+     * Adds records that contain an additional information about a collection valued association.
+     *
+     * @param string $propertyPath
+     * @param array  $infoRecords
+     */
+    public function addAssociationInfoRecords(string $propertyPath, array $infoRecords): void;
+
+    /**
+     * Gets all not resolved identifiers.
+     *
+     * @return NotResolvedIdentifier[] [path => identifier, ...]
+     */
+    public function getNotResolvedIdentifiers(): array;
+
+    /**
+     * Adds an identifier that cannot be resolved.
+     *
+     * @param string $path          The path, e.g. "entityId", "filters.owner", "requestData.data.id"
+     * @param NotResolvedIdentifier $identifier The submitted identifier
+     */
+    public function addNotResolvedIdentifier(string $path, NotResolvedIdentifier $identifier): void;
+
+    /**
+     * Removes an identifier that cannot be resolved.
+     *
+     * @param string $path The path, e.g. "entityId", "filters.owner", "requestData.data.id"
+     */
+    public function removeNotResolvedIdentifier(string $path): void;
 
     /**
      * Checks whether a query is used to get result data exists.
@@ -291,14 +287,23 @@ interface ContextInterface extends ComponentContextInterface
     public function setCriteria(Criteria $criteria = null);
 
     /**
-     * Whether any error happened during the processing of an action.
+     * Gets all entities, primary and included ones, that are processing by an action.
+     *
+     * @param bool $primaryOnly Whether only primary entities or both primary and included entities should be returned
+     *
+     * @return object[]
+     */
+    public function getAllEntities(bool $primaryOnly = false): array;
+
+    /**
+     * Whether any error occurred when processing an action.
      *
      * @return bool
      */
     public function hasErrors();
 
     /**
-     * Gets all errors happened during the processing of an action.
+     * Gets all errors occurred when processing an action.
      *
      * @return Error[]
      */

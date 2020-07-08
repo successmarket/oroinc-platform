@@ -2,7 +2,7 @@
 
 namespace Oro\Bundle\ApiBundle\Config\Extra;
 
-use Oro\Bundle\ApiBundle\Processor\Config\ConfigContext;
+use Oro\Bundle\ApiBundle\Processor\GetConfig\ConfigContext;
 use Oro\Bundle\ApiBundle\Util\ConfigUtil;
 
 /**
@@ -100,10 +100,10 @@ class EntityDefinitionConfigExtra implements ConfigExtraInterface
      */
     public function configureContext(ConfigContext $context)
     {
-        $context->setTargetAction($this->action);
+        $context->setTargetAction($this->action ?? '');
         $context->setIsCollection($this->collection);
-        $context->setParentClassName($this->parentClassName);
-        $context->setAssociationName($this->associationName);
+        $context->setParentClassName($this->parentClassName ?? '');
+        $context->setAssociationName($this->associationName ?? '');
     }
 
     /**

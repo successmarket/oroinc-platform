@@ -12,7 +12,7 @@ class ConfigurationPassTest extends \PHPUnit\Framework\TestCase
     /** @var ConfigurationPass */
     private $compiler;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->compiler = new ConfigurationPass();
     }
@@ -106,7 +106,8 @@ class ConfigurationPassTest extends \PHPUnit\Framework\TestCase
             ->addTag('layout.context_configurator');
 
         $container->register('dataProvider1', 'Test\DataProvider1')
-            ->addTag('layout.data_provider', ['alias' => 'test_data_provider_name1']);
+            ->addTag('layout.data_provider', ['alias' => 'test_data_provider_name1'])
+            ->addTag('layout.data_provider', ['alias' => 'test_data_provider_name1_alias']);
         $container->register('dataProvider2', 'Test\DataProvider2')
             ->addTag('layout.data_provider', ['alias' => 'test_data_provider_name2']);
 
@@ -145,6 +146,7 @@ class ConfigurationPassTest extends \PHPUnit\Framework\TestCase
         self::assertEquals(
             [
                 'test_data_provider_name1' => 'dataProvider1',
+                'test_data_provider_name1_alias' => 'dataProvider1',
                 'test_data_provider_name2' => 'dataProvider2'
             ],
             $extensionDef->getArgument(5)
@@ -156,7 +158,7 @@ class ConfigurationPassTest extends \PHPUnit\Framework\TestCase
             $debugCommandDef->getArgument(2)
         );
         self::assertEquals(
-            ['test_data_provider_name1', 'test_data_provider_name2'],
+            ['test_data_provider_name1', 'test_data_provider_name1_alias', 'test_data_provider_name2'],
             $debugCommandDef->getArgument(3)
         );
     }
@@ -191,12 +193,11 @@ class ConfigurationPassTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    /**
-     * @expectedException \Symfony\Component\Config\Definition\Exception\InvalidConfigurationException
-     * @expectedExceptionMessage Tag attribute "alias" is required for "block1" service.
-     */
     public function testBlockTypeWithoutAlias()
     {
+        $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Tag attribute "alias" is required for "block1" service.');
+
         $container = $this->getContainer();
 
         $container->register('block1', 'Test\Class1')
@@ -205,12 +206,11 @@ class ConfigurationPassTest extends \PHPUnit\Framework\TestCase
         $this->compiler->process($container);
     }
 
-    /**
-     * @expectedException \Symfony\Component\Config\Definition\Exception\InvalidConfigurationException
-     * @expectedExceptionMessage Tag attribute "alias" is required for "extension1" service.
-     */
     public function testBlockTypeExtensionWithoutAlias()
     {
+        $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Tag attribute "alias" is required for "extension1" service.');
+
         $container = $this->getContainer();
 
         $container->register('extension1', 'Test\Class1')
@@ -219,12 +219,11 @@ class ConfigurationPassTest extends \PHPUnit\Framework\TestCase
         $this->compiler->process($container);
     }
 
-    /**
-     * @expectedException \Symfony\Component\Config\Definition\Exception\InvalidConfigurationException
-     * @expectedExceptionMessage Tag attribute "id" is required for "update1" service.
-     */
     public function testLayoutUpdateWithoutId()
     {
+        $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Tag attribute "id" is required for "update1" service.');
+
         $container = $this->getContainer();
 
         $container->register('update1', 'Test\Class1')
@@ -233,12 +232,11 @@ class ConfigurationPassTest extends \PHPUnit\Framework\TestCase
         $this->compiler->process($container);
     }
 
-    /**
-     * @expectedException \Symfony\Component\Config\Definition\Exception\InvalidConfigurationException
-     * @expectedExceptionMessage Tag attribute "alias" is required for "dataProvider1" service.
-     */
     public function testDataProviderWithoutAlias()
     {
+        $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Tag attribute "alias" is required for "dataProvider1" service.');
+
         $container = $this->getContainer();
 
         $container->register('dataProvider1', 'Test\DataProvider1')

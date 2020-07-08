@@ -16,7 +16,7 @@ class ExecuteProcessJobProcessorTest extends WebTestCase
     /**
      * {@inheritdoc}
      */
-    public function setUp()
+    protected function setUp(): void
     {
         $this->initClient([], $this->generateBasicAuthHeader());
         $this->loadFixtures([
@@ -35,7 +35,7 @@ class ExecuteProcessJobProcessorTest extends WebTestCase
         $userManager->updateUser($user);
 
         $messageProcessor = $this->getContainer()->get('oro_message_queue.client.delegate_message_processor');
-        $consumer = $this->getContainer()->get('oro_test.consumption.queue_consumer');
+        $consumer = $this->getContainer()->get('oro_message_queue.consumption.queue_consumer');
         $logger = new TestLogger();
 
         $consumer->bind('oro.default', $messageProcessor);
@@ -44,7 +44,6 @@ class ExecuteProcessJobProcessorTest extends WebTestCase
             new LoggerExtension($logger)
         ]));
 
-        $logs = $logger->getLogs('error');
-        self::assertEmpty($logs);
+        $this->assertFalse($logger->hasErrorRecords());
     }
 }

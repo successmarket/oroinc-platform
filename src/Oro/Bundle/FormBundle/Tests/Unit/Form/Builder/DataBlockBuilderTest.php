@@ -21,7 +21,7 @@ class DataBlockBuilderTest extends \PHPUnit\Framework\TestCase
      */
     private $builder;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->factory = Forms::createFormFactoryBuilder()
             ->addTypeExtension(new DataBlockExtension())
@@ -208,7 +208,7 @@ class DataBlockBuilderTest extends \PHPUnit\Framework\TestCase
     {
         $data = [];
         foreach ($itemNames as $itemName) {
-            $data[] = sprintf('{{ form_row(form.children[\'%s\']) }}', $itemName);
+            $data[$itemName] = sprintf('{{ form_row(form.children[\'%s\']) }}', $itemName);
         }
 
         return $data;

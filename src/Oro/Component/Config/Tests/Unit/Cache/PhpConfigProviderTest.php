@@ -2,11 +2,11 @@
 
 namespace Oro\Component\Config\Tests\Unit\Cache;
 
+use Oro\Bundle\ApiBundle\Tests\Unit\Stub\ResourceStub;
 use Oro\Component\Config\ResourcesContainerInterface;
 use Oro\Component\Config\Tests\Unit\Fixtures\PhpArrayConfigProviderStub;
 use Oro\Component\Testing\TempDirExtension;
 use Symfony\Component\Config\Resource\FileResource;
-use Symfony\Component\Config\Tests\Resource\ResourceStub;
 
 class PhpConfigProviderTest extends \PHPUnit\Framework\TestCase
 {
@@ -15,10 +15,10 @@ class PhpConfigProviderTest extends \PHPUnit\Framework\TestCase
     /** @var string */
     private $cacheFile;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->cacheFile = $this->getTempFile('PhpConfigProvider');
-        self::assertFileNotExists($this->cacheFile);
+        self::assertFileDoesNotExist($this->cacheFile);
     }
 
     /**
@@ -141,8 +141,8 @@ class PhpConfigProviderTest extends \PHPUnit\Framework\TestCase
         $provider = $this->getProvider($initialConfig);
 
         $provider->clearCache();
-        self::assertAttributeSame(null, 'config', $provider);
-        self::assertFileNotExists($this->cacheFile);
+        self::assertFileDoesNotExist($this->cacheFile);
+        self::assertNull($provider->getCacheTimestamp());
 
         // test that the cache is built after it was cleared
         self::assertEquals($initialConfig, $provider->getConfig());

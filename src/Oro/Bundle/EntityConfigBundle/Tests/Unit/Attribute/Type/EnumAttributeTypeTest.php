@@ -15,11 +15,6 @@ class EnumAttributeTypeTest extends AttributeTypeTestCase
         return new EnumAttributeType();
     }
 
-    public function testGetType()
-    {
-        $this->assertEquals('enum', $this->getAttributeType()->getType());
-    }
-
     /**
      * {@inheritdoc}
      */
@@ -47,16 +42,13 @@ class EnumAttributeTypeTest extends AttributeTypeTestCase
         $this->assertNull($this->getAttributeType()->getSearchableValue($this->attribute, null, $this->localization));
     }
 
-    /**
-     * @codingStandardsIgnoreStart
-     *
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Value must be instance of "Oro\Bundle\EntityExtendBundle\Entity\AbstractEnumValue", "boolean" given
-     *
-     * @codingStandardsIgnoreEnd
-     */
     public function testGetSearchableValueException()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'Value must be instance of "Oro\Bundle\EntityExtendBundle\Entity\AbstractEnumValue", "boolean" given'
+        );
+
         $this->getAttributeType()->getSearchableValue($this->attribute, true, $this->localization);
     }
 
@@ -78,16 +70,13 @@ class EnumAttributeTypeTest extends AttributeTypeTestCase
         );
     }
 
-    /**
-     * @codingStandardsIgnoreStart
-     *
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Value must be instance of "Oro\Bundle\EntityExtendBundle\Entity\AbstractEnumValue", "boolean" given
-     *
-     * @codingStandardsIgnoreEnd
-     */
     public function testGetFilterableValueException()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'Value must be instance of "Oro\Bundle\EntityExtendBundle\Entity\AbstractEnumValue", "boolean" given'
+        );
+
         $this->getAttributeType()->getFilterableValue($this->attribute, true, $this->localization);
     }
 
@@ -106,16 +95,13 @@ class EnumAttributeTypeTest extends AttributeTypeTestCase
         $this->assertNull($this->getAttributeType()->getSortableValue($this->attribute, null, $this->localization));
     }
 
-    /**
-     * @codingStandardsIgnoreStart
-     *
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Value must be instance of "Oro\Bundle\EntityExtendBundle\Entity\AbstractEnumValue", "boolean" given
-     *
-     * @codingStandardsIgnoreEnd
-     */
     public function testGetSortableValueException()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'Value must be instance of "Oro\Bundle\EntityExtendBundle\Entity\AbstractEnumValue", "boolean" given'
+        );
+
         $this->getAttributeType()->getSortableValue($this->attribute, true, $this->localization);
     }
 }

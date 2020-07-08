@@ -3,7 +3,7 @@
 namespace Oro\Bundle\ApiBundle\Tests\Unit\Config\Extra;
 
 use Oro\Bundle\ApiBundle\Config\Extra\ExpandRelatedEntitiesConfigExtra;
-use Oro\Bundle\ApiBundle\Processor\Config\ConfigContext;
+use Oro\Bundle\ApiBundle\Processor\GetConfig\ConfigContext;
 
 class ExpandRelatedEntitiesConfigExtraTest extends \PHPUnit\Framework\TestCase
 {
@@ -12,7 +12,7 @@ class ExpandRelatedEntitiesConfigExtraTest extends \PHPUnit\Framework\TestCase
     /** @var ExpandRelatedEntitiesConfigExtra */
     private $extra;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->extra = new ExpandRelatedEntitiesConfigExtra(self::EXPANDED_ENTITIES);
     }

@@ -43,12 +43,12 @@ class TestDepartment implements TestFrameworkEntityInterface
     /**
      * @var string
      *
-     * @ORM\Column(name="name", type="string", length=255)
+     * @ORM\Column(name="name", type="string", length=255, unique=true)
      */
     protected $name;
 
     /**
-     * @var TestDepartment|null
+     * @var Collection|TestPerson[]|null
      *
      * @ORM\OneToMany(
      *     targetEntity="Oro\Bundle\ApiBundle\Tests\Functional\Environment\Entity\TestPerson",

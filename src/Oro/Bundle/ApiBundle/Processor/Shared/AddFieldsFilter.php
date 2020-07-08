@@ -69,8 +69,8 @@ class AddFieldsFilter implements ProcessorInterface
 
         $filterTemplate = $filterNames->getFieldsFilterTemplate();
         if (ApiActionGroup::INITIALIZE === $context->getLastGroup()) {
-            // add "fields" filters for the primary entity and all associated entities
-            // this is required to display them on the API Sandbox
+            // add "fields" filters for the primary entity and all associated entities,
+            // it is required to display them on the API Sandbox
             $this->addFiltersForDocumentation($context, $filterTemplate);
         } else {
             // add all requested "fields" filters
@@ -144,11 +144,7 @@ class AddFieldsFilter implements ProcessorInterface
             sprintf(self::FILTER_DESCRIPTION_TEMPLATE, $entityType)
         );
         $filter->setArrayAllowed(true);
-
-        $filters->add(
-            sprintf($filterTemplate, $entityType),
-            $filter
-        );
+        $filters->add(sprintf($filterTemplate, $entityType), $filter, false);
     }
 
     /**

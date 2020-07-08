@@ -22,32 +22,37 @@ use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 
 class ActionExtensionTest extends \PHPUnit\Framework\TestCase
 {
+    /** @var DatagridActionProviderInterface|\PHPUnit\Framework\MockObject\MockObject */
+    private $actionProvider;
+
     /** @var ActionFactory|\PHPUnit\Framework\MockObject\MockObject */
-    protected $actionFactory;
+    private $actionFactory;
 
     /** @var ActionMetadataFactory|\PHPUnit\Framework\MockObject\MockObject */
-    protected $actionMetadataFactory;
+    private $actionMetadataFactory;
 
     /** @var AuthorizationCheckerInterface|\PHPUnit\Framework\MockObject\MockObject */
-    protected $authorizationChecker;
+    private $authorizationChecker;
 
     /** @var OwnershipQueryHelper|\PHPUnit\Framework\MockObject\MockObject */
-    protected $ownershipQueryHelper;
+    private $ownershipQueryHelper;
 
     /** @var ActionExtension */
-    protected $extension;
+    private $extension;
 
     /**
      * {@inheritdoc}
      */
-    public function setUp()
+    protected function setUp(): void
     {
+        $this->actionProvider = $this->createMock(DatagridActionProviderInterface::class);
         $this->actionFactory = $this->createMock(ActionFactory::class);
         $this->actionMetadataFactory = $this->createMock(ActionMetadataFactory::class);
         $this->authorizationChecker = $this->createMock(AuthorizationCheckerInterface::class);
         $this->ownershipQueryHelper = $this->createMock(OwnershipQueryHelper::class);
 
         $this->extension = new ActionExtension(
+            [$this->actionProvider],
             $this->actionFactory,
             $this->actionMetadataFactory,
             $this->authorizationChecker,
@@ -88,18 +93,16 @@ class ActionExtensionTest extends \PHPUnit\Framework\TestCase
 
     public function testProcessConfigs()
     {
-        $provider = $this->createMock(DatagridActionProviderInterface::class);
         $config = DatagridConfiguration::create([]);
 
-        $provider->expects(self::once())
+        $this->actionProvider->expects(self::once())
             ->method('hasActions')
             ->with($config)
             ->willReturn(true);
-        $provider->expects(self::once())
+        $this->actionProvider->expects(self::once())
             ->method('applyActions')
             ->with($config);
 
-        $this->extension->addActionProvider($provider);
         $this->extension->processConfigs($config);
     }
 
@@ -466,6 +469,7 @@ class ActionExtensionTest extends \PHPUnit\Framework\TestCase
         $datasource = $this->createMock(DatasourceInterface::class);
 
         $this->extension->visitDatasource($config, $datasource);
+        $this->expectNotToPerformAssertions();
     }
 
     public function testVisitDatasourceForOrmDatasource()
@@ -491,7 +495,9 @@ class ActionExtensionTest extends \PHPUnit\Framework\TestCase
 
         $this->extension->visitDatasource($config, $datasource);
 
-        self::assertAttributeEquals($ownershipFields, 'ownershipFields', $this->extension);
+        $ownershipFieldsProperty = new \ReflectionProperty(ActionExtension::class, 'ownershipFields');
+        $ownershipFieldsProperty->setAccessible(true);
+        self::assertEquals($ownershipFields, $ownershipFieldsProperty->getValue($this->extension));
     }
 
     public function testVisitDatasourceForOrmDatasourceButNoAclProtectedActions()
@@ -514,7 +520,7 @@ class ActionExtensionTest extends \PHPUnit\Framework\TestCase
     /**
      * @param array $ownershipFields
      */
-    protected function setOwnershipFields(array $ownershipFields)
+    private function setOwnershipFields(array $ownershipFields)
     {
         $refl = new \ReflectionClass($this->extension);
 
@@ -534,7 +540,7 @@ class ActionExtensionTest extends \PHPUnit\Framework\TestCase
      *
      * @return mixed
      */
-    protected function getActionConfigurationOption(DatagridConfiguration $config)
+    private function getActionConfigurationOption(DatagridConfiguration $config)
     {
         return $config->offsetGetByPath('[properties][action_configuration]');
     }

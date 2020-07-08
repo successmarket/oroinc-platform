@@ -25,7 +25,7 @@ class AclAnnotationProviderTest extends \PHPUnit\Framework\TestCase
     /** @var AclAnnotationProvider */
     private $provider;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->entityClassResolver = $this->createMock(EntityClassResolver::class);
         $this->loader = $this->createMock(AclAnnotationLoaderInterface::class);
@@ -35,9 +35,9 @@ class AclAnnotationProviderTest extends \PHPUnit\Framework\TestCase
         $this->provider = new AclAnnotationProvider(
             $this->cacheFile,
             false,
-            $this->entityClassResolver
+            $this->entityClassResolver,
+            [$this->loader]
         );
-        $this->provider->addLoader($this->loader);
     }
 
     public function testFindAndGetAnnotation()

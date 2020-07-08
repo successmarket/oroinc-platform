@@ -6,7 +6,7 @@ use Oro\Bundle\ApiBundle\Provider\EntityAliasResolverRegistry;
 use Oro\Bundle\ApiBundle\Request\RequestType;
 use Oro\Bundle\ApiBundle\Util\RequestExpressionMatcher;
 use Oro\Bundle\EntityBundle\ORM\EntityAliasResolver;
-use Symfony\Component\DependencyInjection\ContainerInterface;
+use Psr\Container\ContainerInterface;
 
 class EntityAliasResolverRegistryTest extends \PHPUnit\Framework\TestCase
 {
@@ -22,7 +22,7 @@ class EntityAliasResolverRegistryTest extends \PHPUnit\Framework\TestCase
     /** @var \PHPUnit\Framework\MockObject\MockObject|ContainerInterface */
     private $container;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->defaultResolver = $this->createMock(EntityAliasResolver::class);
         $this->firstResolver = $this->createMock(EntityAliasResolver::class);
@@ -44,12 +44,11 @@ class EntityAliasResolverRegistryTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    /**
-     * @expectedException \LogicException
-     * @expectedExceptionMessage Cannot find an entity alias resolver for the request "rest,another".
-     */
     public function testGetEntityAliasResolverForUnsupportedRequestType()
     {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Cannot find an entity alias resolver for the request "rest,another".');
+
         $requestType = new RequestType(['rest', 'another']);
         $registry = $this->getRegistry([]);
         $registry->getEntityAliasResolver($requestType);
@@ -118,7 +117,7 @@ class EntityAliasResolverRegistryTest extends \PHPUnit\Framework\TestCase
         self::assertSame($this->secondResolver, $registry->getEntityAliasResolver($requestType));
     }
 
-    public function testGetEntityAliasResolverShouldReturnDefaultBagIfSpecificBagNotFound()
+    public function testGetEntityAliasResolverShouldReturnDefaultResolverIfSpecificResolverNotFound()
     {
         $registry = $this->getRegistry(
             [
@@ -151,21 +150,9 @@ class EntityAliasResolverRegistryTest extends \PHPUnit\Framework\TestCase
         $this->container->expects(self::exactly(3))
             ->method('get')
             ->willReturnMap([
-                [
-                    'default_entity_alias_resolver',
-                    ContainerInterface::EXCEPTION_ON_INVALID_REFERENCE,
-                    $this->defaultResolver
-                ],
-                [
-                    'first_entity_alias_resolver',
-                    ContainerInterface::EXCEPTION_ON_INVALID_REFERENCE,
-                    $this->firstResolver
-                ],
-                [
-                    'second_entity_alias_resolver',
-                    ContainerInterface::EXCEPTION_ON_INVALID_REFERENCE,
-                    $this->secondResolver
-                ]
+                ['default_entity_alias_resolver', $this->defaultResolver],
+                ['first_entity_alias_resolver', $this->firstResolver],
+                ['second_entity_alias_resolver', $this->secondResolver]
             ]);
 
         $this->defaultResolver->expects(self::once())
@@ -191,21 +178,9 @@ class EntityAliasResolverRegistryTest extends \PHPUnit\Framework\TestCase
         $this->container->expects(self::exactly(3))
             ->method('get')
             ->willReturnMap([
-                [
-                    'default_entity_alias_resolver',
-                    ContainerInterface::EXCEPTION_ON_INVALID_REFERENCE,
-                    $this->defaultResolver
-                ],
-                [
-                    'first_entity_alias_resolver',
-                    ContainerInterface::EXCEPTION_ON_INVALID_REFERENCE,
-                    $this->firstResolver
-                ],
-                [
-                    'second_entity_alias_resolver',
-                    ContainerInterface::EXCEPTION_ON_INVALID_REFERENCE,
-                    $this->secondResolver
-                ]
+                ['default_entity_alias_resolver', $this->defaultResolver],
+                ['first_entity_alias_resolver', $this->firstResolver],
+                ['second_entity_alias_resolver', $this->secondResolver]
             ]);
 
         $this->defaultResolver->expects(self::once())

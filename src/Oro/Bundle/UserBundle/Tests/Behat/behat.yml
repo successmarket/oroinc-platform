@@ -35,7 +35,7 @@ oro_behat_extension:
             element: Select2Share
           Avatar: 'oro_user_user_form[avatar][file]'
           Birthday:
-            locator: 'input[id^="date_selector_oro_user_user_form_birthday-uid"]'
+            locator: 'input[id^="oro_user_user_form_birthday-uid"]'
             type: css
             element: DateTimePicker
 
@@ -136,6 +136,12 @@ oro_behat_extension:
         - Oro\Bundle\TestFrameworkBundle\Tests\Behat\Context\FixturesContext
         - OroUserBundle::FeatureContext
         - OroUserBundle::UserAttachmentContext
+        - OroAttachmentBundle::AttachmentImageContext:
+            - '@doctrine'
+            - '@oro_website.website.provider'
+            - '@oro_website.manager'
+            - '@oro_config.website'
+            - '@oro_attachment.image_removal.service_locator'
         - OroFormBundle::FormContext
         - OroConfigBundle::FeatureContext
         - OroSecurityBundle::ACLContext

@@ -1,12 +1,16 @@
 <?php
+
 namespace Oro\Bundle\DataAuditBundle\Service;
 
 use Doctrine\Common\Util\ClassUtils;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
-use Doctrine\DBAL\Types\Type;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Oro\Bundle\DataAuditBundle\Entity\AbstractAudit;
 
+/**
+ * Increment audit version, made by query because of async processing
+ */
 class SetNewAuditVersionService
 {
     const MAX_ATTEMPTS_LIMIT = 100;
@@ -62,9 +66,9 @@ class SetNewAuditVersionService
                 ) AS x
             ) WHERE id = :auditId"
         );
-        $statement->bindValue('objectId', $audit->getObjectId(), Type::INTEGER);
-        $statement->bindValue('objectClass', $audit->getObjectClass(), Type::STRING);
-        $statement->bindValue('auditId', $audit->getId(), Type::INTEGER);
+        $statement->bindValue('objectId', (string) $audit->getObjectId(), Types::STRING);
+        $statement->bindValue('objectClass', $audit->getObjectClass(), Types::STRING);
+        $statement->bindValue('auditId', $audit->getId(), Types::INTEGER);
 
         $attempt = 1;
         do {

@@ -12,7 +12,7 @@ use Oro\Bundle\TestFrameworkBundle\Test\WebTestCase;
 
 class LocalizationManagerTest extends WebTestCase
 {
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->initClient();
         $this->loadFixtures([LoadLocalizationData::class]);
@@ -76,7 +76,7 @@ class LocalizationManagerTest extends WebTestCase
         $this->assertSame([], $manager->getLocalizationData(0, false));
 
         $this->assertSame([
-            'languageCode' => 'en_US',
+            'languageCode' => 'en',
             'formattingCode' => 'en_US',
         ], $manager->getLocalizationData($this->getReference('en_US')->getId()));
 

@@ -250,12 +250,8 @@ interface MyExtensionAwareInterface
  - Register an extension in dependency container. For example
  
 ``` yaml
-parameters:
-    acme_test.migration.extension.my.class: Acme\Bundle\TestBundle\Migration\Extension\MyExtension
-
 services:
-    acme_test.migration.extension.my:
-        class: %acme_test.migration.extension.my.class%
+    Acme\Bundle\TestBundle\Migration\Extension\MyExtension:
         tags:
             - { name: oro_migration.extension, extension_name: test /*, priority: -10 - priority attribute is optional an can be helpful if you need to override existing extension */ }
 ```
@@ -361,6 +357,47 @@ class LoadSomeDataFixture extends AbstractFixture implements VersionedFixtureInt
     {
         // Here we can check last loaded version and load data data difference between last
         // uploaded version and current version
+    }
+}
+```
+
+## Rename fixtures
+
+When refactoring, you may need to change the fixture namespace or class name.
+
+In order to prevent the fixture from loading again, this fixture must implement [RenamedFixtureInterface](./Fixture/RenamedFixtureInterface.php) and the `getPreviousClassNames` method which returns a list of all previous fully specified class names.
+
+Example:
+
+``` php
+
+<?php
+
+namespace Acme\DemoBundle\Migrations\DataFixtures\ORM;
+
+use Doctrine\Common\DataFixtures\AbstractFixture;
+use Doctrine\Common\Persistence\ObjectManager;
+
+use Oro\Bundle\MigrationBundle\Fixture\RenamedFixtureInterface;
+
+class LoadSomeDataFixture extends AbstractFixture implements RenamedFixtureInterface
+{
+    /**
+     * {@inheritdoc}
+     */
+    public function getPreviousClassNames(): array
+    {
+        return [
+            'Acme\PreviousBundle\Migrations\DataFixtures\ORM\PreviousClassNameOfDataFixture'
+        ];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function load(ObjectManager $manager)
+    {
+        // Here we can use fixture data code which will be run once
     }
 }
 ```

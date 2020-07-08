@@ -17,24 +17,18 @@ class MenuContentProviderTest extends \PHPUnit\Framework\TestCase
     protected $menu;
 
     /**
-     * @var string
-     */
-    protected $name;
-
-    /**
      * @var MenuContentProvider
      */
     protected $provider;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->menuExtension = $this->getMockBuilder('Oro\Bundle\NavigationBundle\Twig\MenuExtension')
             ->disableOriginalConstructor()
             ->getMock();
         $this->menu = 'test';
-        $this->name = 'test_menu';
 
-        $this->provider = new MenuContentProvider($this->menuExtension, $this->menu, $this->name);
+        $this->provider = new MenuContentProvider($this->menuExtension, $this->menu);
     }
 
     public function testGetContent()
@@ -44,10 +38,5 @@ class MenuContentProviderTest extends \PHPUnit\Framework\TestCase
             ->with($this->menu)
             ->will($this->returnValue('rendered_menu'));
         $this->assertEquals('rendered_menu', $this->provider->getContent());
-    }
-
-    public function testGetName()
-    {
-        $this->assertEquals($this->name, $this->provider->getName());
     }
 }

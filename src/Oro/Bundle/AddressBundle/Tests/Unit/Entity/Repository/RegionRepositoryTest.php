@@ -9,6 +9,7 @@ use Doctrine\ORM\Query;
 use Gedmo\Translatable\TranslatableListener;
 use Oro\Bundle\AddressBundle\Entity\Country;
 use Oro\Bundle\AddressBundle\Entity\Repository\RegionRepository;
+use Oro\Component\DoctrineUtils\ORM\Walker\TranslatableSqlWalker;
 
 class RegionRepositoryTest extends \PHPUnit\Framework\TestCase
 {
@@ -39,7 +40,7 @@ class RegionRepositoryTest extends \PHPUnit\Framework\TestCase
      */
     protected $testRegions = ['one', 'two', 'three'];
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->translatableListener = $this->createMock(TranslatableListener::class);
         $this->eventManager = $this->createMock(EventManager::class);
@@ -78,7 +79,7 @@ class RegionRepositoryTest extends \PHPUnit\Framework\TestCase
             ->withConsecutive(
                 [
                     Query::HINT_CUSTOM_OUTPUT_WALKER,
-                    'Gedmo\\Translatable\\Query\\TreeWalker\\TranslationWalker'
+                    TranslatableSqlWalker::class
                 ],
                 [
                     TranslatableListener::HINT_TRANSLATABLE_LOCALE,
@@ -113,12 +114,11 @@ class RegionRepositoryTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals($this->testRegions, $actualRegions);
     }
 
-    /**
-     * @expectedException \Gedmo\Exception\RuntimeException
-     * @expectedExceptionMessage The translation listener could not be found
-     */
     public function testGetCountryRegionsException()
     {
+        $this->expectException(\Gedmo\Exception\RuntimeException::class);
+        $this->expectExceptionMessage('The translation listener could not be found');
+
         $country = new Country('iso2Code');
 
         $this->eventManager->expects($this->any())
@@ -133,7 +133,7 @@ class RegionRepositoryTest extends \PHPUnit\Framework\TestCase
             ->method('setHint')
             ->with(
                 Query::HINT_CUSTOM_OUTPUT_WALKER,
-                'Gedmo\\Translatable\\Query\\TreeWalker\\TranslationWalker'
+                TranslatableSqlWalker::class
             );
 
         $queryBuilder = $this->getMockBuilder('Doctrine\ORM\QueryBuilder')

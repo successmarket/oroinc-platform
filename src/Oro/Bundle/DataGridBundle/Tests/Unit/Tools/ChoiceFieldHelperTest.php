@@ -7,8 +7,8 @@ use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
-use Gedmo\Translatable\Query\TreeWalker\TranslationWalker;
 use Oro\Bundle\DataGridBundle\Tools\ChoiceFieldHelper;
+use Oro\Component\DoctrineUtils\ORM\Walker\TranslatableSqlWalker;
 
 class ChoiceFieldHelperTest extends \PHPUnit\Framework\TestCase
 {
@@ -21,7 +21,7 @@ class ChoiceFieldHelperTest extends \PHPUnit\Framework\TestCase
     /** @var \PHPUnit\Framework\MockObject\MockObject */
     protected $doctrineHelper;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->aclHelper = $this->getMockBuilder('Oro\Bundle\SecurityBundle\ORM\Walker\AclHelper')
             ->disableOriginalConstructor()
@@ -78,7 +78,7 @@ class ChoiceFieldHelperTest extends \PHPUnit\Framework\TestCase
                 ->method('getFieldNames')
                 ->will($this->returnValue([]));
 
-        $this->expectException('\Exception');
+        $this->expectException(\Exception::class);
         $this->choiceHelper->guessLabelField($metadata, 'column_name');
     }
 
@@ -131,7 +131,7 @@ class ChoiceFieldHelperTest extends \PHPUnit\Framework\TestCase
             ->will($this->returnValue($query));
         $query->expects($this->once())
             ->method('setHint')
-            ->with(Query::HINT_CUSTOM_OUTPUT_WALKER, TranslationWalker::class);
+            ->with(Query::HINT_CUSTOM_OUTPUT_WALKER, TranslatableSqlWalker::class);
 
         $em->expects($this->any())
             ->method('getRepository')

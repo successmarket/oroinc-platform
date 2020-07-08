@@ -5,12 +5,15 @@ namespace Oro\Bundle\TagBundle\Controller;
 use Oro\Bundle\SecurityBundle\Annotation\Acl;
 use Oro\Bundle\SecurityBundle\Annotation\AclAncestor;
 use Oro\Bundle\TagBundle\Entity\Tag;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Annotation\Route;
 
+/**
+ * CRUD for tags.
+ */
 class TagController extends Controller
 {
     /**
@@ -31,7 +34,7 @@ class TagController extends Controller
     public function indexAction()
     {
         return array(
-            'entity_class' => $this->container->getParameter('oro_tag.tag.entity.class')
+            'entity_class' => Tag::class
         );
     }
 

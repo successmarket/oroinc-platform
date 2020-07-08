@@ -2,6 +2,7 @@
 
 namespace Oro\Bundle\DashboardBundle\Filter;
 
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\QueryBuilder;
 use Oro\Bundle\FilterBundle\Datasource\Orm\OrmFilterDatasourceAdapter;
 use Oro\Bundle\FilterBundle\Filter\FilterUtility;
@@ -88,19 +89,23 @@ class DateFilterProcessor
         switch ($dateRange['type']) {
             case AbstractDateFilterType::TYPE_MORE_THAN:
                 $start = $this->prepareDate($dateRange['value']['start']);
-                $qb->andWhere(QueryBuilderUtil::sprintf('%s >= :start', $fieldAlias))->setParameter('start', $start);
+                $qb->andWhere(QueryBuilderUtil::sprintf('%s >= :start', $fieldAlias))
+                    ->setParameter('start', $start, Types::DATETIME_MUTABLE);
                 break;
             case AbstractDateFilterType::TYPE_LESS_THAN:
                 $end = $this->prepareDate($dateRange['value']['end']);
-                $qb->andWhere(QueryBuilderUtil::sprintf('%s <= :end', $fieldAlias))->setParameter('end', $end);
+                $qb->andWhere(QueryBuilderUtil::sprintf('%s <= :end', $fieldAlias))
+                    ->setParameter('end', $end, Types::DATETIME_MUTABLE);
                 break;
             case AbstractDateFilterType::TYPE_ALL_TIME:
                 return;
             default:
                 $start = $this->prepareDate($dateRange['value']['start']);
                 $end = $this->prepareDate($dateRange['value']['end']);
-                $qb->andWhere(QueryBuilderUtil::sprintf('%s >= :start', $fieldAlias))->setParameter('start', $start);
-                $qb->andWhere(QueryBuilderUtil::sprintf('%s <= :end', $fieldAlias))->setParameter('end', $end);
+                $qb->andWhere(QueryBuilderUtil::sprintf('%s >= :start', $fieldAlias))
+                    ->setParameter('start', $start, Types::DATETIME_MUTABLE);
+                $qb->andWhere(QueryBuilderUtil::sprintf('%s <= :end', $fieldAlias))
+                    ->setParameter('end', $end, Types::DATETIME_MUTABLE);
         }
     }
 }

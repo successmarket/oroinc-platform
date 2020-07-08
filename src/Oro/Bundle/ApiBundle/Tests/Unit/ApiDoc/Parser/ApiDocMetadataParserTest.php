@@ -5,6 +5,7 @@ namespace Oro\Bundle\ApiBundle\Tests\Unit\ApiDoc\Parser;
 use Oro\Bundle\ApiBundle\ApiDoc\ApiDocDataTypeConverter;
 use Oro\Bundle\ApiBundle\ApiDoc\Parser\ApiDocMetadata;
 use Oro\Bundle\ApiBundle\ApiDoc\Parser\ApiDocMetadataParser;
+use Oro\Bundle\ApiBundle\ApiDoc\RestDocViewDetector;
 use Oro\Bundle\ApiBundle\Config\EntityDefinitionConfig;
 use Oro\Bundle\ApiBundle\Metadata\AssociationMetadata;
 use Oro\Bundle\ApiBundle\Metadata\EntityMetadata;
@@ -17,22 +18,29 @@ class ApiDocMetadataParserTest extends \PHPUnit\Framework\TestCase
     /** @var \PHPUnit\Framework\MockObject\MockObject|ValueNormalizer */
     private $valueNormalizer;
 
-    /** @var \PHPUnit\Framework\MockObject\MockObject|ApiDocDataTypeConverter */
-    private $dataTypeConverter;
-
     /** @var ApiDocMetadataParser */
     private $parser;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->valueNormalizer = $this->createMock(ValueNormalizer::class);
-        $this->dataTypeConverter = $this->createMock(ApiDocDataTypeConverter::class);
 
-        $this->dataTypeConverter->expects(self::any())
+        $docViewDetector = $this->createMock(RestDocViewDetector::class);
+        $docViewDetector->expects(self::any())
+            ->method('getView')
+            ->willReturn('test_view');
+
+        $dataTypeConverter = $this->createMock(ApiDocDataTypeConverter::class);
+        $dataTypeConverter->expects(self::any())
             ->method('convertDataType')
+            ->with(self::anything(), 'test_view')
             ->willReturnArgument(0);
 
-        $this->parser = new ApiDocMetadataParser($this->valueNormalizer, $this->dataTypeConverter);
+        $this->parser = new ApiDocMetadataParser(
+            $this->valueNormalizer,
+            $docViewDetector,
+            $dataTypeConverter
+        );
     }
 
     public function testSupportsWithoutMetadata()
@@ -117,6 +125,7 @@ class ApiDocMetadataParserTest extends \PHPUnit\Framework\TestCase
                 'id' => [
                     'required'    => true,
                     'dataType'    => 'integer',
+                    'actualType'  => 'integer',
                     'description' => 'Field Description',
                     'readonly'    => true
                 ]
@@ -148,6 +157,7 @@ class ApiDocMetadataParserTest extends \PHPUnit\Framework\TestCase
                 'id' => [
                     'required'    => true,
                     'dataType'    => 'integer',
+                    'actualType'  => 'integer',
                     'description' => 'Field Description'
                 ]
             ],
@@ -179,6 +189,7 @@ class ApiDocMetadataParserTest extends \PHPUnit\Framework\TestCase
                 'id' => [
                     'required'    => true,
                     'dataType'    => 'integer',
+                    'actualType'  => 'integer',
                     'description' => 'Field Description'
                 ]
             ],
@@ -212,6 +223,7 @@ class ApiDocMetadataParserTest extends \PHPUnit\Framework\TestCase
                 'field1' => [
                     'required'    => false,
                     'dataType'    => 'string',
+                    'actualType'  => 'string',
                     'description' => 'Field Description'
                 ]
             ],
@@ -244,6 +256,7 @@ class ApiDocMetadataParserTest extends \PHPUnit\Framework\TestCase
                 'field1' => [
                     'required'    => true,
                     'dataType'    => 'string',
+                    'actualType'  => 'string',
                     'description' => 'Field Description'
                 ]
             ],
@@ -284,7 +297,7 @@ class ApiDocMetadataParserTest extends \PHPUnit\Framework\TestCase
                     'required'    => false,
                     'dataType'    => 'integer',
                     'description' => 'Association Description',
-                    'actualType'  => null,
+                    'actualType'  => 'model',
                     'subType'     => 'targets'
                 ]
             ],
@@ -324,7 +337,7 @@ class ApiDocMetadataParserTest extends \PHPUnit\Framework\TestCase
                     'required'    => true,
                     'dataType'    => 'integer',
                     'description' => 'Association Description',
-                    'actualType'  => null,
+                    'actualType'  => 'model',
                     'subType'     => 'targets'
                 ]
             ],
@@ -404,6 +417,7 @@ class ApiDocMetadataParserTest extends \PHPUnit\Framework\TestCase
                 'association1' => [
                     'required'    => true,
                     'dataType'    => 'object',
+                    'actualType'  => 'object',
                     'description' => 'Association Description'
                 ]
             ],
@@ -445,7 +459,7 @@ class ApiDocMetadataParserTest extends \PHPUnit\Framework\TestCase
                     'dataType'    => 'integer',
                     'description' => 'Association Description',
                     'readonly'    => true,
-                    'actualType'  => null,
+                    'actualType'  => 'model',
                     'subType'     => 'targets'
                 ]
             ],
@@ -477,6 +491,7 @@ class ApiDocMetadataParserTest extends \PHPUnit\Framework\TestCase
                 'field1' => [
                     'required'    => true,
                     'dataType'    => 'string',
+                    'actualType'  => 'string',
                     'description' => 'Field Description'
                 ]
             ],
@@ -530,6 +545,7 @@ class ApiDocMetadataParserTest extends \PHPUnit\Framework\TestCase
                 'field1' => [
                     'required'    => true,
                     'dataType'    => 'string',
+                    'actualType'  => 'string',
                     'description' => 'Field Description'
                 ]
             ],
@@ -590,7 +606,7 @@ class ApiDocMetadataParserTest extends \PHPUnit\Framework\TestCase
                     'required'    => true,
                     'dataType'    => 'integer',
                     'description' => 'Association Description',
-                    'actualType'  => null,
+                    'actualType'  => 'model',
                     'subType'     => 'targets'
                 ]
             ],
@@ -655,7 +671,7 @@ class ApiDocMetadataParserTest extends \PHPUnit\Framework\TestCase
                     'required'    => true,
                     'dataType'    => 'integer',
                     'description' => 'Association Description',
-                    'actualType'  => null,
+                    'actualType'  => 'model',
                     'subType'     => 'targets'
                 ]
             ],

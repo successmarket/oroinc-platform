@@ -23,13 +23,16 @@ trusted_data:
         Oro\Bundle\ApiBundle\Normalizer\ObjectNormalizer:
             tryGetValue:
                 fieldName: true
-        Oro\Bundle\ApiBundle\Processor\Config\Shared\CompleteDefinition\UnidirectionalAssociationCompleter:
+        Oro\Bundle\ApiBundle\Processor\GetConfig\CompleteDefinition\UnidirectionalAssociationCompleter:
             createAssociationQuery:
                 targetEntityClass: true
                 targetAssociationName: true
         Oro\Bundle\ApiBundle\Processor\Subresource\Shared\BuildUnidirectionalAssociationSubresourceQuery:
             process:
                 targetAssociationName: true
+        Oro\Bundle\ApiBundle\Batch\Async\AsyncOperationManager:
+            updateOperation:
+                fieldName: true
 
     safe_methods:
         Oro\Bundle\ApiBundle\Util\DoctrineHelper:

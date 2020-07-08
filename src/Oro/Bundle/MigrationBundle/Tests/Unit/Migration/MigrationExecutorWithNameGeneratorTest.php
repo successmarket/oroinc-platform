@@ -18,7 +18,7 @@ class MigrationExecutorWithNameGeneratorTest extends AbstractTestMigrationExecut
     /** @var DbIdentifierNameGenerator */
     protected $nameGenerator;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -45,7 +45,7 @@ class MigrationExecutorWithNameGeneratorTest extends AbstractTestMigrationExecut
             ->method('executeQuery')
             ->with(
                 'CREATE TABLE test1table (id INT NOT NULL) DEFAULT CHARACTER SET utf8 '
-                . 'COLLATE utf8_unicode_ci ENGINE = InnoDB'
+                . 'COLLATE `utf8_unicode_ci` ENGINE = InnoDB'
             );
         $this->connection->expects($this->at(5))
             ->method('executeQuery')
@@ -59,7 +59,7 @@ class MigrationExecutorWithNameGeneratorTest extends AbstractTestMigrationExecut
                 'CREATE TABLE TEST (id INT AUTO_INCREMENT NOT NULL)',
                 '> ' . get_class($migration11),
                 'CREATE TABLE test1table (id INT NOT NULL) DEFAULT CHARACTER SET utf8 '
-                . 'COLLATE utf8_unicode_ci ENGINE = InnoDB',
+                . 'COLLATE `utf8_unicode_ci` ENGINE = InnoDB',
                 'ALTER TABLE TEST ADD COLUMN test_column INT NOT NULL',
             ],
             $messages
@@ -86,7 +86,7 @@ class MigrationExecutorWithNameGeneratorTest extends AbstractTestMigrationExecut
                 'CREATE TABLE TEST (id INT AUTO_INCREMENT NOT NULL)',
                 '> ' . get_class($migration11),
                 'CREATE TABLE test1table (id INT NOT NULL) DEFAULT CHARACTER SET utf8 '
-                . 'COLLATE utf8_unicode_ci ENGINE = InnoDB',
+                . 'COLLATE `utf8_unicode_ci` ENGINE = InnoDB',
                 'ALTER TABLE TEST ADD COLUMN test_column INT NOT NULL',
             ],
             $messages
@@ -99,7 +99,7 @@ class MigrationExecutorWithNameGeneratorTest extends AbstractTestMigrationExecut
         $migrations = [
             new MigrationState($migration)
         ];
-        $this->expectException('\RuntimeException');
+        $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage(
             'Failed migrations: Oro\Bundle\MigrationBundle\Tests\Unit\Fixture\TestPackage\WrongTableNameMigration.'
         );
@@ -112,7 +112,7 @@ class MigrationExecutorWithNameGeneratorTest extends AbstractTestMigrationExecut
             sprintf(
                 '  ERROR: Max table name length is %s. Please correct "%s" table in "%s" migration',
                 $this->nameGenerator->getMaxIdentifierSize(),
-                'extra_long_table_name_bigger_than_30_chars',
+                'extra_long_table_name_which_are_bigger_than_63_different_characters',
                 get_class($migration)
             ),
             $this->logger->getMessages()[1]
@@ -125,7 +125,7 @@ class MigrationExecutorWithNameGeneratorTest extends AbstractTestMigrationExecut
         $migrations = [
             new MigrationState($migration)
         ];
-        $this->expectException('\RuntimeException');
+        $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage(
             'Failed migrations: Oro\Bundle\MigrationBundle\Tests\Unit\Fixture\TestPackage\WrongColumnNameMigration.'
         );
@@ -139,7 +139,7 @@ class MigrationExecutorWithNameGeneratorTest extends AbstractTestMigrationExecut
                 '  ERROR: Max column name length is %s. Please correct "%s:%s" column in "%s" migration',
                 $this->nameGenerator->getMaxIdentifierSize(),
                 'wrong_table',
-                'extra_long_column_bigger_30_chars',
+                'extra_long_column_name_which_are_bigger_than_63_different_characters',
                 get_class($migration)
             ),
             $this->logger->getMessages()[1]

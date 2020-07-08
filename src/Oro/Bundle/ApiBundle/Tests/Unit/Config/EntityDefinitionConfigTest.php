@@ -371,6 +371,41 @@ class EntityDefinitionConfigTest extends \PHPUnit\Framework\TestCase
         self::assertTrue($config->isEmpty());
     }
 
+    public function testIsIdentifierOnlyRequested()
+    {
+        $config = new EntityDefinitionConfig();
+        self::assertFalse($config->isIdentifierOnlyRequested());
+
+        $config->setIdentifierFieldNames(['id']);
+        $config->addField('id');
+        self::assertTrue($config->isIdentifierOnlyRequested());
+
+        $config->addField('name');
+        self::assertFalse($config->isIdentifierOnlyRequested());
+
+        $config->removeField('id');
+        self::assertFalse($config->isIdentifierOnlyRequested());
+    }
+
+    public function testIsIdentifierOnlyRequestedWithCompositeIdentifier()
+    {
+        $config = new EntityDefinitionConfig();
+
+        $config->setIdentifierFieldNames(['id1', 'id2']);
+        $config->addField('id1');
+        $config->addField('id2');
+        self::assertTrue($config->isIdentifierOnlyRequested());
+
+        $config->addField('name');
+        self::assertFalse($config->isIdentifierOnlyRequested());
+
+        $config->removeField('id1');
+        self::assertFalse($config->isIdentifierOnlyRequested());
+
+        $config->removeField('id2');
+        self::assertFalse($config->isIdentifierOnlyRequested());
+    }
+
     public function testCollapsed()
     {
         $config = new EntityDefinitionConfig();
@@ -477,6 +512,20 @@ class EntityDefinitionConfigTest extends \PHPUnit\Framework\TestCase
         $config->enableMetaProperties();
         self::assertTrue($config->hasDisableMetaProperties());
         self::assertTrue($config->isMetaPropertiesEnabled());
+        self::assertEquals([], $config->toArray());
+    }
+
+    public function testPartialLoadFlag()
+    {
+        $config = new EntityDefinitionConfig();
+        self::assertTrue($config->isPartialLoadEnabled());
+
+        $config->disablePartialLoad();
+        self::assertFalse($config->isPartialLoadEnabled());
+        self::assertEquals(['disable_partial_load' => true], $config->toArray());
+
+        $config->enablePartialLoad();
+        self::assertTrue($config->isPartialLoadEnabled());
         self::assertEquals([], $config->toArray());
     }
 
@@ -607,11 +656,9 @@ class EntityDefinitionConfigTest extends \PHPUnit\Framework\TestCase
         self::assertEquals([], $config->toArray());
     }
 
-    /**
-     * @expectedException \TypeError
-     */
     public function testSetInvalidValueToFormEventSubscribers()
     {
+        $this->expectException(\TypeError::class);
         $config = new EntityDefinitionConfig();
         $config->setFormEventSubscribers('subscriber1');
     }
@@ -619,20 +666,20 @@ class EntityDefinitionConfigTest extends \PHPUnit\Framework\TestCase
     public function testHints()
     {
         $config = new EntityDefinitionConfig();
-        self::assertEquals([], $config->getHints());
+        self::assertSame([], $config->getHints());
 
         $config->setHints(['hint1']);
         self::assertEquals(['hint1'], $config->getHints());
         self::assertEquals(['hints' => ['hint1']], $config->toArray());
 
         $config->setHints();
-        self::assertEquals([], $config->getHints());
-        self::assertEquals([], $config->toArray());
+        self::assertSame([], $config->getHints());
+        self::assertSame([], $config->toArray());
 
         $config->setHints(['hint1']);
         $config->setHints([]);
-        self::assertEquals([], $config->getHints());
-        self::assertEquals([], $config->toArray());
+        self::assertSame([], $config->getHints());
+        self::assertSame([], $config->toArray());
     }
 
     public function testIdentifierDescription()

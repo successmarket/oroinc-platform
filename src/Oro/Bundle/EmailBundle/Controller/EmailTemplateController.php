@@ -7,11 +7,11 @@ use Oro\Bundle\EmailBundle\Entity\EmailTemplate;
 use Oro\Bundle\FormBundle\Form\Handler\RequestHandlerTrait;
 use Oro\Bundle\SecurityBundle\Annotation\Acl;
 use Oro\Bundle\SecurityBundle\Annotation\AclAncestor;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Annotation\Route;
 
 /**
  * The controller for the email templates related functionality.
@@ -39,7 +39,7 @@ class EmailTemplateController extends Controller
     public function indexAction()
     {
         return [
-            'entity_class' => $this->container->getParameter('oro_email.emailtemplate.entity.class')
+            'entity_class' => EmailTemplate::class
         ];
     }
 
@@ -114,8 +114,13 @@ class EmailTemplateController extends Controller
             $this->submitPostPutRequest($form, $request);
         }
 
-        $templateRendered = $this->get('oro_email.email_renderer')
-            ->compilePreview($emailTemplate, $form->get('translation')->getData());
+        $localization = $form->get('activeLocalization')->getData();
+        $localizedTemplate = $localization
+            ? $this->get('oro_email.provider.email_template_content_provider')
+                ->getLocalizedModel($emailTemplate, $localization)
+            : $emailTemplate;
+
+        $templateRendered = $this->get('oro_email.email_renderer')->compilePreview($localizedTemplate);
 
         return array(
             'content'     => $templateRendered,

@@ -1,21 +1,24 @@
 define(function(require) {
     'use strict';
 
-    var $ = require('jquery');
-    var _ = require('underscore');
-    var scrollspy = require('oroui/js/scrollspy');
-    var mediator = require('oroui/js/mediator');
-    var tools = require('oroui/js/tools');
-    var scrollHelper = require('oroui/js/tools/scroll-helper');
-    var Popover = require('bootstrap-popover');
+    const $ = require('jquery');
+    const _ = require('underscore');
+    const scrollspy = require('oroui/js/scrollspy');
+    const mediator = require('oroui/js/mediator');
+    const tools = require('oroui/js/tools');
+    const scrollHelper = require('oroui/js/tools/scroll-helper');
+    const Popover = require('bootstrap-popover');
+    const manageFocus = require('oroui/js/tools/manage-focus').default;
 
     require('jquery-ui');
 
-    var document = window.document;
-    var console = window.console;
-    var pageRenderedCbPool = [];
+    const document = window.document;
+    const console = window.console;
+    let pageRenderedCbPool = [];
 
-    var layout = {
+    const ESCAPE_KEY_CODE = 27;
+
+    const layout = {
         /**
          * Default padding to keep when calculate available height for fullscreen layout
          */
@@ -48,9 +51,7 @@ define(function(require) {
          * @param {string|HTMLElement|jQuery.Element} container
          */
         init: function(container) {
-            var $container;
-
-            $container = $(container);
+            const $container = $(container);
 
             this.styleForm($container);
 
@@ -65,7 +66,7 @@ define(function(require) {
         },
 
         initPopover: function(container, options) {
-            var $items = container.find('[data-toggle="popover"]').filter(function() {
+            const $items = container.find('[data-toggle="popover"]').filter(function() {
                 // skip already initialized popovers
                 return !$(this).data(Popover.DATA_KEY);
             });
@@ -79,7 +80,8 @@ define(function(require) {
                 delay: {show: 0, hide: 0},
                 html: true,
                 container: false,
-                trigger: 'manual'
+                trigger: 'manual',
+                forceToShowTitle: false
             });
 
             if (overrideOptionsByData) {
@@ -88,24 +90,103 @@ define(function(require) {
 
             $items.not('[data-close="false"]').each(function(i, el) {
                 // append close link
-                var content = el.getAttribute('data-content');
-                content += '<i class="fa-close popover-close"></i>';
+                let content = el.getAttribute('data-content');
+                content += '<i class="fa-close popover-close" aria-hidden="true"></i>';
                 el.setAttribute('data-content', content);
             });
 
-            $items.popover(options).on('click' + Popover.EVENT_KEY, function(e) {
+            const popoverConfig = _.omit(options, 'forceToShowTitle');
+
+            $items.popover(popoverConfig).on('click' + Popover.EVENT_KEY, function(e) {
                 if ($(this).is('.disabled, :disabled')) {
                     return;
                 }
 
                 $(this).popover('toggle');
+
                 e.preventDefault();
+            });
+
+            if (options.forceToShowTitle) {
+                $items
+                    .on('mouseenter' + Popover.EVENT_KEY, e => {
+                        // Element is not disabled, title is cropped and and the popover is not opened
+                        if (
+                            !$(e.target).is('[disabled]') &&
+                            $(e.target).is('[data-original-title]') &&
+                            !$(e.target).is('[aria-describedby]')
+                        ) {
+                            $(e.target).attr('title', $(e.target).attr('data-original-title'));
+                        }
+                    })
+                    .on('mouseleave' + Popover.EVENT_KEY, e => {
+                        // Element is not disabled, title is cropped
+                        if (
+                            !$(e.target).is('[disabled]') &&
+                            $(e.target).is('[data-original-title]')
+                        ) {
+                            $(e.target).attr('title', '');
+                        }
+                    });
+            }
+
+            $items
+                .on(`shown${Popover.EVENT_KEY}`, e => {
+                    const popover = $(e.target).data(Popover.DATA_KEY);
+                    const $tip = $(popover.tip);
+                    const $tabbable = $tip.find(':tabbable').eq(0);
+
+                    if (!$tabbable.length) {
+                        return;
+                    }
+
+                    const config = popover._getConfig();
+                    let timeout = 0;
+
+                    if (config.animation) {
+                        timeout = config.delay.show;
+                    }
+
+                    setTimeout(() => {
+                        manageFocus.focusTabbable($(popover.getTipElement()), $tabbable);
+
+                        $tip.on('keydown' + Popover.EVENT_KEY,
+                            e => manageFocus.preventTabOutOfContainer(e, $tip));
+
+                        $(e.target).one('hide' + Popover.EVENT_KEY, e => $tip.off(Popover.EVENT_KEY));
+                    }, timeout);
+                })
+                .on(`hide${Popover.EVENT_KEY}`, e => {
+                    const popover = $(e.target).data(Popover.DATA_KEY);
+
+                    if ($.contains(popover.tip, document.activeElement)) {
+                        $(e.target).trigger('focus');
+                    }
+                })
+                .on(`focusout${Popover.EVENT_KEY}`, e => {
+                    const popover = $(e.target).data(Popover.DATA_KEY);
+
+                    if (
+                        popover &&
+                        popover.isOpen() &&
+                        !$.contains(popover.tip, e.relatedTarget)
+                    ) {
+                        $(e.target).popover('hide');
+                    }
+                });
+
+            $(document).on('keydown.popover-hide', e => {
+                if (e.keyCode === ESCAPE_KEY_CODE) {
+                    $items.filter('[aria-describedby]').each(function() {
+                        $(this).popover('hide');
+                    });
+                }
             });
 
             $('body')
                 .on('click.popover-hide', function(e) {
-                    var $target = $(e.target);
-                    // '[aria-describedby]' -- meens the popover is opened
+                    const $target = $(e.target);
+                    // '[aria-describedby]' -- means that the popover is opened.
                     $items.filter('[aria-describedby]').each(function() {
                         // the 'is' for buttons that trigger popups
                         // the 'has' for icons within a button that triggers a popup
@@ -122,10 +203,11 @@ define(function(require) {
                         e.preventDefault();
                     }
                 }).on('focus.popover-hide', 'select, input, textarea', function() {
-                    // '[aria-describedby]' -- meens the popover is opened
+                    // '[aria-describedby]' -- means that the popover is opened.
                     $items.filter('[aria-describedby]').popover('hide');
                 });
             mediator.once('page:request', function() {
+                $(document).off('.popover-hide');
                 $('body').off('.popover-hide .popover-prevent');
             });
         },
@@ -136,9 +218,7 @@ define(function(require) {
          * @param {string|HTMLElement|jQuery.Element} container
          */
         dispose: function(container) {
-            var $container;
-
-            $container = $(container);
+            const $container = $(container);
 
             $container.off({
                 'content:changed': this.onContentChanged,
@@ -151,7 +231,7 @@ define(function(require) {
         },
 
         hideProgressBar: function() {
-            var $bar = $('#progressbar');
+            const $bar = $('#progressbar');
             if ($bar.is(':visible')) {
                 $bar.hide();
                 $('#page').show();
@@ -214,9 +294,9 @@ define(function(require) {
          * @returns {number}
          */
         getAvailableHeight: function($mainEl, boundingClientRect) {
-            var $parents = $mainEl.parents();
-            var documentHeight = scrollHelper.documentHeight();
-            var heightDiff = documentHeight -
+            const $parents = $mainEl.parents();
+            const documentHeight = scrollHelper.documentHeight();
+            let heightDiff = documentHeight -
                 (boundingClientRect ? boundingClientRect : $mainEl[0].getBoundingClientRect()).top;
             $parents.each(function() {
                 heightDiff += this.scrollTop;
@@ -252,7 +332,7 @@ define(function(require) {
             if (this._scrollDisabledElements && this._scrollDisabledElements.length) {
                 this.enablePageScroll();
             }
-            var $scrollableParents = $mainEl.parents();
+            const $scrollableParents = $mainEl.parents();
             $scrollableParents.scrollTop(0);
             $scrollableParents.addClass('disable-scroll');
             this._scrollDisabledElements = $scrollableParents;
@@ -299,25 +379,25 @@ define(function(require) {
          * @private
          */
         adjustLabelsWidth: function($context) {
-            var controlGroups = $context.find('.control-group').filter(function(i, group) {
+            const controlGroups = $context.find('.control-group').filter(function(i, group) {
                 return !$(group).find('> .control-label').length && !$(group).closest('.tab-content, .controls').length;
             });
-            var labels = $context.find('.control-label').filter(function(i, label) {
+            const labels = $context.find('.control-label').filter(function(i, label) {
                 return !$(label).closest('.widget-title-container').length;
             });
 
             labels.css('width', '');
 
-            var width = labels.map(function(i, label) {
+            const width = labels.map(function(i, label) {
                 return label.getBoundingClientRect().width;
             }).get();
 
-            var newWidth = Math.ceil(Math.max.apply(null, width));
+            const newWidth = Math.ceil(Math.max.apply(null, width));
             labels.css('width', newWidth);
 
             controlGroups.each(function(i, group) {
-                var prop = 'margin-' + (_.isRTL() ? 'right' : 'left');
-                var controls = $(group).find('> .controls');
+                const prop = 'margin-' + (_.isRTL() ? 'right' : 'left');
+                const controls = $(group).find('> .controls');
                 controls
                     .css(prop, '')
                     .css(prop, parseInt(controls.css(prop)) + newWidth);

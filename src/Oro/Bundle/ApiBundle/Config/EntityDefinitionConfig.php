@@ -67,16 +67,25 @@ class EntityDefinitionConfig extends EntityConfig implements EntityConfigInterfa
         if ($this->identifierFieldNames) {
             $result[ConfigUtil::IDENTIFIER_FIELD_NAMES] = $this->identifierFieldNames;
         }
+        if (isset($result[ConfigUtil::DISABLE_INCLUSION])
+            && false === $result[ConfigUtil::DISABLE_INCLUSION]
+        ) {
+            unset($result[ConfigUtil::DISABLE_INCLUSION]);
+        }
+        if (isset($result[ConfigUtil::DISABLE_FIELDSET])
+            && false === $result[ConfigUtil::DISABLE_FIELDSET]
+        ) {
+            unset($result[ConfigUtil::DISABLE_FIELDSET]);
+        }
         if (isset($result[ConfigUtil::DISABLE_META_PROPERTIES])
             && false === $result[ConfigUtil::DISABLE_META_PROPERTIES]
         ) {
             unset($result[ConfigUtil::DISABLE_META_PROPERTIES]);
         }
-        if (isset($result[ConfigUtil::DISABLE_INCLUSION]) && false === $result[ConfigUtil::DISABLE_INCLUSION]) {
-            unset($result[ConfigUtil::DISABLE_INCLUSION]);
-        }
-        if (isset($result[ConfigUtil::DISABLE_FIELDSET]) && false === $result[ConfigUtil::DISABLE_FIELDSET]) {
-            unset($result[ConfigUtil::DISABLE_FIELDSET]);
+        if (isset($result[ConfigUtil::DISABLE_PARTIAL_LOAD])
+            && false === $result[ConfigUtil::DISABLE_PARTIAL_LOAD]
+        ) {
+            unset($result[ConfigUtil::DISABLE_PARTIAL_LOAD]);
         }
         if (isset($result[ConfigUtil::DISABLE_SORTING]) && false === $result[ConfigUtil::DISABLE_SORTING]) {
             unset($result[ConfigUtil::DISABLE_SORTING]);
@@ -350,6 +359,31 @@ class EntityDefinitionConfig extends EntityConfig implements EntityConfigInterfa
     }
 
     /**
+     * Checks whether this configuration represent a request for the entity identifier only
+     * or values of other fields should be returned as well.
+     *
+     * @return bool
+     */
+    public function isIdentifierOnlyRequested(): bool
+    {
+        if (empty($this->identifierFieldNames)
+            || \count($this->fields) !== \count($this->identifierFieldNames)
+        ) {
+            return false;
+        }
+
+        $isIdentifierOnly = true;
+        foreach ($this->identifierFieldNames as $idFieldName) {
+            if (!isset($this->fields[$idFieldName])) {
+                $isIdentifierOnly = false;
+                break;
+            }
+        }
+
+        return $isIdentifierOnly;
+    }
+
+    /**
      * Indicates whether the entity should be collapsed.
      * It means that target entity should be returned as a value, instead of an array with values of entity fields.
      *
@@ -387,6 +421,7 @@ class EntityDefinitionConfig extends EntityConfig implements EntityConfigInterfa
 
     /**
      * Gets the name of ACL resource that should be used to protect the entity.
+     * Return null if access should not be check.
      *
      * @return string|null
      */
@@ -397,6 +432,7 @@ class EntityDefinitionConfig extends EntityConfig implements EntityConfigInterfa
 
     /**
      * Sets the name of ACL resource that should be used to protect the entity.
+     * Set null if access should not be check.
      *
      * @param string|null $aclResource
      */
@@ -407,6 +443,7 @@ class EntityDefinitionConfig extends EntityConfig implements EntityConfigInterfa
 
     /**
      * Sets Doctrine query hints.
+     * Each hint can be a string or an associative array with "name" and "value" keys.
      *
      * @param array|null $hints
      */
@@ -613,42 +650,6 @@ class EntityDefinitionConfig extends EntityConfig implements EntityConfigInterfa
     }
 
     /**
-     * Indicates whether the "disable_meta_properties" option is set explicitly.
-     *
-     * @return bool
-     */
-    public function hasDisableMetaProperties()
-    {
-        return $this->has(ConfigUtil::DISABLE_META_PROPERTIES);
-    }
-
-    /**
-     * Indicates whether a requesting of additional meta properties is enabled.
-     *
-     * @return bool
-     */
-    public function isMetaPropertiesEnabled()
-    {
-        return !$this->get(ConfigUtil::DISABLE_META_PROPERTIES, false);
-    }
-
-    /**
-     * Enables a requesting of additional meta properties.
-     */
-    public function enableMetaProperties()
-    {
-        $this->items[ConfigUtil::DISABLE_META_PROPERTIES] = false;
-    }
-
-    /**
-     * Disables a requesting of additional meta properties.
-     */
-    public function disableMetaProperties()
-    {
-        $this->items[ConfigUtil::DISABLE_META_PROPERTIES] = true;
-    }
-
-    /**
      * Indicates whether the "disable_fieldset" option is set explicitly.
      *
      * @return bool
@@ -718,6 +719,42 @@ class EntityDefinitionConfig extends EntityConfig implements EntityConfigInterfa
     public function disableInclusion()
     {
         $this->items[ConfigUtil::DISABLE_INCLUSION] = true;
+    }
+
+    /**
+     * Indicates whether the "disable_meta_properties" option is set explicitly.
+     *
+     * @return bool
+     */
+    public function hasDisableMetaProperties()
+    {
+        return $this->has(ConfigUtil::DISABLE_META_PROPERTIES);
+    }
+
+    /**
+     * Indicates whether a requesting of additional meta properties is enabled.
+     *
+     * @return bool
+     */
+    public function isMetaPropertiesEnabled()
+    {
+        return !$this->get(ConfigUtil::DISABLE_META_PROPERTIES, false);
+    }
+
+    /**
+     * Enables a requesting of additional meta properties.
+     */
+    public function enableMetaProperties()
+    {
+        $this->items[ConfigUtil::DISABLE_META_PROPERTIES] = false;
+    }
+
+    /**
+     * Disables a requesting of additional meta properties.
+     */
+    public function disableMetaProperties()
+    {
+        $this->items[ConfigUtil::DISABLE_META_PROPERTIES] = true;
     }
 
     /**
@@ -830,21 +867,6 @@ class EntityDefinitionConfig extends EntityConfig implements EntityConfigInterfa
         } else {
             $maxResults = (int)$maxResults;
             $this->items[ConfigUtil::MAX_RESULTS] = $maxResults >= 0 ? $maxResults : -1;
-        }
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function setHasMore($hasMore)
-    {
-        parent::setHasMore($hasMore);
-        $fields = $this->getFields();
-        foreach ($fields as $field) {
-            $targetConfig = $field->getTargetEntity();
-            if (null !== $targetConfig) {
-                $targetConfig->setHasMore($hasMore);
-            }
         }
     }
 

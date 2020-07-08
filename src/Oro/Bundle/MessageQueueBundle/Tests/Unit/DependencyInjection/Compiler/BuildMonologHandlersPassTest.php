@@ -2,9 +2,14 @@
 
 namespace Oro\Bundle\MessageQueueBundle\Tests\Unit\DependencyInjection\Compiler;
 
+use Monolog\Logger;
 use Oro\Bundle\MessageQueueBundle\DependencyInjection\Compiler\BuildMonologHandlersPass;
+use Symfony\Bundle\MonologBundle\DependencyInjection\Configuration;
+use Symfony\Bundle\MonologBundle\DependencyInjection\MonologExtension;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
+use Symfony\Component\DependencyInjection\Reference;
 
 class BuildMonologHandlersPassTest extends \PHPUnit\Framework\TestCase
 {
@@ -14,23 +19,31 @@ class BuildMonologHandlersPassTest extends \PHPUnit\Framework\TestCase
     /**
      * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->buildMonologHandlersPass = new BuildMonologHandlersPass();
     }
 
     /**
-     * @dataProvider processProvider
+     * @dataProvider processConsoleErrorProvider
      *
      * @param array $handler
-     * @param int $bufferSize
      * @param int $level
-     * @param bool $bubble
-     * @param bool $flushOnOverflow
      */
-    public function testProcess(array $handler, $bufferSize, $level, $bubble, $flushOnOverflow)
+    public function testProcessConsoleError(array $handler, $level)
     {
+        $configuration = new Configuration();
+        $monologExtension = $this->createMock(MonologExtension::class);
+        $monologExtension->expects($this->once())
+            ->method('getConfiguration')
+            ->willReturn($configuration);
+
+        /** @var ContainerBuilder|\PHPUnit\Framework\MockObject\MockObject $container */
         $container = $this->createMock(ContainerBuilder::class);
+        $container->expects($this->once())
+            ->method('getExtension')
+            ->with('monolog')
+            ->willReturn($monologExtension);
         $container->expects($this->once())
             ->method('getExtensionConfig')
             ->with('monolog')
@@ -38,27 +51,81 @@ class BuildMonologHandlersPassTest extends \PHPUnit\Framework\TestCase
                 ['handlers' => [$handler]]
             ]);
 
-        $nestedHandlerDefinition = $this->createMock(Definition::class);
-        $container->expects($this->at(1))
-            ->method('getDefinition')
-            ->with('monolog.handler.nested')
-            ->willReturn($nestedHandlerDefinition);
 
         $consoleErrorHandler = $this->createMock(Definition::class);
-        $consoleErrorHandler->expects($this->once())
-            ->method('setArguments')
-            ->with([$nestedHandlerDefinition, $bufferSize, $level, $bubble, $flushOnOverflow]);
-        $container->expects($this->at(2))
+        $container->expects($this->once())
             ->method('getDefinition')
-            ->with('oro_message_queue.log.handler.console_error')
+            ->with($handler['id'])
             ->willReturn($consoleErrorHandler);
+
+        $consoleErrorHandler->expects($this->exactly(2))
+            ->method('setArgument')
+            ->withConsecutive(
+                [1, new Reference('monolog.handler.' . $handler['handler'])],
+                [2, $level]
+            );
+
+        $this->buildMonologHandlersPass->process($container);
+    }
+
+    /**
+     * @dataProvider processVerbosityFilterProvider
+     *
+     * @param array $handler
+     * @param array $verbosityLevels
+     */
+    public function testProcessVerbosityFilter(array $handler, array $verbosityLevels)
+    {
+        $configuration = new Configuration();
+        $monologExtension = $this->createMock(MonologExtension::class);
+        $monologExtension->expects($this->once())
+            ->method('getConfiguration')
+            ->willReturn($configuration);
+
+        /** @var ContainerBuilder|\PHPUnit\Framework\MockObject\MockObject $container */
+        $container = $this->createMock(ContainerBuilder::class);
+        $container->expects($this->once())
+            ->method('getExtension')
+            ->with('monolog')
+            ->willReturn($monologExtension);
+        $container->expects($this->once())
+            ->method('getExtensionConfig')
+            ->with('monolog')
+            ->willReturn([
+                ['handlers' => [$handler]]
+            ]);
+
+
+        $consoleErrorHandler = $this->createMock(Definition::class);
+        $container->expects($this->once())
+            ->method('getDefinition')
+            ->with($handler['id'])
+            ->willReturn($consoleErrorHandler);
+
+        $consoleErrorHandler->expects($this->exactly(2))
+            ->method('setArgument')
+            ->withConsecutive(
+                [1, new Reference('monolog.handler.' . $handler['handler'])],
+                [2, $verbosityLevels]
+            );
 
         $this->buildMonologHandlersPass->process($container);
     }
 
     public function testProcessWithEmptyConfigs()
     {
+        $configuration = new Configuration();
+        $monologExtension = $this->createMock(MonologExtension::class);
+        $monologExtension->expects($this->once())
+            ->method('getConfiguration')
+            ->willReturn($configuration);
+
+        /** @var ContainerBuilder|\PHPUnit\Framework\MockObject\MockObject $container */
         $container = $this->createMock(ContainerBuilder::class);
+        $container->expects($this->once())
+            ->method('getExtension')
+            ->with('monolog')
+            ->willReturn($monologExtension);
         $container->expects($this->once())
             ->method('getExtensionConfig')
             ->with('monolog')
@@ -72,7 +139,18 @@ class BuildMonologHandlersPassTest extends \PHPUnit\Framework\TestCase
 
     public function testProcessWithoutHandlers()
     {
+        $configuration = new Configuration();
+        $monologExtension = $this->createMock(MonologExtension::class);
+        $monologExtension->expects($this->once())
+            ->method('getConfiguration')
+            ->willReturn($configuration);
+
+        /** @var ContainerBuilder|\PHPUnit\Framework\MockObject\MockObject $container */
         $container = $this->createMock(ContainerBuilder::class);
+        $container->expects($this->once())
+            ->method('getExtension')
+            ->with('monolog')
+            ->willReturn($monologExtension);
         $container->expects($this->once())
             ->method('getExtensionConfig')
             ->with('monolog')
@@ -88,9 +166,10 @@ class BuildMonologHandlersPassTest extends \PHPUnit\Framework\TestCase
 
     public function testProcessWithInvalidHandler()
     {
+        /** @var ContainerBuilder|\PHPUnit\Framework\MockObject\MockObject $container */
         $container = $this->createMock(ContainerBuilder::class);
         $container->expects($this->once())
-            ->method('getExtensionConfig')
+            ->method('getExtension')
             ->with('monolog')
             ->willReturn([
                 ['handlers' => [
@@ -108,67 +187,61 @@ class BuildMonologHandlersPassTest extends \PHPUnit\Framework\TestCase
     /**
      * @return array
      */
-    public function processProvider()
+    public function processConsoleErrorProvider()
     {
         return [
             'simple console error handler' => [
                 'handler' => [
+                    'name' => 'console_error',
                     'type' => 'service',
                     'id' => 'oro_message_queue.log.handler.console_error',
                     'handler' => 'nested',
                 ],
-                'bufferSize' => 0,
-                'level' => 100,
-                'bubble' => true,
-                'flushOnOverflow' => false
-            ],
-            'with buffer size' => [
-                'handler' => [
-                    'type' => 'service',
-                    'id' => 'oro_message_queue.log.handler.console_error',
-                    'handler' => 'nested',
-                    'buffer_size' => 500
-                ],
-                'bufferSize' => 500,
-                'level' => 100,
-                'bubble' => true,
-                'flushOnOverflow' => false
+                'level' => 'DEBUG',
             ],
             'with level' => [
                 'handler' => [
+                    'name' => 'console_error',
                     'type' => 'service',
                     'id' => 'oro_message_queue.log.handler.console_error',
                     'handler' => 'nested',
-                    'level' => 200
+                    'level' => 'NOTICE'
                 ],
-                'bufferSize' => 0,
-                'level' => 200,
-                'bubble' => true,
-                'flushOnOverflow' => false
-            ],
-            'with bubble' => [
+                'level' => 'NOTICE',
+            ]
+        ];
+    }
+
+    /**
+     * @return array
+     */
+    public function processVerbosityFilterProvider()
+    {
+        return [
+            'simple verbosity filter handler' => [
                 'handler' => [
+                    'name' => 'verbosity_filter',
                     'type' => 'service',
-                    'id' => 'oro_message_queue.log.handler.console_error',
+                    'id' => 'oro_message_queue.log.handler.verbosity_filter',
                     'handler' => 'nested',
-                    'bubble' => false
                 ],
-                'bufferSize' => 0,
-                'level' => 100,
-                'bubble' => false,
-                'flushOnOverflow' => false
+                'verbosity_levels' => [],
             ],
-            'with flush on overflow' => [
+            'with verbosity_levels' => [
                 'handler' => [
+                    'name' => 'verbosity_filter',
                     'type' => 'service',
-                    'id' => 'oro_message_queue.log.handler.console_error',
+                    'id' => 'oro_message_queue.log.handler.verbosity_filter',
                     'handler' => 'nested',
-                    'flush_on_overflow' => true
+                    'verbosity_levels' => ['VERBOSITY_QUIET' => 'DEBUG']
                 ],
-                'bufferSize' => 0,
-                'level' => 100,
-                'bubble' => true,
-                'flushOnOverflow' => true
+                'verbosity_levels' => [
+                    OutputInterface::VERBOSITY_QUIET => Logger::DEBUG,
+                    OutputInterface::VERBOSITY_NORMAL => Logger::WARNING,
+                    OutputInterface::VERBOSITY_VERBOSE => Logger::NOTICE,
+                    OutputInterface::VERBOSITY_VERY_VERBOSE => Logger::INFO,
+                    OutputInterface::VERBOSITY_DEBUG => Logger::DEBUG,
+                ],
             ]
         ];
     }

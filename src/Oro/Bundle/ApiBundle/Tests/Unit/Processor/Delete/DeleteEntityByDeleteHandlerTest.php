@@ -19,7 +19,7 @@ class DeleteEntityByDeleteHandlerTest extends DeleteProcessorTestCase
     /** @var DeleteEntityByDeleteHandler */
     private $processor;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -61,12 +61,11 @@ class DeleteEntityByDeleteHandlerTest extends DeleteProcessorTestCase
         self::assertSame($entity, $this->context->getResult());
     }
 
-    /**
-     * @expectedException \RuntimeException
-     * @expectedExceptionMessage The result property of the context should be an object, "string" given.
-     */
     public function testProcessForNotObjectResult()
     {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('The result property of the context should be an object, "string" given.');
+
         $entity = 'test';
         $entityClass = 'Test\Entity';
         $config = new EntityDefinitionConfig();
@@ -108,7 +107,8 @@ class DeleteEntityByDeleteHandlerTest extends DeleteProcessorTestCase
             ->willReturn($deleteHandler);
         $deleteHandler->expects(self::once())
             ->method('delete')
-            ->with($entity);
+            ->with($entity, self::isTrue())
+            ->willReturn(null);
 
         $this->context->setClassName($entityClass);
         $this->context->setResult($entity);
@@ -138,7 +138,8 @@ class DeleteEntityByDeleteHandlerTest extends DeleteProcessorTestCase
             ->willReturn($deleteHandler);
         $deleteHandler->expects(self::once())
             ->method('delete')
-            ->with($entity);
+            ->with($entity, self::isTrue())
+            ->willReturn(null);
 
         $this->context->setClassName($entityClass);
         $this->context->setResult($entity);

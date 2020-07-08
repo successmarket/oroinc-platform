@@ -3,6 +3,7 @@
 namespace Oro\Bundle\ApiBundle\Processor\CustomizeLoadedData;
 
 use Oro\Bundle\ApiBundle\Config\Extra\ConfigExtraInterface;
+use Oro\Bundle\ApiBundle\Config\Extra\HateoasConfigExtra;
 use Oro\Bundle\ApiBundle\Processor\CustomizeDataContext;
 use Oro\Bundle\ApiBundle\Util\ConfigUtil;
 
@@ -16,6 +17,9 @@ class CustomizeLoadedDataContext extends CustomizeDataContext
 
     /** @var ConfigExtraInterface[] */
     private $configExtras;
+
+    /** @var bool|null */
+    private $isHateoasEnabled;
 
     /**
      * Gets the response data.
@@ -83,7 +87,7 @@ class CustomizeLoadedDataContext extends CustomizeDataContext
         $fieldName = $config->findFieldNameByPropertyPath($propertyPath);
         if (!$fieldName) {
             $field = $config->getField($propertyPath);
-            if (null !== $field && ConfigUtil::IGNORE_PROPERTY_PATH === $field->getPropertyPath()) {
+            if (null === $field || ConfigUtil::IGNORE_PROPERTY_PATH === $field->getPropertyPath()) {
                 $fieldName = $propertyPath;
             }
         }
@@ -102,7 +106,7 @@ class CustomizeLoadedDataContext extends CustomizeDataContext
     public function getResultFieldValue(string $propertyName, array $data)
     {
         $fieldName = $this->getResultFieldName($propertyName);
-        if (!$fieldName || !array_key_exists($fieldName, $data)) {
+        if (!$fieldName || !\array_key_exists($fieldName, $data)) {
             return null;
         }
 
@@ -110,11 +114,53 @@ class CustomizeLoadedDataContext extends CustomizeDataContext
     }
 
     /**
+     * Gets the value of an entity field by the given property path from response data.
+     *
+     * @param string     $propertyPath The path to an entity field, each element is the property name in an entity
+     * @param array|null $data         Response data
+     *
+     * @return mixed
+     */
+    public function getResultFieldValueByPropertyPath(string $propertyPath, array $data)
+    {
+        $config = $this->getConfig();
+        $path = ConfigUtil::explodePropertyPath($propertyPath);
+        $lastPropertyName = array_pop($path);
+        foreach ($path as $propertyName) {
+            if (null !== $config) {
+                $fieldName = $config->findFieldNameByPropertyPath($propertyName);
+                if (!$fieldName) {
+                    return null;
+                }
+                $config = $config->getField($fieldName)->getTargetEntity();
+                $propertyName = $fieldName;
+            }
+            if (!\array_key_exists($propertyName, $data)) {
+                return null;
+            }
+            $data = $data[$propertyName];
+            if (!\is_array($data)) {
+                return null;
+            }
+        }
+
+        if (null !== $config) {
+            $fieldName = $config->findFieldNameByPropertyPath($lastPropertyName);
+            if (!$fieldName) {
+                return null;
+            }
+            $lastPropertyName = $fieldName;
+        }
+
+        return $data[$lastPropertyName] ?? null;
+    }
+
+    /**
      * Indicates whether the given field is requested to be returned in response data.
      * This method takes into account whether the "customize_loaded_data" action is executed
      * for a relationship (in this case only identifier field is returned)
      * or for primary or included resource (in this case a list of returned fields
-     * can be limited, e.g. using "fields" filter in REST API conforms JSON:API specification).
+     * can be limited, e.g. using "fields" filter in REST API that conforms the JSON:API specification).
      * @link http://jsonapi.org/format/#fetching-sparse-fieldsets
      *
      * @param string|null $fieldName The name under which a field should be represented in response data
@@ -129,26 +175,27 @@ class CustomizeLoadedDataContext extends CustomizeDataContext
             return false;
         }
 
+        if (null !== $data && \array_key_exists($fieldName, $data)) {
+            return false;
+        }
+
         $config = $this->getConfig();
         if (null === $config) {
             return false;
         }
 
         $field = $config->getField($fieldName);
-        $isRequested = null !== $field && !$field->isExcluded();
-        if ($isRequested && null !== $data && \array_key_exists($fieldName, $data)) {
-            $isRequested = false;
-        }
 
-        return $isRequested;
+        return null !== $field && !$field->isExcluded();
     }
 
     /**
      * Indicates whether at least one of the given fields is requested to be returned in response data.
+     *
      * @see isFieldRequested
      *
-     * @param string[]   $fieldNames The names under which fields should be represented in response data
      * @param array|null $data       Response data
+     * @param string[]   $fieldNames The names under which fields should be represented in response data
      *
      * @return bool
      */
@@ -166,10 +213,11 @@ class CustomizeLoadedDataContext extends CustomizeDataContext
     /**
      * Indicates whether the given field is requested to be returned
      * in at least one element of response collection data.
+     *
      * @see isFieldRequested
      *
-     * @param string $fieldName The name under which a field should be represented in response data
      * @param array  $data      Response data
+     * @param string $fieldName The name under which a field should be represented in response data
      *
      * @return bool
      */
@@ -187,10 +235,11 @@ class CustomizeLoadedDataContext extends CustomizeDataContext
     /**
      * Indicates whether at least one of the given fields is requested to be returned
      * in at least one element of response collection data.
+     *
      * @see isAtLeastOneFieldRequested
      *
-     * @param string[] $fieldNames The names under which fields should be represented in response data
      * @param array    $data       Response data
+     * @param string[] $fieldNames The names under which fields should be represented in response data
      *
      * @return bool
      */
@@ -277,5 +326,25 @@ class CustomizeLoadedDataContext extends CustomizeDataContext
     public function setConfigExtras(array $configExtras): void
     {
         $this->configExtras = $configExtras;
+        $this->isHateoasEnabled = null;
+    }
+
+    /**
+     * Indicates whether HATEOAS is enabled.
+     *
+     * @return bool
+     */
+    public function isHateoasEnabled(): bool
+    {
+        if (null === $this->isHateoasEnabled) {
+            $this->isHateoasEnabled = false;
+            foreach ($this->configExtras as $extra) {
+                if ($extra instanceof HateoasConfigExtra) {
+                    $this->isHateoasEnabled = true;
+                }
+            }
+        }
+
+        return $this->isHateoasEnabled;
     }
 }

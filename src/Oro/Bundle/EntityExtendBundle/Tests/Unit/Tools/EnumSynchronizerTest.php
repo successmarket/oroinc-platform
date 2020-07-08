@@ -8,7 +8,6 @@ use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
-use Gedmo\Translatable\Query\TreeWalker\TranslationWalker;
 use Gedmo\Translatable\TranslatableListener;
 use Oro\Bundle\EntityConfigBundle\Config\Config;
 use Oro\Bundle\EntityConfigBundle\Config\ConfigManager;
@@ -21,6 +20,7 @@ use Oro\Bundle\EntityExtendBundle\Tests\Unit\Fixtures\TestEnumValue;
 use Oro\Bundle\EntityExtendBundle\Tools\EnumSynchronizer;
 use Oro\Bundle\EntityExtendBundle\Tools\ExtendHelper;
 use Oro\Bundle\TranslationBundle\Translation\Translator;
+use Oro\Component\DoctrineUtils\ORM\Walker\TranslatableSqlWalker;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
@@ -48,7 +48,7 @@ class EnumSynchronizerTest extends \PHPUnit\Framework\TestCase
     /** @var EnumSynchronizer */
     protected $synchronizer;
 
-    public function setUp()
+    protected function setUp(): void
     {
         $this->configManager = $this->createMock(ConfigManager::class);
         $this->doctrine = $this->createMock(ManagerRegistry::class);
@@ -389,12 +389,11 @@ class EnumSynchronizerTest extends \PHPUnit\Framework\TestCase
         $this->synchronizer->applyEnumNameTrans($enumCode, $enumName, $locale);
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage $enumValueClassName must not be empty.
-     */
     public function testApplyEnumEntityOptionsWithEmptyClassName()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('$enumValueClassName must not be empty.');
+
         $this->synchronizer->applyEnumEntityOptions('', false);
     }
 
@@ -482,21 +481,19 @@ class EnumSynchronizerTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage $enumValueClassName must not be empty.
-     */
     public function testApplyEnumOptionsWithEmptyClassName()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('$enumValueClassName must not be empty.');
+
         $this->synchronizer->applyEnumOptions('', [], 'en');
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage $locale must not be empty.
-     */
     public function testApplyEnumOptionsWithEmptyLocale()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('$locale must not be empty.');
+
         $this->synchronizer->applyEnumOptions('Test\EnumValue', [], null);
     }
 
@@ -836,10 +833,10 @@ class EnumSynchronizerTest extends \PHPUnit\Framework\TestCase
         $em->expects($this->exactly(4))
             ->method('persist')
             ->withConsecutive(
-                $newValue1,
-                $newValue2,
-                $newValue3,
-                $newValue4
+                [$newValue1],
+                [$newValue2],
+                [$newValue3],
+                [$newValue4]
             );
 
         $em->expects($this->once())
@@ -1017,7 +1014,7 @@ class EnumSynchronizerTest extends \PHPUnit\Framework\TestCase
             ->withConsecutive(
                 [
                     Query::HINT_CUSTOM_OUTPUT_WALKER,
-                    TranslationWalker::class
+                    TranslatableSqlWalker::class
                 ],
                 [
                     TranslatableListener::HINT_TRANSLATABLE_LOCALE,

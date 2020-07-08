@@ -15,7 +15,7 @@ class FlashMessagesContentProviderTest extends \PHPUnit\Framework\TestCase
      */
     protected $provider;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->session = $this->getMockBuilder('Symfony\Component\HttpFoundation\Session\Session')
             ->disableOriginalConstructor()
@@ -35,10 +35,5 @@ class FlashMessagesContentProviderTest extends \PHPUnit\Framework\TestCase
             ->method('getFlashBag')
             ->will($this->returnValue($flashBag));
         $this->assertEquals($messages, $this->provider->getContent());
-    }
-
-    public function testGetName()
-    {
-        $this->assertEquals('flashMessages', $this->provider->getName());
     }
 }

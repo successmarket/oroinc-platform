@@ -2,12 +2,12 @@
 
 namespace Oro\Component\ExpressionLanguage\Tests\Unit\Node;
 
+use Oro\Bundle\ConfigBundle\Tests\Unit\Config\Tree\AbstractNodeDefinitionTest;
 use Oro\Component\ExpressionLanguage\Node as CustomNode;
 use Oro\Component\ExpressionLanguage\Tests\Unit\Node\Stub\SimpleObject;
 use Symfony\Component\ExpressionLanguage\Node;
-use Symfony\Component\ExpressionLanguage\Tests\Node\AbstractNodeTest;
 
-class GetAttrNodeTest extends AbstractNodeTest
+class GetAttrNodeTest extends AbstractNodeDefinitionTest
 {
     /**
      * @return array
@@ -362,12 +362,11 @@ class GetAttrNodeTest extends AbstractNodeTest
         ];
     }
 
-    /**
-     * @expectedException \RuntimeException
-     * @expectedExceptionMessage Unable to sum a non-numeric value, value: ''.
-     */
     public function testMethodSumNonNumericEvaluate()
     {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage("Unable to sum a non-numeric value, value: ''.");
+
         $variables = [
             'items' => [
                 ['foo' => '']
@@ -390,12 +389,11 @@ class GetAttrNodeTest extends AbstractNodeTest
         $node->evaluate([], $variables);
     }
 
-    /**
-     * @expectedException \RuntimeException
-     * @expectedExceptionMessage Unable node type: -1. Available types are 1, 2, 3, 4, 5.
-     */
     public function testUnknownNodeType()
     {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Unable node type: -1. Available types are 1, 2, 3, 4, 5.');
+
         $node = new CustomNode\GetAttrNode(
             new Node\NameNode('item'),
             new Node\ConstantNode('foo'),
@@ -404,6 +402,92 @@ class GetAttrNodeTest extends AbstractNodeTest
         );
 
         $node->evaluate([], []);
+    }
+
+    public function testMethodEvaluateAllWithNotTraversableVariables()
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Unable to iterate through a non-object.');
+
+        $variables = [
+            'items' => new SimpleObject()
+        ];
+
+        $arguments = new CustomNode\BinaryNode(
+            '>',
+            new CustomNode\GetAttrNode(
+                new Node\NameNode('item'),
+                new Node\ConstantNode('index'),
+                new Node\ArgumentsNode(),
+                CustomNode\GetAttrNode::PROPERTY_CALL
+            ),
+            new Node\ConstantNode(10)
+        );
+        $node = new CustomNode\GetAttrNode(
+            new Node\NameNode('items'),
+            new Node\ConstantNode('all'),
+            $arguments,
+            CustomNode\GetAttrNode::ALL_CALL
+        );
+
+        // items.all(item.index > 10)
+        $node->evaluate([], $variables);
+    }
+
+    public function testMethodEvaluateAnyWithNotTraversableVariables()
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Unable to iterate through a non-object.');
+
+        $variables = [
+            'items' => new SimpleObject()
+        ];
+
+        $arguments = new CustomNode\BinaryNode(
+            '>',
+            new CustomNode\GetAttrNode(
+                new Node\NameNode('item'),
+                new Node\ConstantNode('index'),
+                new Node\ArgumentsNode(),
+                CustomNode\GetAttrNode::PROPERTY_CALL
+            ),
+            new Node\ConstantNode(10)
+        );
+        $node = new CustomNode\GetAttrNode(
+            new Node\NameNode('items'),
+            new Node\ConstantNode('any'),
+            $arguments,
+            CustomNode\GetAttrNode::ANY_CALL
+        );
+
+        // items.any(item.index > 10)
+        $node->evaluate([], $variables);
+    }
+
+    public function testMethodEvaluateSumWithNotTraversableVariables()
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Unable to iterate through a non-object.');
+
+        $variables = [
+            'items' => new SimpleObject()
+        ];
+
+        $argument = new CustomNode\GetAttrNode(
+            new Node\NameNode('item'),
+            new Node\ConstantNode('foo'),
+            new Node\ArgumentsNode(),
+            CustomNode\GetAttrNode::PROPERTY_CALL
+        );
+        $node = new CustomNode\GetAttrNode(
+            new Node\NameNode('items'),
+            new Node\ConstantNode('sum'),
+            $argument,
+            CustomNode\GetAttrNode::SUM_CALL
+        );
+
+        // items.sum(item.foo)
+        $node->evaluate([], $variables);
     }
 
     /**

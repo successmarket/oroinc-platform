@@ -1,9 +1,9 @@
 define(function(require) {
     'use strict';
 
-    var _ = require('underscore');
-    var routing = require('routing');
-    var error = require('oroui/js/error');
+    const _ = require('underscore');
+    const routing = require('routing');
+    const error = require('oroui/js/error');
 
     return {
         /**
@@ -12,8 +12,8 @@ define(function(require) {
          * @returns {RegExp|null} RegExp on which route will be matched else null
          */
         getRouteRegExp: function(routeName, regExpFlags) {
-            var route;
-            var pattern = '';
+            let route;
+            let pattern = '';
 
             regExpFlags = regExpFlags || 'gi';
 
@@ -26,6 +26,11 @@ define(function(require) {
 
             _.each(route.tokens, function(token) {
                 if ('variable' === token[0]) {
+                    // do not add "_format" placeholder to the pattern because it is optional with default value,
+                    // as result the format is not added to generated route URL
+                    if ('_format' === token[3]) {
+                        return;
+                    }
                     // JS does not support Possessive Quantifiers
                     pattern = '(' + token[2].replace('++', '+').replace(/\//g, '\\$&') + ')' + pattern;
                 }

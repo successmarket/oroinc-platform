@@ -1,21 +1,22 @@
 <?php
+
 namespace Oro\Bundle\EmailBundle\Tests\Unit\Async;
 
+use Doctrine\Common\Persistence\ManagerRegistry;
 use Oro\Bundle\EmailBundle\Async\PurgeEmailAttachmentsByIdsMessageProcessor;
 use Oro\Bundle\EmailBundle\Async\Topics;
 use Oro\Component\MessageQueue\Consumption\MessageProcessorInterface;
 use Oro\Component\MessageQueue\Job\JobRunner;
-use Oro\Component\MessageQueue\Transport\Null\NullMessage;
+use Oro\Component\MessageQueue\Transport\Message;
 use Oro\Component\MessageQueue\Transport\SessionInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Bridge\Doctrine\RegistryInterface;
 
 class PurgeEmailAttachmentsByIdsMessageProcessorTest extends \PHPUnit\Framework\TestCase
 {
     public function testCouldBeConstructedWithRequiredArguments()
     {
         new PurgeEmailAttachmentsByIdsMessageProcessor(
-            $this->createRegistryInterfaceMock(),
+            $this->createRegistryMock(),
             $this->createJobRunnerMock(),
             $this->createLoggerMock()
         );
@@ -38,11 +39,11 @@ class PurgeEmailAttachmentsByIdsMessageProcessorTest extends \PHPUnit\Framework\
             ->with('Got invalid message')
         ;
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody(json_encode([]));
 
         $processor = new PurgeEmailAttachmentsByIdsMessageProcessor(
-            $this->createRegistryInterfaceMock(),
+            $this->createRegistryMock(),
             $this->createJobRunnerMock(),
             $logger
         );
@@ -62,11 +63,11 @@ class PurgeEmailAttachmentsByIdsMessageProcessorTest extends \PHPUnit\Framework\
     }
 
     /**
-     * @return \PHPUnit\Framework\MockObject\MockObject|RegistryInterface
+     * @return \PHPUnit\Framework\MockObject\MockObject|ManagerRegistry
      */
-    private function createRegistryInterfaceMock()
+    private function createRegistryMock()
     {
-        return $this->createMock(RegistryInterface::class);
+        return $this->createMock(ManagerRegistry::class);
     }
 
     /**

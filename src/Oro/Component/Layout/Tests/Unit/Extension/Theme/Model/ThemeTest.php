@@ -14,12 +14,12 @@ class ThemeTest extends \PHPUnit\Framework\TestCase
     /** @var Theme */
     protected $theme;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->theme = new Theme('test');
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         unset($this->theme);
     }
@@ -79,6 +79,8 @@ class ThemeTest extends \PHPUnit\Framework\TestCase
 
         $this->theme->setGroups(['test']);
         $this->assertSame(['test'], $this->theme->getGroups());
+        $this->assertTrue($this->theme->hasGroup('test'));
+        $this->assertFalse($this->theme->hasGroup('another_test'));
     }
 
     public function testParentThemeMethods()

@@ -2,7 +2,6 @@
 
 namespace Oro\Bundle\QueryDesignerBundle\Tests\Unit\Grid\DatagridConfigurationBuilder;
 
-use Doctrine\ORM\Query;
 use Oro\Bundle\FilterBundle\Filter\FilterUtility;
 use Oro\Bundle\QueryDesignerBundle\Tests\Unit\Fixtures\QueryDesignerModel;
 
@@ -71,12 +70,6 @@ class GroupingColumnsTest extends DatagridConfigurationBuilderTestCase
                         'column1'                          => 'c1',
                         'column2(Count,string,aggregates)' => 'c2'
                     ],
-                ],
-                'hints'        => [
-                    [
-                        'name'  => Query::HINT_CUSTOM_OUTPUT_WALKER,
-                        'value' => 'Oro\Bundle\QueryDesignerBundle\QueryDesigner\SqlWalker',
-                    ]
                 ]
             ],
             'columns' => [
@@ -107,12 +100,11 @@ class GroupingColumnsTest extends DatagridConfigurationBuilderTestCase
         $this->assertEquals($expected, $result);
     }
 
-    /**
-     * @expectedException \Oro\Bundle\QueryDesignerBundle\Exception\InvalidConfigurationException
-     * @expectedExceptionMessage The grouping column "column2" must be declared in SELECT clause.
-     */
     public function testInvalidGrouping()
     {
+        $this->expectException(\Oro\Bundle\QueryDesignerBundle\Exception\InvalidConfigurationException::class);
+        $this->expectExceptionMessage('The grouping column "column2" must be declared in SELECT clause.');
+
         $en               = 'Acme\Entity\TestEntity';
         $definition       = [
             'columns'          => [
@@ -292,12 +284,6 @@ class GroupingColumnsTest extends DatagridConfigurationBuilderTestCase
                                 ]
                             ],
                         ]
-                    ]
-                ],
-                'hints'        => [
-                    [
-                        'name'  => Query::HINT_CUSTOM_OUTPUT_WALKER,
-                        'value' => 'Oro\Bundle\QueryDesignerBundle\QueryDesigner\SqlWalker',
                     ]
                 ]
             ],

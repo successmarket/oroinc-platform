@@ -32,7 +32,7 @@ class EmailHandlerTest extends \PHPUnit\Framework\TestCase
     /** @var Email */
     protected $model;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->form = $this->createMock(Form::class);
 
@@ -70,7 +70,7 @@ class EmailHandlerTest extends \PHPUnit\Framework\TestCase
     {
         $this->request->initialize([], self::FORM_DATA);
         $this->request->setMethod('POST');
-        $this->request->query->set('_widgetInit', true);
+        $this->request->request->set('_widgetInit', true);
 
         $this->form->expects($this->once())
             ->method('setData')

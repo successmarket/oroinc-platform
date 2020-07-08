@@ -58,12 +58,14 @@ class EmailTemplateVariablesPassTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage The tag attribute "scope" is required for service "system_provider1".
-     */
     public function testProcessForProviderWithoutScope()
     {
+        $this->expectException(\Symfony\Component\DependencyInjection\Exception\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'The attribute "scope" is required for "oro_email.emailtemplate.variable_provider" tag.'
+            . ' Service: "system_provider1".'
+        );
+
         $container = new ContainerBuilder();
         $container->register(self::CHAIN_PROVIDER_SERVICE)
             ->setArguments([null, [], []]);
@@ -74,14 +76,14 @@ class EmailTemplateVariablesPassTest extends \PHPUnit\Framework\TestCase
         $compiler->process($container);
     }
 
-    // @codingStandardsIgnoreStart
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage The value "another" is invalid for the tag attribute "scope" for service "system_provider1", expected "system" or "entity".
-     */
-    // @codingStandardsIgnoreEnd
     public function testProcessForProviderWithInvalidScope()
     {
+        $this->expectException(\Symfony\Component\DependencyInjection\Exception\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'The value "another" is invalid for the tag attribute "scope" for service "system_provider1",'
+            . ' expected "system" or "entity".'
+        );
+
         $container = new ContainerBuilder();
         $container->register(self::CHAIN_PROVIDER_SERVICE)
             ->setArguments([null, [], []]);

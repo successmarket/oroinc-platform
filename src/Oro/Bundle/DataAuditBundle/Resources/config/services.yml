@@ -1,7 +1,3 @@
-parameters:
-    oro_dataaudit.loggable.entity.class:            'Oro\Bundle\DataAuditBundle\Entity\Audit'
-    oro_dataaudit.loggable.entity_field.class:      'Oro\Bundle\DataAuditBundle\Entity\AuditField'
-
 services:
     oro_dataaudit.filter.audit:
         class: 'Oro\Bundle\DataAuditBundle\Filter\AuditFilter'
@@ -20,13 +16,15 @@ services:
             -
                 - 'addAuditEntryClasses'
                 -
-                    - '%oro_user.entity.class%'
-                    - '%oro_dataaudit.loggable.entity.class%'
-                    - '%oro_dataaudit.loggable.entity_field.class%'
+                    - 'Oro\Bundle\UserBundle\Entity\User'
+                    - 'Oro\Bundle\DataAuditBundle\Entity\Audit'
+                    - 'Oro\Bundle\DataAuditBundle\Entity\AuditField'
 
     oro_dataaudit.converter.entity_to_entity_change_array:
         class: 'Oro\Bundle\DataAuditBundle\Service\EntityToEntityChangeArrayConverter'
         public: false
+        calls:
+            - [setAuditFieldTypeProvider,  ['@oro_dataaudit.provider.audit_field_type']]
 
     oro_dataaudit.listener.send_changed_entities_to_message_queue:
         class: 'Oro\Bundle\DataAuditBundle\EventListener\SendChangedEntitiesToMessageQueueListener'
@@ -38,6 +36,9 @@ services:
             - '@oro_dataaudit.audit_config_provider'
             - '@logger'
             - '@oro_dataaudit.provider.audit_message_body_provider'
+        calls:
+            - [setEntityNameResolver, ['@oro_entity.entity_name_resolver']]
+            - [setPropertyAccessor, ['@property_accessor']]
         tags:
             - { name: doctrine.event_listener, event: onFlush, priority: -255 }
             - { name: doctrine.event_listener, event: postFlush, priority: -255 }
@@ -115,11 +116,10 @@ services:
 
     oro_dataaudit.audit.manager.api:
         class: 'Oro\Bundle\SoapBundle\Entity\Manager\ApiEntityManager'
-        # This service marked as public for compatibility with Symfony 4. All dependencies must be refactored after BAP-17037
         public: true
         parent: 'oro_soap.manager.entity_manager.abstract'
         arguments:
-            - '%oro_dataaudit.loggable.entity.class%'
+            - 'Oro\Bundle\DataAuditBundle\Entity\Audit'
             - '@doctrine.orm.entity_manager'
 
     oro_dataaudit.migration.extension.audit_field:
@@ -162,6 +162,8 @@ services:
             - '@oro_dataaudit.audit_config_provider'
             - '@oro_dataaudit.entity_name_provider'
             - '@oro_dataaudit.converter.record_validator'
+        calls:
+            - [setAuditFieldTypeProvider,  ['@oro_dataaudit.provider.audit_field_type']]
 
     oro_dataaudit.converter.entity_changes_to_audit_entry:
         class: 'Oro\Bundle\DataAuditBundle\Service\EntityChangesToAuditEntryConverter'
@@ -195,6 +197,8 @@ services:
         arguments:
             - '@doctrine'
             - '@oro_dataaudit.converter.entity_changes_to_audit_entry'
+        calls:
+            - [setAuditConfigProvider,  ['@oro_dataaudit.audit_config_provider']]
         tags:
             - { name: 'oro_message_queue.client.message_processor' }
 
@@ -225,5 +229,7 @@ services:
 
     oro_dataaudit.model.fields_transformer:
         class: 'Oro\Bundle\DataAuditBundle\Model\FieldsTransformer'
-        # This service marked as public for compatibility with Symfony 4. All dependencies must be refactored after BAP-17037
         public: true
+
+    oro_dataaudit.provider.audit_field_type:
+        class: 'Oro\Bundle\DataAuditBundle\Provider\AuditFieldTypeProvider'

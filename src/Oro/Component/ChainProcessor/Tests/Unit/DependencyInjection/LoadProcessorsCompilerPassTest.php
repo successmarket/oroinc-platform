@@ -184,14 +184,100 @@ class LoadProcessorsCompilerPassTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    // @codingStandardsIgnoreStart
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage Tag attribute "group" can be used only if the attribute "action" is specified. Service: "processor1".
-     */
-    // @codingStandardsIgnoreEnd
+    public function testProcessorWithExistsOperatorInConditions()
+    {
+        $container = new ContainerBuilder();
+        $container->setParameter('kernel.debug', false);
+
+        $processorBagConfigBuilder = new Definition(ProcessorBagConfigBuilder::class, [[], []]);
+
+        $processor1 = new Definition('Test\Processor1');
+        $processor1->addTag('processor', ['action' => 'action1', 'test_attr' => 'exists']);
+        $processor1->addTag('processor', ['action' => 'action2', 'test_attr' => '!exists']);
+
+        $container->addDefinitions([
+            'processor_bag_config_builder' => $processorBagConfigBuilder,
+            'processor1'                   => $processor1
+        ]);
+
+        $compilerPass = new LoadProcessorsCompilerPass('processor_bag_config_builder', 'processor');
+
+        $compilerPass->process($container);
+
+        self::assertEquals(
+            [
+                'action1' => [
+                    0 => [
+                        ['processor1', ['test_attr' => ['!' => null]]]
+                    ]
+                ],
+                'action2' => [
+                    0 => [
+                        ['processor1', ['test_attr' => null]]
+                    ]
+                ]
+            ],
+            $processorBagConfigBuilder->getArgument(1)
+        );
+    }
+
+    public function testProcessorWithExistsOperatorInAndExpression()
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'The operator "exists" cannot be used together with "&" operator.'
+        );
+
+        $container = new ContainerBuilder();
+        $container->setParameter('kernel.debug', false);
+
+        $processorBagConfigBuilder = new Definition(ProcessorBagConfigBuilder::class, [[], []]);
+
+        $processor1 = new Definition('Test\Processor1');
+        $processor1->addTag('processor', ['action' => 'action1', 'test_attr' => 'exists&test2']);
+
+        $container->addDefinitions([
+            'processor_bag_config_builder' => $processorBagConfigBuilder,
+            'processor1'                   => $processor1
+        ]);
+
+        $compilerPass = new LoadProcessorsCompilerPass('processor_bag_config_builder', 'processor');
+
+        $compilerPass->process($container);
+    }
+
+    public function testProcessorWithExistsOperatorInOrExpression()
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'The operator "!exists" cannot be used together with "|" operator.'
+        );
+
+        $container = new ContainerBuilder();
+        $container->setParameter('kernel.debug', false);
+
+        $processorBagConfigBuilder = new Definition(ProcessorBagConfigBuilder::class, [[], []]);
+
+        $processor1 = new Definition('Test\Processor1');
+        $processor1->addTag('processor', ['action' => 'action3', 'test_attr' => '!exists|test2']);
+
+        $container->addDefinitions([
+            'processor_bag_config_builder' => $processorBagConfigBuilder,
+            'processor1'                   => $processor1
+        ]);
+
+        $compilerPass = new LoadProcessorsCompilerPass('processor_bag_config_builder', 'processor');
+
+        $compilerPass->process($container);
+    }
+
     public function testProcessWithInvalidConfigurationOfCommonProcessor()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'Tag attribute "group" can be used only if the attribute "action" is specified. Service: "processor1".'
+        );
+
         $container = new ContainerBuilder();
         $container->setParameter('kernel.debug', false);
 

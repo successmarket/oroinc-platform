@@ -1,6 +1,12 @@
 define(function(require) {
     'use strict';
 
+    const _ = require('underscore');
+    const __ = require('orotranslation/js/translator');
+    const $ = require('jquery');
+    const scrollHelper = require('oroui/js/tools/scroll-helper');
+    const BaseView = require('oroui/js/app/views/base/view');
+
     /**
      * Text cell content editor. This view is used by default (if no frontend type has been specified).
      *
@@ -59,6 +65,7 @@ define(function(require) {
      * @param {Object} options.model - Current row model
      * @param {string} options.className - CSS class name for editor element
      * @param {string} options.fieldName - Field name to edit in model
+     * @param {string} options.inputAriaLabel - Text to aria-label attr for input field
      * @param {string} options.placeholder - Placeholder translation key for an empty element
      * @param {string} options.placeholder_raw - Raw placeholder value. It overrides placeholder translation key
      * @param {Object} options.validationRules - Validation rules. See [documentation here](../reference/js_validation.md#conformity-server-side-validations-to-client-once)
@@ -67,17 +74,10 @@ define(function(require) {
      * @augments BaseView
      * @exports TextEditorView
      */
-    var TextEditorView;
-    var _ = require('underscore');
-    var __ = require('orotranslation/js/translator');
-    var $ = require('jquery');
-    var scrollHelper = require('oroui/js/tools/scroll-helper');
-    var BaseView = require('oroui/js/app/views/base/view');
-
-    TextEditorView = BaseView.extend(/** @lends TextEditorView.prototype */{
+    const TextEditorView = BaseView.extend(/** @lends TextEditorView.prototype */{
         autoRender: true,
         tagName: 'form',
-        template: require('tpl!../../../../templates/editor/text-editor.html'),
+        template: require('tpl-loader!../../../../templates/editor/text-editor.html'),
         className: 'text-editor',
         inputType: 'text',
         events: {
@@ -113,29 +113,30 @@ define(function(require) {
         _isFocused: false,
 
         constructor: function TextEditorView(options) {
-            var optionsClassName;
-            var prototypeClassName;
+            let optionsClassName;
+            let prototypeClassName;
             if (options.className) {
                 // takes in account both class names: passed over options and defined in view's prototype
                 optionsClassName = options.className;
                 prototypeClassName = this.className;
                 options.className = _.bind(function() {
-                    var classes = [];
+                    const classes = [];
                     classes.push(_.isFunction(optionsClassName) ? optionsClassName.call(this) : optionsClassName);
                     classes.push(_.isFunction(prototypeClassName) ? prototypeClassName.call(this) : prototypeClassName);
                     return classes.join(' ');
                 }, this);
             }
-            TextEditorView.__super__.constructor.apply(this, arguments);
+            TextEditorView.__super__.constructor.call(this, options);
         },
 
         initialize: function(options) {
             this.options = options;
-            _.extend(this, _.pick(options, ['fieldName', 'placeholder', 'placeholder_raw', 'validationRules']));
+            _.extend(this, _.pick(options, ['fieldName', 'inputAriaLabel', 'placeholder', 'placeholder_raw',
+                'validationRules']));
             _.defaults(this, {
                 validationRules: {}
             });
-            TextEditorView.__super__.initialize.apply(this, arguments);
+            TextEditorView.__super__.initialize.call(this, options);
         },
 
         dispose: function() {
@@ -159,10 +160,11 @@ define(function(require) {
         },
 
         getTemplateData: function() {
-            var data = {};
+            const data = {};
             data.inputType = this.inputType;
             data.data = this.model.toJSON();
             data.fieldName = this.fieldName;
+            data.inputAriaLabel = this.inputAriaLabel;
             data.value = this.formatRawValue(this.getRawModelValue());
             data.placeholder = this.getPlaceholder();
             return data;
@@ -388,7 +390,7 @@ define(function(require) {
          * @returns {boolean}
          */
         isValid: function() {
-            var isValid = this.validator.form();
+            const isValid = this.validator.form();
             return isValid;
         },
 
@@ -430,7 +432,7 @@ define(function(require) {
          */
         onGenericEnterKeydown: function(e) {
             if (e.keyCode === this.ENTER_KEY_CODE) {
-                var postfix = e.shiftKey ? 'AndEditPrevRow' : 'AndEditNextRow';
+                const postfix = e.shiftKey ? 'AndEditPrevRow' : 'AndEditNextRow';
                 if (e.ctrlKey) {
                     this.trigger('saveAndExitAction');
                 } else {
@@ -456,7 +458,7 @@ define(function(require) {
          */
         onGenericTabKeydown: function(e) {
             if (e.keyCode === this.TAB_KEY_CODE) {
-                var postfix = e.shiftKey ? 'AndEditPrev' : 'AndEditNext';
+                const postfix = e.shiftKey ? 'AndEditPrev' : 'AndEditNext';
                 if (this.isChanged()) {
                     if (this.isValid()) {
                         this.trigger('save' + postfix + 'Action');
@@ -491,7 +493,7 @@ define(function(require) {
          */
         onGenericArrowKeydown: function(e) {
             if (e.altKey) {
-                var postfix;
+                let postfix;
                 switch (e.keyCode) {
                     case this.ARROW_LEFT_KEY_CODE:
                         postfix = 'AndEditPrev';
@@ -528,7 +530,7 @@ define(function(require) {
          * @returns {Object}
          */
         getServerUpdateData: function() {
-            var data = {};
+            const data = {};
             data[this.fieldName] = this.getValue();
             return data;
         },

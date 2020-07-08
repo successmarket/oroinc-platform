@@ -154,14 +154,13 @@ class EntityDefinitionFieldConfigTest extends \PHPUnit\Framework\TestCase
         self::assertEquals([], $config->toArray());
     }
 
-    // @codingStandardsIgnoreStart
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage The possible values for the direction are "input-only", "output-only" or "bidirectional".
-     */
-    // @codingStandardsIgnoreEnd
     public function testSetInvalidDirection()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'The possible values for the direction are "input-only", "output-only" or "bidirectional".'
+        );
+
         $config = new EntityDefinitionFieldConfig();
 
         $config->setDirection('another');
@@ -383,24 +382,53 @@ class EntityDefinitionFieldConfigTest extends \PHPUnit\Framework\TestCase
         self::assertFalse($config->has(ConfigUtil::ASSOCIATION_QUERY));
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage The target class must be specified to be able to use an association query.
-     */
     public function testSetAssociationQueryWhenNoTargetClass()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The target class must be specified to be able to use an association query.');
+
         $config = new EntityDefinitionFieldConfig();
         $config->setAssociationQuery($this->createMock(QueryBuilder::class));
     }
 
-    /**
-     * @expectedException \InvalidArgumentException
-     * @expectedExceptionMessage An association query can be used only for collection valued associations.
-     */
     public function testSetAssociationQueryForNotCollectionValuedAssociation()
     {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('An association query can be used only for collection valued associations.');
+
         $config = new EntityDefinitionFieldConfig();
         $config->setTargetClass('Test\Class');
         $config->setAssociationQuery($this->createMock(QueryBuilder::class));
+    }
+
+    public function testRemoveFormConstraintOnEmptyFormConstraints()
+    {
+        $config = new EntityDefinitionFieldConfig();
+        self::assertNull($config->getFormConstraints());
+
+        $config->removeFormConstraint(NotNull::class);
+
+        self::assertNull($config->getFormConstraints());
+    }
+
+    public function testRemoveFormConstraint()
+    {
+        $config = new EntityDefinitionFieldConfig();
+
+        self::assertNull($config->getFormOptions());
+        self::assertNull($config->getFormConstraints());
+
+        $config->setFormOption(
+            'constraints',
+            [
+                new NotNull(),
+                new NotBlank(),
+                [NotNull::class => ['message' => 'test']]
+            ]
+        );
+
+        $config->removeFormConstraint(NotNull::class);
+
+        self::assertEquals(['constraints' => [new NotBlank()]], $config->getFormOptions());
     }
 }

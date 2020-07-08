@@ -21,25 +21,28 @@ use Oro\Bundle\WorkflowBundle\Resolver\TransitionOptionsResolver;
 class WorkflowDefinitionConfigurationBuilderTest extends \PHPUnit\Framework\TestCase
 {
     /** @var WorkflowAssembler|\PHPUnit\Framework\MockObject\MockObject */
-    protected $workflowAssembler;
+    private $workflowAssembler;
 
-    /** @var WorkflowDefinitionConfigurationBuilder */
-    protected $builder;
-
-    protected function setUp()
+    protected function setUp(): void
     {
-        $this->workflowAssembler = $this->getMockBuilder(WorkflowAssembler::class)
-            ->disableOriginalConstructor()
-            ->getMock();
+        $this->workflowAssembler = $this->createMock(WorkflowAssembler::class);
+    }
 
-        $this->builder = new WorkflowDefinitionConfigurationBuilder($this->workflowAssembler);
+    /**
+     * @param WorkflowDefinitionBuilderExtensionInterface[] $extensions
+     *
+     * @return WorkflowDefinitionConfigurationBuilder
+     */
+    private function getWorkflowDefinitionConfigurationBuilder(array $extensions = [])
+    {
+        return new WorkflowDefinitionConfigurationBuilder($this->workflowAssembler, $extensions);
     }
 
     /**
      * @param WorkflowDefinition $definition
      * @return array
      */
-    protected function getDataAsArray(WorkflowDefinition $definition)
+    private function getDataAsArray(WorkflowDefinition $definition)
     {
         $data = [
             'name' => $definition->getName(),
@@ -119,7 +122,8 @@ class WorkflowDefinitionConfigurationBuilderTest extends \PHPUnit\Framework\Test
             ->with($this->isInstanceOf('Oro\Bundle\WorkflowBundle\Entity\WorkflowDefinition'), false)
             ->willReturn($workflow);
 
-        $workflowDefinitions = $this->builder->buildFromConfiguration($inputData);
+        $builder = $this->getWorkflowDefinitionConfigurationBuilder();
+        $workflowDefinitions = $builder->buildFromConfiguration($inputData);
         $this->assertCount(1, $workflowDefinitions);
 
         /** @var WorkflowDefinition $workflowDefinition */
@@ -278,7 +282,7 @@ class WorkflowDefinitionConfigurationBuilderTest extends \PHPUnit\Framework\Test
      * @param array $configuration
      * @return array
      */
-    protected function filterConfiguration(array $configuration)
+    private function filterConfiguration(array $configuration)
     {
         $configurationKeys = [
             WorkflowDefinition::CONFIG_SCOPES,
@@ -294,44 +298,24 @@ class WorkflowDefinitionConfigurationBuilderTest extends \PHPUnit\Framework\Test
         return array_intersect_key($configuration, array_flip($configurationKeys));
     }
 
-    /**
-     * @param string $expectedException
-     * @param string $expectedMessage
-     * @param array $inputData
-     * @dataProvider buildFromConfigurationExceptionDataProvider
-     */
-    public function testBuildFromConfigurationException($expectedException, $expectedMessage, array $inputData)
+    public function testBuildFromConfigurationWhenNoEntityInConfiguration()
     {
-        $this->expectException($expectedException);
-        $this->expectExceptionMessage($expectedMessage);
+        $this->expectException(\Oro\Bundle\WorkflowBundle\Exception\MissedRequiredOptionException::class);
+        $this->expectExceptionMessage('The "entity" configuration option is required.');
 
-        $this->builder->buildFromConfiguration($inputData);
+        $builder = $this->getWorkflowDefinitionConfigurationBuilder();
+        $builder->buildFromConfiguration(['test_workflow' => ['label' => 'My Entity']]);
     }
 
-    /**
-     * @return array
-     */
-    public function buildFromConfigurationExceptionDataProvider()
-    {
-        return [
-            'no entity' => [
-                'expectedException' => '\Oro\Bundle\WorkflowBundle\Exception\MissedRequiredOptionException',
-                'expectedMessage' => 'Configuration option "entity" is required',
-                'inputData' => [
-                    'test_workflow' => [
-                        'label' => 'My Entity'
-                    ],
-                ],
-            ],
-        ];
-    }
-
-    public function testAddExtension()
+    public function testWithExtensions()
     {
         $firstExtension = $this->createMock(WorkflowDefinitionBuilderExtensionInterface::class);
         $interruptionExtension = $this->createMock(WorkflowDefinitionBuilderExtensionInterface::class);
-        $this->builder->addExtension($firstExtension);
-        $this->builder->addExtension($interruptionExtension);
+
+        $builder = $this->getWorkflowDefinitionConfigurationBuilder([
+            $firstExtension,
+            $interruptionExtension
+        ]);
 
         $name = 'workflow_name';
         $configuration = ['label' => 'Label'];
@@ -350,7 +334,7 @@ class WorkflowDefinitionConfigurationBuilderTest extends \PHPUnit\Framework\Test
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('interrupted by extension');
-        $this->builder->buildOneFromConfiguration($name, $configuration);
+        $builder->buildOneFromConfiguration($name, $configuration);
     }
 
     /**

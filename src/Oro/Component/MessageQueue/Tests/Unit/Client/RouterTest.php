@@ -1,4 +1,5 @@
 <?php
+
 namespace Oro\Component\MessageQueue\Tests\Unit\Client;
 
 use Oro\Component\MessageQueue\Client\Config;
@@ -7,8 +8,8 @@ use Oro\Component\MessageQueue\Client\Meta\DestinationMetaRegistry;
 use Oro\Component\MessageQueue\Client\Router;
 use Oro\Component\MessageQueue\Router\Recipient;
 use Oro\Component\MessageQueue\Router\RecipientListRouterInterface;
-use Oro\Component\MessageQueue\Transport\Null\NullMessage;
-use Oro\Component\MessageQueue\Transport\Null\NullQueue;
+use Oro\Component\MessageQueue\Transport\Message;
+use Oro\Component\MessageQueue\Transport\Queue;
 use Oro\Component\Testing\ClassExtensionTrait;
 
 class RouterTest extends \PHPUnit\Framework\TestCase
@@ -32,9 +33,14 @@ class RouterTest extends \PHPUnit\Framework\TestCase
             'anotherTopicName' => [['aProcessorName', 'aQueueName']]
         ];
 
-        $router = new Router($this->createDriverStub(), $this->createDestinationMetaRegistry(), $routes);
+        $router = new class($this->createDriverStub(), $this->createDestinationMetaRegistry(), $routes) extends Router {
+            public function xgetRoutes(): array
+            {
+                return $this->routes;
+            }
+        };
 
-        $this->assertAttributeEquals($routes, 'routes', $router);
+        static::assertEquals($routes, $router->xgetRoutes());
     }
 
     public function testThrowIfTopicNameEmptyOnOnAddRoute()
@@ -55,34 +61,48 @@ class RouterTest extends \PHPUnit\Framework\TestCase
 
     public function testShouldAllowAddRouteWithQueueSetExplicitly()
     {
-        $router = new Router($this->createDriverStub(), $this->createDestinationMetaRegistry());
+        $router = new class($this->createDriverStub(), $this->createDestinationMetaRegistry()) extends Router {
+            public function xgetRoutes(): array
+            {
+                return $this->routes;
+            }
+        };
 
         $router->addRoute('aTopicName', 'aProcessorName', 'aQueueName');
 
-        $this->assertAttributeEquals(['aTopicName' => [['aProcessorName', 'aQueueName']]], 'routes', $router);
+        static::assertEquals(['aTopicName' => [['aProcessorName', 'aQueueName']]], $router->xgetRoutes());
     }
 
     public function testShouldAllowAddTwoRoutesForSameTopic()
     {
-        $router = new Router($this->createDriverStub(), $this->createDestinationMetaRegistry());
+        $router = new class($this->createDriverStub(), $this->createDestinationMetaRegistry()) extends Router {
+            public function xgetRoutes(): array
+            {
+                return $this->routes;
+            }
+        };
 
         $router->addRoute('aTopicName', 'aFooProcessorName', 'aFooQueueName');
         $router->addRoute('aTopicName', 'aBarProcessorName', 'aBarQueueName');
 
-        $this->assertAttributeEquals(
+        static::assertEquals(
             ['aTopicName' => [['aFooProcessorName', 'aFooQueueName'], ['aBarProcessorName', 'aBarQueueName']]],
-            'routes',
-            $router
+            $router->xgetRoutes()
         );
     }
 
     public function testShouldAllowAddRouteWithDefaultQueue()
     {
-        $router = new Router($this->createDriverStub(), $this->createDestinationMetaRegistry());
+        $router = new class($this->createDriverStub(), $this->createDestinationMetaRegistry()) extends Router {
+            public function xgetRoutes(): array
+            {
+                return $this->routes;
+            }
+        };
 
         $router->addRoute('aTopicName', 'aProcessorName', 'default');
 
-        $this->assertAttributeEquals(['aTopicName' => [['aProcessorName', 'default']]], 'routes', $router);
+        static::assertEquals(['aTopicName' => [['aProcessorName', 'default']]], $router->xgetRoutes());
     }
 
     public function testShouldThrowExceptionIfTopicNameParameterIsNotSet()
@@ -90,7 +110,7 @@ class RouterTest extends \PHPUnit\Framework\TestCase
         $router = new Router($this->createDriverStub(), $this->createDestinationMetaRegistry());
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessage('Got message without required parameter: "oro.message_queue.client.topic_name"');
-        $result = $router->route(new NullMessage());
+        $result = $router->route(new Message());
 
         iterator_to_array($result);
     }
@@ -105,7 +125,7 @@ class RouterTest extends \PHPUnit\Framework\TestCase
 
     public function testShouldRouteOriginalMessageToRecipientAndDefaultQueue()
     {
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody('theBody');
         $message->setHeaders(['aHeader' => 'aHeaderVal']);
         $message->setProperties(['aProp' => 'aPropVal', Config::PARAMETER_TOPIC_NAME => 'theTopicName']);
@@ -127,17 +147,17 @@ class RouterTest extends \PHPUnit\Framework\TestCase
         $recipient = $result[0];
         $this->assertInstanceOf(Recipient::class, $recipient);
 
-        $this->assertInstanceOf(NullQueue::class, $recipient->getDestination());
-        $this->assertEquals('aprefix.adefaultqueuename', $recipient->getDestination()->getQueueName());
+        $this->assertInstanceOf(Queue::class, $recipient->getQueue());
+        $this->assertEquals('aprefix.adefaultqueuename', $recipient->getQueue()->getQueueName());
 
         $newMessage = $recipient->getMessage();
-        $this->assertInstanceOf(NullMessage::class, $newMessage);
+        $this->assertInstanceOf(Message::class, $newMessage);
         $this->assertEquals('aprefix.adefaultqueuename', $newMessage->getProperty(Config::PARAMETER_QUEUE_NAME));
     }
 
     public function testShouldRouteOriginalMessageToRecipientToCustomQueue()
     {
-        $message = new NullMessage();
+        $message = new Message();
         $message->setBody('theBody');
         $message->setHeaders(['aHeader' => 'aHeaderVal']);
         $message->setProperties(['aProp' => 'aPropVal', Config::PARAMETER_TOPIC_NAME => 'theTopicName']);
@@ -157,11 +177,11 @@ class RouterTest extends \PHPUnit\Framework\TestCase
         $recipient = $result[0];
         $this->assertInstanceOf(Recipient::class, $recipient);
 
-        $this->assertInstanceOf(NullQueue::class, $recipient->getDestination());
-        $this->assertEquals('aprefix.afooqueue', $recipient->getDestination()->getQueueName());
+        $this->assertInstanceOf(Queue::class, $recipient->getQueue());
+        $this->assertEquals('aprefix.afooqueue', $recipient->getQueue()->getQueueName());
 
         $newMessage = $recipient->getMessage();
-        $this->assertInstanceOf(NullMessage::class, $newMessage);
+        $this->assertInstanceOf(Message::class, $newMessage);
         $this->assertEquals('theBody', $newMessage->getBody());
         $this->assertEquals(
             [
@@ -177,7 +197,7 @@ class RouterTest extends \PHPUnit\Framework\TestCase
 
     public function testShouldRouteOriginalMessageToTwoRecipients()
     {
-        $message = new NullMessage();
+        $message = new Message();
         $message->setProperties([Config::PARAMETER_TOPIC_NAME => 'theTopicName']);
 
         $destinationsMeta = [
@@ -199,7 +219,7 @@ class RouterTest extends \PHPUnit\Framework\TestCase
 
     public function testShouldRouteOriginalMessageToCustomTransportQueue()
     {
-        $message = new NullMessage();
+        $message = new Message();
         $message->setProperties([Config::PARAMETER_TOPIC_NAME => 'theTopicName']);
 
         $destinationsMeta = [
@@ -217,8 +237,8 @@ class RouterTest extends \PHPUnit\Framework\TestCase
         $recipient = $result[0];
         $this->assertInstanceOf(Recipient::class, $recipient);
 
-        $this->assertInstanceOf(NullQueue::class, $recipient->getDestination());
-        $this->assertEquals('acustomqueue', $recipient->getDestination()->getQueueName());
+        $this->assertInstanceOf(Queue::class, $recipient->getQueue());
+        $this->assertEquals('acustomqueue', $recipient->getQueue()->getQueueName());
     }
 
     /**
@@ -243,10 +263,10 @@ class RouterTest extends \PHPUnit\Framework\TestCase
             ->expects($this->any())
             ->method('createQueue')
             ->willReturnCallback(function ($queueName) {
-                return new NullQueue($queueName);
+                return new Queue($queueName);
             })
         ;
-        
+
         return $driverMock;
     }
 }

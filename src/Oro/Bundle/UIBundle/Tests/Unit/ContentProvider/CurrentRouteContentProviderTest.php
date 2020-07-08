@@ -22,7 +22,7 @@ class CurrentRouteContentProviderTest extends \PHPUnit\Framework\TestCase
      */
     protected $provider;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->request = new Request();
         $this->requestStack = new RequestStack();
@@ -39,10 +39,5 @@ class CurrentRouteContentProviderTest extends \PHPUnit\Framework\TestCase
     public function testGetContentNoRequest()
     {
         $this->assertNull($this->provider->getContent());
-    }
-
-    public function testGetName()
-    {
-        $this->assertEquals('currentRoute', $this->provider->getName());
     }
 }

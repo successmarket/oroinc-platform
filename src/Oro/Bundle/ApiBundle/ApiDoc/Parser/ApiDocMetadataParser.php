@@ -5,6 +5,7 @@ namespace Oro\Bundle\ApiBundle\ApiDoc\Parser;
 use Nelmio\ApiDocBundle\DataTypes as ApiDocDataTypes;
 use Nelmio\ApiDocBundle\Parser\ParserInterface;
 use Oro\Bundle\ApiBundle\ApiDoc\ApiDocDataTypeConverter;
+use Oro\Bundle\ApiBundle\ApiDoc\RestDocViewDetector;
 use Oro\Bundle\ApiBundle\Config\EntityDefinitionConfig;
 use Oro\Bundle\ApiBundle\Config\EntityDefinitionFieldConfig;
 use Oro\Bundle\ApiBundle\Metadata\AssociationMetadata;
@@ -25,18 +26,24 @@ class ApiDocMetadataParser implements ParserInterface
     /** @var ValueNormalizer */
     private $valueNormalizer;
 
+    /** @var RestDocViewDetector */
+    private $docViewDetector;
+
     /** @var ApiDocDataTypeConverter */
     private $dataTypeConverter;
 
     /**
      * @param ValueNormalizer         $valueNormalizer
+     * @param RestDocViewDetector     $docViewDetector
      * @param ApiDocDataTypeConverter $dataTypeConverter
      */
     public function __construct(
         ValueNormalizer $valueNormalizer,
+        RestDocViewDetector $docViewDetector,
         ApiDocDataTypeConverter $dataTypeConverter
     ) {
         $this->valueNormalizer = $valueNormalizer;
+        $this->docViewDetector = $docViewDetector;
         $this->dataTypeConverter = $dataTypeConverter;
     }
 
@@ -152,6 +159,27 @@ class ApiDocMetadataParser implements ParserInterface
     }
 
     /**
+     * @param PropertyMetadata            $metadata
+     * @param EntityDefinitionFieldConfig $config
+     *
+     * @return array
+     */
+    private function getPropertyData(PropertyMetadata $metadata, EntityDefinitionFieldConfig $config)
+    {
+        $dataType = $this->dataTypeConverter->convertDataType(
+            $metadata->getDataType(),
+            $this->docViewDetector->getView()
+        );
+
+        return [
+            'description' => $config->getDescription(),
+            'required'    => !$metadata->isNullable(),
+            'dataType'    => $dataType,
+            'actualType'  => $dataType
+        ];
+    }
+
+    /**
      * @param FieldMetadata               $metadata
      * @param EntityDefinitionFieldConfig $config
      *
@@ -159,11 +187,7 @@ class ApiDocMetadataParser implements ParserInterface
      */
     private function getFieldData(FieldMetadata $metadata, EntityDefinitionFieldConfig $config)
     {
-        return [
-            'description' => $config->getDescription(),
-            'required'    => !$metadata->isNullable(),
-            'dataType'    => $this->dataTypeConverter->convertDataType($metadata->getDataType())
-        ];
+        return $this->getPropertyData($metadata, $config);
     }
 
     /**
@@ -178,14 +202,12 @@ class ApiDocMetadataParser implements ParserInterface
         EntityDefinitionFieldConfig $config,
         RequestType $requestType
     ) {
-        $result = [
-            'description' => $config->getDescription(),
-            'required'    => !$metadata->isNullable(),
-            'dataType'    => $this->dataTypeConverter->convertDataType($metadata->getDataType())
-        ];
+        $result = $this->getPropertyData($metadata, $config);
         if (!DataType::isAssociationAsField($metadata->getDataType())) {
             $result['subType'] = $this->getEntityType($metadata->getTargetClassName(), $requestType);
-            $result['actualType'] = $metadata->isCollection() ? ApiDocDataTypes::COLLECTION : null;
+            $result['actualType'] = $metadata->isCollection()
+                ? ApiDocDataTypes::COLLECTION
+                : ApiDocDataTypes::MODEL;
         }
 
         return $result;

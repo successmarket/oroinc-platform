@@ -14,6 +14,7 @@ use Oro\Bundle\NotificationBundle\Event\NotificationProcessRecipientsEvent;
 use Oro\Bundle\NotificationBundle\Model\EmailAddressWithContext;
 use Oro\Bundle\NotificationBundle\Provider\ChainAdditionalEmailAssociationProvider;
 use Oro\Bundle\NotificationBundle\Tests\Unit\Event\Handler\Stub\EmailHolderStub;
+use Oro\Bundle\UserBundle\Entity\User;
 use Oro\Component\Testing\Unit\EntityTrait;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
@@ -36,7 +37,7 @@ class TemplateEmailNotificationAdapterTest extends \PHPUnit\Framework\TestCase
     /** @var \PHPUnit\Framework\MockObject\MockObject|EntityManager */
     private $em;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->entity = new EmailHolderStub();
         $this->emailNotification = $this->createMock(EmailNotification::class);
@@ -61,7 +62,7 @@ class TemplateEmailNotificationAdapterTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         unset($this->adapter, $this->entity, $this->emailNotification, $this->em);
     }
@@ -203,7 +204,14 @@ class TemplateEmailNotificationAdapterTest extends \PHPUnit\Framework\TestCase
                 ]
             ],
             'email as object with EmailHolderInterface' => [
-                'actual'   => $emailHolderStub,
+                'actual'   => [
+                    $emailHolderStub,
+                    (new User())->setEmail('some@example.com')->setEnabled(false),
+                    new EmailAddressWithContext(
+                        'some2@example.com',
+                        (new User())->setEnabled(false)
+                    ),
+                ],
                 'expected' => [$emailHolderStub]
             ],
             'email as multidimensional array' => [

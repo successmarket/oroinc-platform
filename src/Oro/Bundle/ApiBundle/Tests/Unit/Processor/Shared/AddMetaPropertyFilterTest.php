@@ -10,13 +10,14 @@ use Oro\Bundle\ApiBundle\Processor\Shared\AddMetaPropertyFilter;
 use Oro\Bundle\ApiBundle\Request\DataType;
 use Oro\Bundle\ApiBundle\Tests\Unit\Processor\Get\GetProcessorTestCase;
 use Oro\Bundle\ApiBundle\Util\RequestExpressionMatcher;
+use Oro\Component\Testing\Unit\TestContainerBuilder;
 
 class AddMetaPropertyFilterTest extends GetProcessorTestCase
 {
     /** @var AddMetaPropertyFilter */
     private $processor;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -26,7 +27,11 @@ class AddMetaPropertyFilterTest extends GetProcessorTestCase
             ->willReturn('meta');
 
         $this->processor = new AddMetaPropertyFilter(
-            new FilterNamesRegistry([[$filterNames, null]], new RequestExpressionMatcher())
+            new FilterNamesRegistry(
+                [['filter_names', null]],
+                TestContainerBuilder::create()->add('filter_names', $filterNames)->getContainer($this),
+                new RequestExpressionMatcher()
+            )
         );
     }
 
@@ -40,17 +45,6 @@ class AddMetaPropertyFilterTest extends GetProcessorTestCase
         self::assertSame($filter, $this->context->getFilters()->get('meta'));
     }
 
-    public function testProcessWhenMetaFilterDisabled()
-    {
-        $config = new EntityDefinitionConfig();
-        $config->disableMetaProperties();
-
-        $this->context->setConfig($config);
-        $this->processor->process($this->context);
-
-        self::assertFalse($this->context->getFilters()->has('meta'));
-    }
-
     public function testProcessWhenMetaFilterShouldBeAdded()
     {
         $config = new EntityDefinitionConfig();
@@ -60,7 +54,9 @@ class AddMetaPropertyFilterTest extends GetProcessorTestCase
 
         $expectedFilter = new MetaPropertyFilter(DataType::STRING, AddMetaPropertyFilter::FILTER_DESCRIPTION);
         $expectedFilter->setArrayAllowed(true);
+        $expectedFilter->addAllowedMetaProperty('title', DataType::STRING);
 
         self::assertEquals($expectedFilter, $this->context->getFilters()->get('meta'));
+        self::assertFalse($this->context->getFilters()->isIncludeInDefaultGroup('meta'));
     }
 }

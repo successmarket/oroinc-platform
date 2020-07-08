@@ -2,22 +2,19 @@
 
 namespace Oro\Bundle\ApiBundle\Tests\Functional;
 
-use Doctrine\DBAL\DBALException;
 use Doctrine\ORM\EntityManager;
 use Oro\Bundle\ApiBundle\Request\RequestType;
 use Oro\Bundle\ApiBundle\Request\ValueNormalizer;
 use Oro\Bundle\ApiBundle\Request\Version;
-use Oro\Bundle\ApiBundle\Tests\Functional\Environment\KernelTerminateHandler;
 use Oro\Bundle\ApiBundle\Tests\Functional\Environment\TestConfigRegistry;
 use Oro\Bundle\ApiBundle\Util\DoctrineHelper;
 use Oro\Bundle\ApiBundle\Util\ValueNormalizerUtil;
+use Oro\Bundle\ConfigBundle\Config\ConfigManager;
 use Oro\Bundle\TestFrameworkBundle\Test\WebTestCase;
 use Oro\Component\Testing\Assert\ArrayContainsConstraint;
 use Symfony\Component\Debug\BufferingLogger;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
-use Symfony\Component\HttpKernel\Event\PostResponseEvent;
-use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Yaml\Yaml;
 
 /**
@@ -26,79 +23,8 @@ use Symfony\Component\Yaml\Yaml;
  */
 abstract class ApiTestCase extends WebTestCase
 {
-    /** @var DoctrineHelper */
-    protected $doctrineHelper;
-
-    /** @var ValueNormalizer */
-    protected $valueNormalizer;
-
     /** @var bool */
     private $isKernelRebootDisabled = false;
-
-    /** @var bool */
-    private $isKernelTerminateHandlerDisabled = false;
-
-    /**
-     * {@inheritdoc}
-     */
-    protected function setUp()
-    {
-        $container = self::getContainer();
-        $this->valueNormalizer = $container->get('oro_api.value_normalizer');
-        $this->doctrineHelper = $container->get('oro_api.doctrine_helper');
-    }
-
-    /**
-     * Disables clearing the security token and stopping sending messages
-     * during handling of "kernel.terminate" event.
-     * @see initClient
-     *
-     * @param bool $disable
-     */
-    protected function disableKernelTerminateHandler(bool $disable = true)
-    {
-        $this->isKernelTerminateHandlerDisabled = $disable;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    protected function initClient(array $options = [], array $server = [], $force = false)
-    {
-        $client = parent::initClient($options, $server, $force);
-
-        /**
-         * Clear the security token and stop sending messages during handling of "kernel.terminate" event.
-         * This is needed to prevent unexpected exceptions
-         * if some database related exception occurs during handling of API request
-         * (e.g. Doctrine\DBAL\Exception\UniqueConstraintViolationException).
-         * As functional tests work inside a database transaction, any query to the database
-         * after such exception can raise "current transaction is aborted,
-         * commands ignored until end of transaction block" SQL exception
-         * if PostgreSQL is used in the tests.
-         */
-        if (!$this->isKernelTerminateHandlerDisabled) {
-            $container = $client->getKernel()->getContainer();
-            $handler = new KernelTerminateHandler($container, true);
-            $eventDispatcher = $container->get('event_dispatcher');
-            $eventDispatcher->addListener(
-                KernelEvents::TERMINATE,
-                function (PostResponseEvent $event) use ($handler) {
-                    $handler->onBeforeTerminate();
-                },
-                255
-            );
-            $eventDispatcher->addListener(
-                KernelEvents::TERMINATE,
-                function (PostResponseEvent $event) use ($handler) {
-                    $handler->onAfterTerminate();
-                },
-                -255
-            );
-        }
-
-        return $client;
-    }
 
     /**
      * @return RequestType
@@ -114,7 +40,7 @@ abstract class ApiTestCase extends WebTestCase
     protected function getEntityType($entityClass, $throwException = true)
     {
         return ValueNormalizerUtil::convertToEntityType(
-            $this->valueNormalizer,
+            $this->getValueNormalizer(),
             $entityClass,
             $this->getRequestType(),
             $throwException
@@ -130,11 +56,27 @@ abstract class ApiTestCase extends WebTestCase
     protected function getEntityClass($entityType, $throwException = true)
     {
         return ValueNormalizerUtil::convertToEntityClass(
-            $this->valueNormalizer,
+            $this->getValueNormalizer(),
             $entityType,
             $this->getRequestType(),
             $throwException
         );
+    }
+
+    /**
+     * @return DoctrineHelper
+     */
+    protected function getDoctrineHelper()
+    {
+        return self::getContainer()->get('oro_api.doctrine_helper');
+    }
+
+    /**
+     * @return ValueNormalizer
+     */
+    protected function getValueNormalizer()
+    {
+        return self::getContainer()->get('oro_api.value_normalizer');
     }
 
     /**
@@ -158,12 +100,10 @@ abstract class ApiTestCase extends WebTestCase
     /**
      * @return array [entity class => [entity class, [excluded action, ...]], ...]
      */
-    public function getEntities()
+    protected function getEntities()
     {
-        $this->initClient();
-
         $result = [];
-        $doctrineHelper = self::getContainer()->get('oro_api.doctrine_helper');
+        $doctrineHelper = $this->getDoctrineHelper();
         $resourcesProvider = self::getContainer()->get('oro_api.resources_provider');
         $resources = $resourcesProvider->getResources(Version::LATEST, $this->getRequestType());
         foreach ($resources as $resource) {
@@ -178,12 +118,29 @@ abstract class ApiTestCase extends WebTestCase
     }
 
     /**
+     * @param callable $callback
+     */
+    protected function runForEntities(callable $callback)
+    {
+        $entities = $this->getEntities();
+        foreach ($entities as [$entityClass, $excludedActions]) {
+            try {
+                $callback($entityClass, $excludedActions);
+            } catch (\Throwable $e) {
+                throw new \RuntimeException(
+                    sprintf('The test failed for the "%s" entity.', $entityClass),
+                    $e->getCode(),
+                    $e
+                );
+            }
+        }
+    }
+
+    /**
      * @return array [[entity class, association name, ApiSubresource], ...]
      */
-    public function getSubresources()
+    protected function getSubresources()
     {
-        $this->initClient();
-
         $result = [];
         $resourcesProvider = self::getContainer()->get('oro_api.resources_provider');
         $subresourcesProvider = self::getContainer()->get('oro_api.subresources_provider');
@@ -203,6 +160,29 @@ abstract class ApiTestCase extends WebTestCase
         }
 
         return $result;
+    }
+
+    /**
+     * @param callable $callback
+     */
+    protected function runForSubresources(callable $callback)
+    {
+        $subresources = $this->getSubresources();
+        foreach ($subresources as [$entityClass, $associationName, $subresource]) {
+            try {
+                $callback($entityClass, $associationName, $subresource);
+            } catch (\Throwable $e) {
+                throw new \RuntimeException(
+                    sprintf(
+                        'The test failed for the "%s" association of the "%s" entity.',
+                        $associationName,
+                        $entityClass
+                    ),
+                    $e->getCode(),
+                    $e
+                );
+            }
+        }
     }
 
     /**
@@ -245,6 +225,22 @@ abstract class ApiTestCase extends WebTestCase
     }
 
     /**
+     * @return string
+     */
+    protected function getRequestDataFolderName()
+    {
+        return 'requests';
+    }
+
+    /**
+     * @return string
+     */
+    protected function getResponseDataFolderName()
+    {
+        return 'responses';
+    }
+
+    /**
      * Loads the response content and convert it to an array.
      *
      * @param string $fileName
@@ -277,35 +273,36 @@ abstract class ApiTestCase extends WebTestCase
     }
 
     /**
-     * Loads the response content.
-     *
-     * @param array|string $expectedContent The file name or full file path to YAML template file or array
-     *
-     * @return array
-     */
-    protected function loadResponseData($expectedContent)
-    {
-        if (is_string($expectedContent)) {
-            $expectedContent = $this->loadYamlData($expectedContent, 'responses');
-        }
-
-        return self::processTemplateData($expectedContent);
-    }
-
-    /**
      * Converts the given request to an array that can be sent to the server.
      *
-     * @param array|string $request
+     * @param array|string $request The file name or full file path to YAML template file or array
      *
      * @return array
      */
     protected function getRequestData($request)
     {
         if (is_string($request) && $this->isRelativePath($request)) {
-            $request = $this->getTestResourcePath('requests', $request);
+            $request = $this->getTestResourcePath($this->getRequestDataFolderName(), $request);
         }
 
         return self::processTemplateData($request);
+    }
+
+    /**
+     * Converts the given response to an array that can be used to compare it
+     * with a response received from the server.
+     *
+     * @param array|string $expectedContent The file name or full file path to YAML template file or array
+     *
+     * @return array
+     */
+    protected function getResponseData($expectedContent)
+    {
+        if (is_string($expectedContent)) {
+            $expectedContent = $this->loadYamlData($expectedContent, $this->getResponseDataFolderName());
+        }
+
+        return self::processTemplateData($expectedContent);
     }
 
     /**
@@ -327,7 +324,7 @@ abstract class ApiTestCase extends WebTestCase
         string $key = 'id',
         string $placeholder = 'new'
     ): array {
-        $expectedContent = $this->loadResponseData($expectedContent);
+        $expectedContent = $this->getResponseData($expectedContent);
         $content = self::jsonToArray($response->getContent());
         $this->walkResponseContent($expectedContent, $content, $key, $placeholder);
 
@@ -436,7 +433,7 @@ abstract class ApiTestCase extends WebTestCase
     }
 
     /**
-     * Asserts response status code equals.
+     * Asserts response status code equals to one of the given status code.
      *
      * @param Response    $response
      * @param int|int[]   $statusCode
@@ -459,6 +456,44 @@ abstract class ApiTestCase extends WebTestCase
                 }
             } else {
                 \PHPUnit\Framework\TestCase::assertEquals($statusCode, $response->getStatusCode(), $message);
+            }
+        } catch (\PHPUnit\Framework\ExpectationFailedException $e) {
+            if ($response->getStatusCode() >= Response::HTTP_BAD_REQUEST
+                && static::isApplicableContentType($response->headers)
+            ) {
+                $e = new \PHPUnit\Framework\ExpectationFailedException(
+                    $e->getMessage() . "\nResponse content: " . $response->getContent(),
+                    $e->getComparisonFailure()
+                );
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Asserts response status code does not equal to any of the given status code.
+     *
+     * @param Response    $response
+     * @param int|int[]   $statusCode
+     * @param string $message
+     */
+    protected static function assertResponseStatusCodeNotEquals(Response $response, $statusCode, string $message = '')
+    {
+        try {
+            if (is_array($statusCode)) {
+                if (in_array($response->getStatusCode(), $statusCode, true)) {
+                    $failureMessage = sprintf(
+                        'Failed asserting that %s is not one of %s',
+                        $response->getStatusCode(),
+                        implode(', ', $statusCode)
+                    );
+                    if (!empty($message)) {
+                        $failureMessage = $message . "\n" . $failureMessage;
+                    }
+                    throw new \PHPUnit\Framework\ExpectationFailedException($failureMessage);
+                }
+            } else {
+                \PHPUnit\Framework\TestCase::assertNotEquals($statusCode, $response->getStatusCode(), $message);
             }
         } catch (\PHPUnit\Framework\ExpectationFailedException $e) {
             if ($response->getStatusCode() >= Response::HTTP_BAD_REQUEST
@@ -558,11 +593,33 @@ abstract class ApiTestCase extends WebTestCase
     }
 
     /**
+     * @param string $entityClass
+     *
      * @return EntityManager
      */
-    protected function getEntityManager()
+    protected function getEntityManager(string $entityClass = null)
     {
-        return self::getContainer()->get('doctrine')->getManager();
+        $doctrine = self::getContainer()->get('doctrine');
+        if ($entityClass) {
+            return $doctrine->getManagerForClass($entityClass);
+        }
+
+        return $doctrine->getManager();
+    }
+
+    /**
+     * @param string|null $scope The configuration scope (e.g.: global, organization, user, etc.)
+     *                           or NULL to get the configuration manager for the current scope
+     *
+     * @return ConfigManager
+     */
+    protected function getConfigManager(?string $scope = 'global'): ConfigManager
+    {
+        if (!$scope) {
+            return self::getContainer()->get('oro_config.manager');
+        }
+
+        return self::getContainer()->get('oro_config.' . $scope);
     }
 
     /**
@@ -570,23 +627,9 @@ abstract class ApiTestCase extends WebTestCase
      */
     protected function clearEntityManager()
     {
-        try {
-            $this->getEntityManager()->clear();
-        } catch (DBALException $e) {
-            /**
-             * Suppress database related exceptions during the clearing of the entity manager,
-             * if it was requested for safe handling of "kernel.terminate" event.
-             * This is needed to prevent unexpected exceptions
-             * if some database related exception occurs during handling of API request
-             * (e.g. Doctrine\DBAL\Exception\UniqueConstraintViolationException).
-             * As functional tests work inside a database transaction, any query to the database
-             * after such exception can raise "current transaction is aborted,
-             * commands ignored until end of transaction block" SQL exception
-             * if PostgreSQL is used in the tests.
-             */
-            if ($this->isKernelTerminateHandlerDisabled) {
-                throw $e;
-            }
+        $em = $this->getEntityManager();
+        if ($em->isOpen()) {
+            $em->clear();
         }
     }
 

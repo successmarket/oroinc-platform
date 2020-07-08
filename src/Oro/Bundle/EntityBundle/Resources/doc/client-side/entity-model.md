@@ -1,7 +1,7 @@
 # EntityModel
 
 **EntityModel**:
- - Provides an approach to work with backend over JSON API
+ - Provides an approach to work with backend over JSON:API
  - With the help of registry, allows to share data over the user interface
 
 ### Create a new model
@@ -9,8 +9,8 @@
 During the initialization, a model has to be created manually, with the `new EntityModel(null, {type: '...'})`.  
 
 ```javascript
-    var registry = requirejs('oroui/js/app/services/registry');
-    var EntityModel = requirejs('oroentity/js/app/models/entity-model');
+    var registry = require('oroui/js/app/services/registry');
+    var EntityModel = require('oroentity/js/app/models/entity-model');
     
     // ...
     initModel: function() {
@@ -43,7 +43,7 @@ have to be provided to the registry as an `applicant` argument, to bind life cyc
 ### Update a model
 
 ```javascript
-    var EntityModel = requirejs('oroentity/js/app/models/entity-model');
+    var EntityModel = require('oroentity/js/app/models/entity-model');
     
     // ...
     updateModel: function() {
@@ -91,7 +91,7 @@ The registry has a method to unbind life cycles of an instance and a model, in c
 EntityRelationshipCollection instance can either be requested with the help of `getEntityRelationshipCollection` static method using an identifier object:
 
 ```javascript
-    var EntityRelationshipCollection = requirejs('oroentity/js/app/models/entity-relationship-collection');
+    var EntityRelationshipCollection = require('oroentity/js/app/models/entity-relationship-collection');
     // ...
     updateModel: function() {
         var relationIdentifier = {

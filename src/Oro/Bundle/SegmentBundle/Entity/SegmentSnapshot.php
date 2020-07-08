@@ -29,7 +29,7 @@ class SegmentSnapshot
      * @var int
      *
      * @ORM\Id
-     * @ORM\Column(type="integer", name="id")
+     * @ORM\Column(type="bigint", name="id")
      * @ORM\GeneratedValue(strategy="AUTO")
      */
     protected $id;
@@ -51,7 +51,7 @@ class SegmentSnapshot
     /**
      * @var Segment
      *
-     * @ORM\ManyToOne(targetEntity="Segment")
+     * @ORM\ManyToOne(targetEntity="Oro\Bundle\SegmentBundle\Entity\Segment")
      * @ORM\JoinColumn(name="segment_id", referencedColumnName="id", onDelete="CASCADE", nullable=false)
      */
     protected $segment;

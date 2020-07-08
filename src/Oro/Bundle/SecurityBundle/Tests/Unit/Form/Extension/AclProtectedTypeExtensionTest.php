@@ -22,7 +22,7 @@ class AclProtectedTypeExtensionTest extends \PHPUnit\Framework\TestCase
      */
     private $extension;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         /** @var AclHelper|\PHPUnit\Framework\MockObject\MockObject $fieldAclHelper */
         $fieldAclHelper = self::createMock(AclHelper::class);
@@ -32,7 +32,7 @@ class AclProtectedTypeExtensionTest extends \PHPUnit\Framework\TestCase
 
     public function testGetExtendedType()
     {
-        self::assertEquals(EntityType::class, $this->extension->getExtendedType());
+        self::assertEquals([EntityType::class], AclProtectedTypeExtension::getExtendedTypes());
     }
 
     public function testConfigureOptionsWithEnabledAclOptions()

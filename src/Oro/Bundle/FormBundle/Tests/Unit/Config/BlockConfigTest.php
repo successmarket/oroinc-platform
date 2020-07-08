@@ -10,13 +10,8 @@ class BlockConfigTest extends \PHPUnit\Framework\TestCase
     /** @var  BlockConfig */
     private $blockConfig;
 
-    /** @var  SubBlockConfig */
-    private $subBlock;
-
     /** @var string form DataBlock code */
     private $blockCode = 'datagrid';
-
-    private $reportingLevel;
 
     private $testCode = 'testCode';
     private $testTitle = 'testTitle';
@@ -24,58 +19,52 @@ class BlockConfigTest extends \PHPUnit\Framework\TestCase
 
     private $testClass = 'Oro\Bundle\UserBundle\Entity\User';
 
-    private $testBlockConfig = array(
-        'block_config' => array(
-            'type' => array(
+    private $testBlockConfig = [
+        'block_config' => [
+            'type' => [
                 'title'     => 'Doctrine Type',
                 'priority'  => 1,
-                'subblocks' => array(
-                    'common' => array(
+                'subblocks' => [
+                    'common' => [
                         'title'    => 'Common Setting',
                         'priority' => 1,
                         'useSpan'  => true
-                    ),
-                    'custom' => array(
+                    ],
+                    'custom' => [
                         'title'    => 'Custom Setting',
                         'priority' => 2,
                         'useSpan'  => true
-                    ),
-                )
-            ),
-        )
-    );
+                    ],
+                ]
+            ],
+        ]
+    ];
 
-    private $testSubBlocks = array();
+    private $testSubBlocks = [];
 
-    private $testSubBlocksConfig = array(
-        'common' => array(
+    private $testSubBlocksConfig = [
+        'common' => [
             'title'       => 'Common Setting',
             'priority'    => 3,
             'description' => 'some description',
             'useSpan'     => true,
             'tooltip'     => 'some tooltip'
-        ),
-        'custom' => array(
+        ],
+        'custom' => [
             'title'    => 'Custom Setting',
             'priority' => 2,
             'useSpan'  => true
-        ),
-        'last'   => array(
+        ],
+        'last'   => [
             'title'    => 'Last SubBlock',
             'priority' => 1,
             'useSpan'  => true
-        )
-    );
+        ]
+    ];
 
-    protected function setUp()
+    protected function setUp(): void
     {
-        $this->reportingLevel = error_reporting(E_ALL);
         $this->blockConfig = new BlockConfig($this->blockCode);
-    }
-
-    protected function tearDown()
-    {
-        error_reporting($this->reportingLevel);
     }
 
     public function testProperties()
@@ -123,12 +112,12 @@ class BlockConfigTest extends \PHPUnit\Framework\TestCase
         $this->assertFalse($this->blockConfig->hasSubBlock('testSubBlock'));
 
         $this->assertEquals(
-            array(
+            [
                 'title'       => $this->testTitle,
                 'class'       => $this->testClass,
                 'subblocks'   => [],
                 'description' => $this->testDescription,
-            ),
+            ],
             $this->blockConfig->toArray()
         );
     }
@@ -165,7 +154,7 @@ class BlockConfigTest extends \PHPUnit\Framework\TestCase
 
             $subBlock->setUseSpan(true);
             $this->assertTrue($subBlock->getUseSpan());
-            
+
             $subBlock->setTooltip($tooltip);
             $this->assertEquals($tooltip, $subBlock->getTooltip());
 
@@ -193,22 +182,10 @@ class BlockConfigTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    public function testException()
-    {
-        /** test getSubBlock Exception */
-        $this->expectException(\PHPUnit\Framework\Error\Notice::class);
-        $this->expectExceptionMessage('Undefined index: testSubBlock');
-        $this->blockConfig->getSubBlock('testSubBlock');
-    }
-
     public function testBlockConfig()
     {
-        $this->assertNull($this->blockConfig->getBlockConfig());
-
+        static::assertNull($this->blockConfig->getBlockConfig());
         $this->blockConfig->setBlockConfig($this->testBlockConfig);
-        $this->assertEquals(
-            $this->testBlockConfig,
-            $this->readAttribute($this->blockConfig, 'blockConfig')
-        );
+        static::assertEquals($this->testBlockConfig, $this->blockConfig->getBlockConfig());
     }
 }

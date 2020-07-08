@@ -25,7 +25,7 @@ class AttributeFieldConfigExtensionTest extends TypeTestCase
      */
     protected $extension;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -45,9 +45,9 @@ class AttributeFieldConfigExtensionTest extends TypeTestCase
         $this->extension->buildForm($this->builder, []);
     }
 
-    public function testGetExtendedType()
+    public function testGetExtendedTypes()
     {
-        $this->assertEquals(FieldType::class, $this->extension->getExtendedType());
+        $this->assertEquals([FieldType::class], AttributeFieldConfigExtension::getExtendedTypes());
     }
 
     public function testOnPostSetData()

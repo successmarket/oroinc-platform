@@ -16,6 +16,7 @@ use Oro\Bundle\EntityBundle\Tests\Unit\ORM\Stub\ReflectionProperty;
 /**
  * @SuppressWarnings(PHPMD.TooManyMethods)
  * @SuppressWarnings(PHPMD.ExcessiveClassComplexity)
+ * @SuppressWarnings(PHPMD.TooManyPublicMethods)
  * @SuppressWarnings(PHPMD.ExcessivePublicCount)
  * @SuppressWarnings(PHPMD.ExcessiveClassLength)
  */
@@ -23,27 +24,19 @@ class DoctrineHelperTest extends \PHPUnit\Framework\TestCase
 {
     const TEST_IDENTIFIER = 42;
 
-    /**
-     * @var \PHPUnit\Framework\MockObject\MockObject|ManagerRegistry
-     */
+    /** @var \PHPUnit\Framework\MockObject\MockObject|ManagerRegistry */
     protected $registry;
 
-    /**
-     * @var \PHPUnit\Framework\MockObject\MockObject
-     */
+    /** @var \PHPUnit\Framework\MockObject\MockObject */
     protected $em;
 
-    /**
-     * @var \PHPUnit\Framework\MockObject\MockObject
-     */
+    /** @var \PHPUnit\Framework\MockObject\MockObject */
     protected $classMetadata;
 
-    /**
-     * @var DoctrineHelper
-     */
+    /** @var DoctrineHelper */
     protected $doctrineHelper;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->registry      = $this->getMockBuilder('Doctrine\Common\Persistence\ManagerRegistry')
             ->disableOriginalConstructor()
@@ -58,57 +51,95 @@ class DoctrineHelperTest extends \PHPUnit\Framework\TestCase
         $this->doctrineHelper = new DoctrineHelper($this->registry);
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         unset($this->registry, $this->em, $this->classMetadata, $this->doctrineHelper);
     }
 
-    /**
-     * @param object|string $entityOrClass
-     * @param string        $expectedClass
-     * @dataProvider getEntityClassDataProvider
-     */
-    public function testGetEntityClass($entityOrClass, $expectedClass)
+    public function testGetClassForEntity()
     {
-        $this->registry->expects($this->any())
+        $entity = new ItemStub();
+        $expectedClass = get_class($entity);
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getClass($entity));
+        // test internal cache
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getClass($entity));
+    }
+
+    public function testGetClassForEntityProxy()
+    {
+        $entity = new ItemStubProxy();
+        $expectedClass = 'ItemStubProxy';
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getClass($entity));
+        // test internal cache
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getClass($entity));
+    }
+
+    public function testGetRealClassForEntityClass()
+    {
+        $class = ItemStub::class;
+        $expectedClass = $class;
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getRealClass($class));
+        // test internal cache
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getRealClass($class));
+    }
+
+    public function testGetRealClassForEntityProxyClass()
+    {
+        $class = ItemStubProxy::class;
+        $expectedClass = 'ItemStubProxy';
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getRealClass($class));
+        // test internal cache
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getRealClass($class));
+    }
+
+    public function testGetEntityClassForEntity()
+    {
+        $entity = new ItemStub();
+        $expectedClass = get_class($entity);
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getEntityClass($entity));
+        // test internal cache
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getEntityClass($entity));
+    }
+
+    public function testGetEntityClassForEntityProxy()
+    {
+        $entity = new ItemStubProxy();
+        $expectedClass = 'ItemStubProxy';
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getEntityClass($entity));
+        // test internal cache
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getEntityClass($entity));
+    }
+
+    public function testGetEntityClassForEntityClass()
+    {
+        $class = ItemStub::class;
+        $expectedClass = $class;
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getEntityClass($class));
+        // test internal cache
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getEntityClass($class));
+    }
+
+    public function testGetEntityClassForEntityProxyClass()
+    {
+        $class = ItemStubProxy::class;
+        $expectedClass = 'ItemStubProxy';
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getEntityClass($class));
+        // test internal cache
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getEntityClass($class));
+    }
+
+    public function testGetEntityClassForEntityType()
+    {
+        $class = 'OroEntityBundle:ItemStub';
+        $expectedClass = ItemStub::class;
+        $this->registry->expects($this->once())
             ->method('getAliasNamespace')
             ->will($this->returnValueMap([
                 ['OroEntityBundle', 'Oro\Bundle\EntityBundle\Tests\Unit\ORM\Stub']
             ]));
-
-        $this->assertEquals(
-            $expectedClass,
-            $this->doctrineHelper->getEntityClass($entityOrClass)
-        );
-    }
-
-    /**
-     * @return array
-     */
-    public function getEntityClassDataProvider()
-    {
-        return [
-            'existing entity'    => [
-                'entity'        => new ItemStub(),
-                'expectedClass' => 'Oro\Bundle\EntityBundle\Tests\Unit\ORM\Stub\ItemStub',
-            ],
-            'entity proxy'       => [
-                'entity'        => new ItemStubProxy(),
-                'expectedClass' => 'ItemStubProxy',
-            ],
-            'real entity class'  => [
-                'entity'        => 'Oro\Bundle\EntityBundle\Tests\Unit\ORM\Stub\ItemStub',
-                'expectedClass' => 'Oro\Bundle\EntityBundle\Tests\Unit\ORM\Stub\ItemStub',
-            ],
-            'proxy entity class' => [
-                'entity'        => 'Oro\Bundle\EntityBundle\Tests\Unit\ORM\Stub\__CG__\ItemStubProxy',
-                'expectedClass' => 'ItemStubProxy',
-            ],
-            'short entity class' => [
-                'entity'        => 'OroEntityBundle:ItemStub',
-                'expectedClass' => 'Oro\Bundle\EntityBundle\Tests\Unit\ORM\Stub\ItemStub',
-            ],
-        ];
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getEntityClass($class));
+        // test internal cache
+        $this->assertEquals($expectedClass, $this->doctrineHelper->getEntityClass($class));
     }
 
     public function testGetEntityIdentifierWithGetIdMethod()
@@ -226,7 +257,7 @@ class DoctrineHelperTest extends \PHPUnit\Framework\TestCase
     {
         $entity = $this->createMock(\stdClass::class);
 
-        $this->expectException('Oro\Bundle\EntityBundle\Exception\NotManageableEntityException');
+        $this->expectException(\Oro\Bundle\EntityBundle\Exception\NotManageableEntityException::class);
         $this->expectExceptionMessage(sprintf('Entity class "%s" is not manageable', get_class($entity)));
 
         $this->registry->expects($this->once())
@@ -306,12 +337,11 @@ class DoctrineHelperTest extends \PHPUnit\Framework\TestCase
         ];
     }
 
-    /**
-     * @expectedException \Oro\Bundle\EntityBundle\Exception\InvalidEntityException
-     * @expectedExceptionMessage Can't get single identifier for "ItemStubProxy" entity.
-     */
     public function testGetSingleEntityIdentifierIncorrectIdentifier()
     {
+        $this->expectException(\Oro\Bundle\EntityBundle\Exception\InvalidEntityException::class);
+        $this->expectExceptionMessage('Can\'t get single identifier for "ItemStubProxy" entity.');
+
         $identifiers = ['key1' => 'value1', 'key2' => 'value2'];
 
         $entity = new ItemStubProxy();
@@ -364,7 +394,7 @@ class DoctrineHelperTest extends \PHPUnit\Framework\TestCase
     {
         $entity = $this->createMock(\stdClass::class);
 
-        $this->expectException('Oro\Bundle\EntityBundle\Exception\NotManageableEntityException');
+        $this->expectException(\Oro\Bundle\EntityBundle\Exception\NotManageableEntityException::class);
         $this->expectExceptionMessage(sprintf('Entity class "%s" is not manageable', get_class($entity)));
 
         $this->registry->expects($this->once())
@@ -419,7 +449,7 @@ class DoctrineHelperTest extends \PHPUnit\Framework\TestCase
     {
         $class = \stdClass::class;
 
-        $this->expectException('Oro\Bundle\EntityBundle\Exception\NotManageableEntityException');
+        $this->expectException(\Oro\Bundle\EntityBundle\Exception\NotManageableEntityException::class);
         $this->expectExceptionMessage(sprintf('Entity class "%s" is not manageable', $class));
 
         $this->registry->expects($this->once())
@@ -481,12 +511,11 @@ class DoctrineHelperTest extends \PHPUnit\Framework\TestCase
         ];
     }
 
-    /**
-     * @expectedException \Oro\Bundle\EntityBundle\Exception\InvalidEntityException
-     * @expectedExceptionMessage Can't get single identifier field name for "ItemStubProxy" entity.
-     */
     public function testGetSingleEntityIdentifierFieldNameIncorrectIdentifier()
     {
+        $this->expectException(\Oro\Bundle\EntityBundle\Exception\InvalidEntityException::class);
+        $this->expectExceptionMessage('Can\'t get single identifier field name for "ItemStubProxy" entity.');
+
         $identifiers = ['key1' => 'value1', 'key2' => 'value2'];
 
         $entity = new ItemStubProxy();
@@ -568,12 +597,11 @@ class DoctrineHelperTest extends \PHPUnit\Framework\TestCase
         ];
     }
 
-    /**
-     * @expectedException \Oro\Bundle\EntityBundle\Exception\InvalidEntityException
-     * @expectedExceptionMessage Can't get single identifier field type for "ItemStubProxy" entity.
-     */
     public function testGetSingleEntityIdentifierFieldTypeIncorrectIdentifier()
     {
+        $this->expectException(\Oro\Bundle\EntityBundle\Exception\InvalidEntityException::class);
+        $this->expectExceptionMessage('Can\'t get single identifier field type for "ItemStubProxy" entity.');
+
         $identifiers = ['key1' => 'integer', 'key2' => 'string'];
 
         $entity = new ItemStubProxy();
@@ -596,12 +624,11 @@ class DoctrineHelperTest extends \PHPUnit\Framework\TestCase
         $this->doctrineHelper->getSingleEntityIdentifierFieldType($entity);
     }
 
-    /**
-     * @expectedException \Oro\Bundle\EntityBundle\Exception\InvalidEntityException
-     * @expectedExceptionMessage Can't get single identifier field type for "ItemStubProxy" entity.
-     */
     public function testGetSingleEntityIdentifierFieldTypeEmptyIdentifier()
     {
+        $this->expectException(\Oro\Bundle\EntityBundle\Exception\InvalidEntityException::class);
+        $this->expectExceptionMessage('Can\'t get single identifier field type for "ItemStubProxy" entity.');
+
         $identifiers = [];
 
         $entity = new ItemStubProxy();
@@ -713,12 +740,11 @@ class DoctrineHelperTest extends \PHPUnit\Framework\TestCase
         ];
     }
 
-    /**
-     * @expectedException \Oro\Bundle\EntityBundle\Exception\NotManageableEntityException
-     * @expectedExceptionMessage Entity class "ItemStub" is not manageable
-     */
     public function testGetEntityMetadataNotManageableEntity()
     {
+        $this->expectException(\Oro\Bundle\EntityBundle\Exception\NotManageableEntityException::class);
+        $this->expectExceptionMessage('Entity class "ItemStub" is not manageable');
+
         $class = 'ItemStub';
 
         $this->registry->expects($this->once())
@@ -762,12 +788,11 @@ class DoctrineHelperTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    /**
-     * @expectedException \Oro\Bundle\EntityBundle\Exception\NotManageableEntityException
-     * @expectedExceptionMessage Entity class "ItemStub" is not manageable
-     */
     public function testGetEntityMetadataForClassNotManageableEntity()
     {
+        $this->expectException(\Oro\Bundle\EntityBundle\Exception\NotManageableEntityException::class);
+        $this->expectExceptionMessage('Entity class "ItemStub" is not manageable');
+
         $class = 'ItemStub';
 
         $this->registry->expects($this->once())
@@ -820,12 +845,11 @@ class DoctrineHelperTest extends \PHPUnit\Framework\TestCase
         ];
     }
 
-    /**
-     * @expectedException \Oro\Bundle\EntityBundle\Exception\NotManageableEntityException
-     * @expectedExceptionMessage Entity class "ItemStub" is not manageable
-     */
     public function testGetEntityManagerNotManageableEntity()
     {
+        $this->expectException(\Oro\Bundle\EntityBundle\Exception\NotManageableEntityException::class);
+        $this->expectExceptionMessage('Entity class "ItemStub" is not manageable');
+
         $class = 'ItemStub';
 
         $this->registry->expects($this->once())
@@ -865,12 +889,11 @@ class DoctrineHelperTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    /**
-     * @expectedException \Oro\Bundle\EntityBundle\Exception\NotManageableEntityException
-     * @expectedExceptionMessage Entity class "ItemStub" is not manageable
-     */
     public function testGetEntityManagerForClassNotManageableEntity()
     {
+        $this->expectException(\Oro\Bundle\EntityBundle\Exception\NotManageableEntityException::class);
+        $this->expectExceptionMessage('Entity class "ItemStub" is not manageable');
+
         $class = 'ItemStub';
 
         $this->registry->expects($this->once())
@@ -942,7 +965,7 @@ class DoctrineHelperTest extends \PHPUnit\Framework\TestCase
     {
         $class = 'ItemStubProxy';
 
-        $this->expectException('Oro\Bundle\EntityBundle\Exception\NotManageableEntityException');
+        $this->expectException(\Oro\Bundle\EntityBundle\Exception\NotManageableEntityException::class);
         $this->expectExceptionMessage(sprintf('Entity class "%s" is not manageable', $class));
 
         $this->registry->expects($this->once())
@@ -978,7 +1001,7 @@ class DoctrineHelperTest extends \PHPUnit\Framework\TestCase
     {
         $class = 'ItemStub';
 
-        $this->expectException('Oro\Bundle\EntityBundle\Exception\NotManageableEntityException');
+        $this->expectException(\Oro\Bundle\EntityBundle\Exception\NotManageableEntityException::class);
         $this->expectExceptionMessage(sprintf('Entity class "%s" is not manageable', $class));
 
         $this->registry->expects($this->once())

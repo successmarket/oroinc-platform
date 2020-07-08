@@ -27,7 +27,7 @@ class CrowdinAdapterTest extends \PHPUnit\Framework\TestCase
     /** @var \PHPUnit\Framework\MockObject\MockObject */
     protected $query;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->logger = $this->createMock('Psr\Log\LoggerInterface');
         $this->client = $this->createMock('Guzzle\Http\Client');
@@ -44,7 +44,7 @@ class CrowdinAdapterTest extends \PHPUnit\Framework\TestCase
         $this->adapter->setLogger($this->logger);
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         unset($this->logger, $this->client, $this->adapter);
     }
@@ -65,6 +65,10 @@ class CrowdinAdapterTest extends \PHPUnit\Framework\TestCase
         $this->client->expects($this->exactly(4))
             ->method('createRequest')
             ->will($this->returnValue($this->request));
+
+        $this->response->expects($this->any())
+            ->method('json')
+            ->willReturn(['success' => true]);
         $this->request->expects($this->exactly(4))
             ->method('send')
             ->will($this->returnValue($this->response));
@@ -75,11 +79,9 @@ class CrowdinAdapterTest extends \PHPUnit\Framework\TestCase
         $this->adapter->upload($files, $mode);
     }
 
-    /**
-     * @expectedException \Exception
-     */
     public function testUploadError()
     {
+        $this->expectException(\Exception::class);
         $mode = 'add';
         $files = [
             'some/path/to/file.yml' => 'api/path/test.yml',

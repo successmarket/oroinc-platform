@@ -7,6 +7,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Oro\Bundle\MessageQueueBundle\Tests\Functional\Environment\TestBufferedMessageProducer;
 use Oro\Bundle\NavigationBundle\Event\ResponseHashnavListener;
 use Oro\Bundle\SearchBundle\Tests\Functional\SearchExtensionTrait;
+use Oro\Bundle\SecurityBundle\Csrf\CsrfRequestManager;
 use Oro\Bundle\TestFrameworkBundle\Test\DataFixtures\AliceFixtureFactory;
 use Oro\Bundle\TestFrameworkBundle\Test\DataFixtures\AliceFixtureIdentifierResolver;
 use Oro\Bundle\TestFrameworkBundle\Test\DataFixtures\Collection;
@@ -16,6 +17,7 @@ use Oro\Bundle\TestFrameworkBundle\Test\Event\DisableListenersForDataFixturesEve
 use Oro\Bundle\UserBundle\Entity\User;
 use Oro\Component\PhpUtils\ArrayUtil;
 use Oro\Component\Testing\DbIsolationExtension;
+use PHPUnit\Framework\TestResult;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase as BaseWebTestCase;
 use Symfony\Component\BrowserKit\Cookie;
@@ -58,52 +60,37 @@ abstract class WebTestCase extends BaseWebTestCase
     const AUTH_PW = 'admin';
     const AUTH_ORGANIZATION = 1;
 
-    /**
-     * @var string Default application kernel class
-     */
+    /** @var string Default application kernel class */
     protected static $class = 'AppKernel';
 
-    /**
-     * @var bool[]
-     */
+    /** @var bool[] */
     private static $dbIsolationPerTest = [];
 
-    /**
-     * @var bool[]
-     */
+    /** @var bool[] */
     private static $nestTransactionsWithSavepoints = [];
 
-    /**
-     * @var Client
-     */
+    /** @var Client */
     private static $clientInstance;
 
-    /**
-     * @var array
-     */
+    /** @var array */
     protected static $loadedFixtures = [];
 
-    /**
-     * @var Client
-     */
+    /** @var Client */
     protected $client;
 
-    /**
-     * @var callable
-     */
+    /** @var callable */
     private static $resetCallback;
 
-    /**
-     * @var ReferenceRepository
-     */
+    /** @var ReferenceRepository */
     private static $referenceRepository;
 
-    /**
-     * @var array
-     */
+    /** @var array */
     private static $afterInitClientMethods = [];
 
-    protected function setUp()
+    /** @var bool */
+    private static $initClientAllowed = false;
+
+    protected function setUp(): void
     {
     }
 
@@ -111,7 +98,7 @@ abstract class WebTestCase extends BaseWebTestCase
      * In order to disable kernel shutdown
      * @see \Symfony\Bundle\FrameworkBundle\Test\KernelTestCase::tearDown
      */
-    protected function tearDown()
+    protected function tearDown(): void
     {
     }
 
@@ -179,6 +166,16 @@ abstract class WebTestCase extends BaseWebTestCase
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function run(TestResult $result = null): TestResult
+    {
+        self::$initClientAllowed = true;
+
+        return parent::run($result);
+    }
+
+    /**
      * Creates a Client.
      *
      * @param array $options An array of options to pass to the createKernel class
@@ -189,6 +186,21 @@ abstract class WebTestCase extends BaseWebTestCase
      */
     protected function initClient(array $options = [], array $server = [], $force = false)
     {
+        if (!self::$initClientAllowed) {
+            $callstack = '';
+            foreach (debug_backtrace() as $frame) {
+                if (!isset($frame['class'], $frame['function'], $frame['type'])) {
+                    break;
+                }
+                $callstack .= '  ' . $frame['class'] . $frame['type'] . $frame['function'] . "()\n";
+            }
+            throw new \LogicException(
+                'The initClient() must not be called in data providers.'
+                . "\nCall stack:\n"
+                . $callstack
+            );
+        }
+
         if (self::isClassHasAnnotation(get_called_class(), 'dbIsolation')) {
             throw new \RuntimeException(
                 sprintf(
@@ -508,8 +520,9 @@ abstract class WebTestCase extends BaseWebTestCase
         }
 
         $executor = new DataFixturesExecutor($this->getDataFixturesExecutorEntityManager());
-        $this->doLoadFixtures($executor, $loader);
         self::$referenceRepository = $executor->getReferenceRepository();
+        $this->preFixtureLoad();
+        $this->doLoadFixtures($executor, $loader);
         $this->postFixtureLoad();
     }
 
@@ -650,6 +663,13 @@ abstract class WebTestCase extends BaseWebTestCase
     }
 
     /**
+     * Callback function to be executed before fixture load.
+     */
+    protected function preFixtureLoad()
+    {
+    }
+
+    /**
      * Callback function to be executed after fixture load.
      */
     protected function postFixtureLoad()
@@ -762,15 +782,16 @@ abstract class WebTestCase extends BaseWebTestCase
         $changeHistory = true
     ) {
         $csrfToken = 'nochecks';
-        $csrfTokenCookie = $this->client->getCookieJar()->get('_csrf', '/', 'localhost');
+        $cookieJar = $this->client->getCookieJar();
+        $csrfTokenCookie = $cookieJar->get(CsrfRequestManager::CSRF_TOKEN_ID, '/', 'localhost');
         if ($csrfTokenCookie) {
             $csrfToken = $csrfTokenCookie->getValue();
         } else {
-            $this->client->getCookieJar()->set(new Cookie('_csrf', $csrfToken, null, '/', 'localhost'));
+            $cookieJar->set(new Cookie(CsrfRequestManager::CSRF_TOKEN_ID, $csrfToken, null, '/', 'localhost'));
         }
         $server['HTTP_X-Requested-With'] = 'XMLHttpRequest';
         $server['HTTP_Content-type'] = 'application/json';
-        $server['HTTP_X-CSRF-Header'] = $csrfToken;
+        $server['HTTP_' . CsrfRequestManager::CSRF_HEADER] = $csrfToken;
 
         return $this->client->request($method, $uri, $parameters, $files, $server, $content, $changeHistory);
     }
@@ -894,7 +915,7 @@ abstract class WebTestCase extends BaseWebTestCase
         return [
             'PHP_AUTH_USER' => $userName,
             'PHP_AUTH_PW' => $userPassword,
-            'PHP_AUTH_ORGANIZATION' => $userOrganization
+            'HTTP_PHP_AUTH_ORGANIZATION' => $userOrganization
         ];
     }
 
@@ -1115,16 +1136,6 @@ abstract class WebTestCase extends BaseWebTestCase
                 self::sortArrayByKeyRecursively($value);
             }
         }
-    }
-
-    /**
-     * {@inheritdoc}
-     *
-     * @return Client
-     */
-    protected function getClient()
-    {
-        return self::getClientInstance();
     }
 
     /**

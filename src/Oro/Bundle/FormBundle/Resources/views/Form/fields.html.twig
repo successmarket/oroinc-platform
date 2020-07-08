@@ -66,7 +66,7 @@
 
 {% block oro_ticker_symbol_widget %}
     <script type="text/javascript">
-        require(['jquery', 'bootstrap'],
+        loadModules(['jquery', 'bootstrap'],
         function($){
             $(function() {
                 var cache = {};
@@ -120,12 +120,9 @@
     <div id="{{ id }}-container"></div>
 
     <script type="text/javascript">
-        require(['jquery',
-            'oroform/js/multiple-entity', 'oroform/js/multiple-entity/collection', 'oroform/js/multiple-entity/model',
-            'text!{{ asset('bundles/oroform/js/multiple-entity/templates/multiple-entities.html') }}',
-            'text!{{ asset('bundles/oroform/js/multiple-entity/templates/multiple-entity.html') }}'
-        ],
-        function($, MultipleEntity, MultipleEntityCollection, MultipleEntityModel, EntitiesTpl, EntityTpl) {
+        loadModules(['jquery',
+            'oroform/js/multiple-entity', 'oroform/js/multiple-entity/collection', 'oroform/js/multiple-entity/model'
+        ], function($, MultipleEntity, MultipleEntityCollection, MultipleEntityModel) {
             {% set selectionUrl = null %}
             {% set originalFieldId = attr['data-ftid'] %}
             {% if form.vars.grid_url is defined and form.vars.grid_url %}
@@ -138,8 +135,6 @@
 
             var widget = new MultipleEntity({
                 el: '#{{ id }}-container',
-                template: EntitiesTpl,
-                elementTemplate: EntityTpl,
                 addedElement: 'input[data-ftid="{{ originalFieldId }}_added"]',
                 removedElement: 'input[data-ftid="{{ originalFieldId }}_removed"]',
                 name: {{ id|json_encode|raw }},
@@ -248,10 +243,14 @@
         nativeMode: isMobileVersion(),
         dateInputAttrs: {
             placeholder: 'oro.form.choose_date'|trans,
-            id: 'date_selector_' ~ id,
-            name: 'date_selector_' ~ id,
+            id: id,
+            name: id,
             'data-validation': dateValidation,
             class: 'datepicker-input ' ~ (attribute(attr, 'class') is defined ? attr['class'] : ''),
+            'aria-live': 'assertive',
+            autocomplete: 'off',
+            autocorrect: 'off',
+            autocapitalize: 'off'
         },
         datePickerOptions: {
             altFormat: 'yy-mm-dd',
@@ -263,7 +262,7 @@
             showButtonPanel: true
         }
     } %}
-
+    {% set id = 'hidden_' ~ id %}
     {% set attr = attr|merge({
         'data-page-component-module': 'oroui/js/app/components/view-component',
         'data-page-component-options': options|json_encode(constant('JSON_FORCE_OBJECT'))
@@ -292,10 +291,14 @@
         nativeMode: isMobileVersion(),
         dateInputAttrs: {
             placeholder: 'oro.form.choose_date'|trans,
-            id: 'date_selector_' ~ id,
-            name: 'date_selector_' ~ id,
+            id: id,
+            name: id,
             class: 'input-small datepicker-input ' ~ attrClass,
-            'data-validation': dateValidation|json_encode(constant('JSON_FORCE_OBJECT'))
+            'data-validation': dateValidation|json_encode(constant('JSON_FORCE_OBJECT')),
+            'aria-live': 'assertive',
+            autocomplete: 'off',
+            autocorrect: 'off',
+            autocapitalize: 'off'
         },
         datePickerOptions: {
             altFormat: 'yy-mm-dd',
@@ -314,7 +317,7 @@
         timePickerOptions: {
         }
     } %}
-
+    {% set id = 'hidden_' ~ id %}
     {% set attr = attr|merge({
         'data-page-component-module': 'oroui/js/app/components/view-component',
         'data-page-component-options': options|json_encode(constant('JSON_FORCE_OBJECT'))
@@ -534,7 +537,7 @@
         {{ form_widget(form.mode) }}
     </div>
     <script type="text/javascript">
-        require(['jquery', 'oroform/js/create-select-type-handler'],
+        loadModules(['jquery', 'oroform/js/create-select-type-handler'],
         function ($, createSelectTypeHandler) {
             $(function() {
                 createSelectTypeHandler(
@@ -563,6 +566,7 @@
              existingEntitySelector: '.existing-entity',
              existingEntityInputSelector: '#' ~ form.existing_entity.vars.id,
              editable: form.vars.editable|default(false),
+             disabled_edit_form: form.vars.disabled_edit_form|default(false),
              editRoute: form.vars.edit_route|default(null)
          }|json_encode }}">
         <div class="existing-entity">
@@ -621,7 +625,7 @@
             {{ form_widget(form) }}
 
             {% if isButtonsEnabled %}
-                <button class="add-on btn btn-icon btn-square-default entity-select-btn">
+                <button class="add-on btn btn-icon btn-square-default entity-select-btn" aria-label="{{ 'oro.form.entity_select'|trans({'%name%': label|trans({}, translation_domain) }) }}">
                     <span class="fa-bars"></span>
                 </button>
 
@@ -741,11 +745,25 @@
     ) }}
 
     {{ form_widget(form) }}
-    {{ form_errors(form) }}
 {% endblock %}
 
 {% block button_row %}
     <div class="control-group-container control-group-button">
         {{ form_widget(form) }}
+    </div>
+{% endblock %}
+
+{% block oro_checkbox_widget %}
+    <div data-page-component-module="oroui/js/app/components/view-component"
+         data-page-component-options="{{ {
+             view: 'oroform/js/app/views/checkbox-view',
+             selectors: {
+                 checkbox: '#' ~ form.vars.id,
+                 hiddenInput: '#' ~ form.vars.id ~ '-hidden'
+             }
+         }|json_encode }}"
+    >
+        {{ block('checkbox_widget') }}
+        <input id="{{ form.vars.id }}-hidden" type="hidden" value="0" name="{{ form.vars.full_name }}" disabled="disabled">
     </div>
 {% endblock %}

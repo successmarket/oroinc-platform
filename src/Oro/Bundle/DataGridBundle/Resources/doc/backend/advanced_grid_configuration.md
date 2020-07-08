@@ -128,7 +128,7 @@ datagrids:
             bind_parameters:
                 - groupId
         options:
-            entityHint: oro.user.plural_label
+            entityHint: oro.user.entity_plural_label
         properties:
             id: ~
         columns:
@@ -209,7 +209,7 @@ datagrids:
 #### Problem:
 *I'm developing some extension for grid, how can I add my frontend builder (some class that should show my widget) ?*
 #### Solution:
-Any builders could be passed under gridconfig[options][requireJSModules] node. Your builder should have method `init`, it will be called when grid-builder finish building grid.
+Any builders could be passed under gridconfig[options][jsmodules] node. Your builder should have method `init`, it will be called when grid-builder finish building grid.
 
 Example:
 ``` yml
@@ -217,7 +217,7 @@ datagrids:
     acme-demo-grid:
         ... # some configuration
         options:
-            requireJSModules:
+            jsmodules:
               - your/builder/amd/module/name
 ```
 
@@ -268,8 +268,7 @@ datagrids:
 - declare own grid listener
 ```
 my_bundle.event_listener.my_grid_listener:
-        class: %my_grid_listener.class%
-        arguments: ~
+        class: 'Acme\DemoBundle\EventListener\MyGridListener'
         tags:
             - { name: kernel.event_listener, event: oro_datagrid.datagrid.build.before.my-grid-name, method: onBuildBefore }
 ```
@@ -360,7 +359,7 @@ There are several ways to configure these messages.
                     from:
                         { table: AcmeDemoBundle:User, alias:u }
             options:
-                entityHint: oro.user.plural_label
+                entityHint: oro.user.entity_plural_label
        ...
     ```
     

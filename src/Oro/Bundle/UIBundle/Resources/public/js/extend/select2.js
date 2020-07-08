@@ -1,10 +1,13 @@
 define(function(require) {
     'use strict';
 
-    var $ = require('jquery');
-    var _ = require('underscore');
-    var Select2 = require('jquery.select2');
-    var tools = require('oroui/js/tools');
+    const $ = require('jquery');
+    const _ = require('underscore');
+    const Select2 = require('jquery.select2');
+    const tools = require('oroui/js/tools');
+    const __ = require('orotranslation/js/translator');
+    const singleChoiceTpl = require('tpl-loader!oroui/templates/select2/single-choice.html');
+    const multipleChoiceTpl = require('tpl-loader!oroui/templates/select2/multiple-choice.html');
 
     require('oroui/js/select2-l10n');
 
@@ -35,30 +38,29 @@ define(function(require) {
      * @this AbstractSelect2
      */
     function populateCollapsibleResults(container, results, query) {
-        var opts = this.opts;
-        var id = opts.id;
-        var parent = container.parent();
-        var selection = this.val();
+        const opts = this.opts;
+        const id = opts.id;
+        const parent = container.parent();
+        const selection = this.val();
 
-        var populate = function(results, container, depth, parentStack) {
-            var i;
-            var l;
-            var result;
-            var selectable;
-            var disabled;
-            var compound;
-            var node;
-            var label;
-            var innerContainer;
-            var formatted;
-            var labelId;
-            var subId;
-            var parent;
-            var resultId;
-            var expanded;
+        const populate = function(results, container, depth, parentStack) {
+            let i;
+            let l;
+            let result;
+            let selectable;
+            let disabled;
+            let compound;
+            let node;
+            let label;
+            let innerContainer;
+            let formatted;
+            let labelId;
+            let subId;
+            let resultId;
+            let expanded;
 
             results = opts.sortResults(results, container, query);
-            parent = container.parent();
+            const parent = container.parent();
 
             for (i = 0, l = results.length; i < l; i = i + 1) {
                 result = results[i];
@@ -139,57 +141,114 @@ define(function(require) {
         }
 
         container.on('click.collapse.data-api', '[data-toggle=collapse]', function(e) {
-            var $el = $(e.currentTarget);
-            var $target = $($el.attr('data-target'));
-            var options = $target.data('bs.collapse') ? 'toggle' : $el.data();
+            const $el = $(e.currentTarget);
+            const $target = $($el.attr('data-target'));
+            const options = $target.data('bs.collapse') ? 'toggle' : $el.data();
 
             $el.toggleClass('collapsed', $target.hasClass('show'));
             $target.collapse(options);
         });
         populate(results, container, 0, []);
     }
-    var overrideMethods = {
-        processResult: function(original, data) {
-            original.apply(this, _.rest(arguments));
-            var results = _.result(data, 'results') || [];
-            if (results.length > 0 && this.opts.dontSelectFirstOptionOnOpen) {
-                this.results.find('.select2-highlighted').removeClass('select2-highlighted');
-                this.dropdown.add(this.search).one('keydown', _.bind(function() {
-                    delete this.opts.dontSelectFirstOptionOnOpen;
-                }, this));
+
+    /**
+     *  Add aria attributes and roles to some additional elements at select2 dropdown
+     *
+     * @param {jQuery.Element} $dropdown
+     */
+    function makeExtraElementsAccessible($dropdown) {
+        $dropdown.find('.select2-no-results, .select2-searching').attr({
+            'role': 'alert',
+            'aria-live': 'assertive'
+        });
+
+        $dropdown.find('select2-more-results').attr({
+            'role': 'option',
+            'aria-disabled': true
+        });
+    }
+
+    function afterProcessResults(data) {
+        const results = _.result(data, 'results') || [];
+        if (results.length > 0 && this.opts.dontSelectFirstOptionOnOpen) {
+            this.results
+                .find('.select2-highlighted').removeClass('select2-highlighted').attr('aria-selected', false);
+            this.dropdown.add(this.search).one('keydown', () => delete this.opts.dontSelectFirstOptionOnOpen);
+        }
+    }
+
+    /**
+     * @param {jQuery.Element} $realSelect
+     * @param {jQuery.Element} $select2Element
+     * @returns {boolean}
+     */
+    function toAssignAriaAttributesForSelect($realSelect, $select2Element) {
+        $realSelect.on('validate-element', event => {
+            if (event.errorClass === void 0 || event.isValid === void 0) {
+                return;
             }
-        },
-        moveHighlight: function(original) {
+
+            const ariaRequired = $(event.target).attr('aria-required');
+
+            if (ariaRequired) {
+                $select2Element.attr('aria-required', ariaRequired);
+            }
+
+            $select2Element
+                .attr({
+                    'aria-invalid': event.isValid,
+                    'aria-describedby': $(event.target).attr('aria-describedby')
+                })
+                .toggleClass(event.errorClass, event.isValid);
+        });
+
+        if ($realSelect.is('[required], [data-rule-required], .required')) {
+            $select2Element.attr('aria-required', true);
+        }
+
+        if ($realSelect.attr('aria-label')) {
+            $select2Element.attr('aria-label', $realSelect.attr('aria-label'));
+        } else if ($realSelect.attr('aria-labelledby')) {
+            $select2Element.attr('aria-labelledby', $realSelect.attr('aria-labelledby'));
+        } else {
+            const $relatedLabel = $('label[for="' + $select2Element.attr('id') + '"]');
+
+            // Should add aria-label to the original element because after initialization the corresponding label
+            // will have another form-related element to trick WAVE checker.
+            if ($relatedLabel.length) {
+                $realSelect.attr('aria-label', $relatedLabel[0].childNodes[0].textContent);
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function toUnAssignAriaAttributesForSelect() {
+        this.opts.element
+            .removeAttr('aria-hidden')
+            .off('validate-element');
+
+        if (this._ariaLabelAdded) {
+            this.opts.element.removeAttr('aria-label');
+        }
+    }
+
+    const overrideMethods = {
+        moveHighlight: function(original, ...rest) {
             if (this.highlight() === -1) {
                 this.highlight(0);
             } else {
-                original.apply(this, _.rest(arguments));
+                original.apply(this, rest);
             }
         },
-        initContainer: function(original) {
-            original.apply(this, _.rest(arguments));
-
-            this.focusser.off('keyup-change input');
-            this.focusser.on('keyup-change input', this.bind(function(e) {
-                var showSearch = this.results[0].children.length >= this.opts.minimumResultsForSearch;
-
-                if (showSearch) {
-                    e.stopPropagation();
-                    if (this.opened()) {
-                        return;
-                    }
-                    this.open();
-                } else {
-                    this.clearSearch();
-                }
-            }));
-        },
         tokenize: function(original) {
-            var opts = this.opts;
-            var search = this.search;
-            var results = this.results;
+            const opts = this.opts;
+            const search = this.search;
+            const results = this.results;
             if (opts.allowCreateNew && opts.createSearchChoice) {
-                var def = opts.createSearchChoice.call(this, search.val(), []);
+                const def = opts.createSearchChoice.call(this, search.val(), []);
                 if (def !== void 0 && def !== null && this.id(def) !== void 0 && this.id(def) !== null) {
                     results.empty();
                     if (search.val()) {
@@ -207,13 +266,18 @@ define(function(require) {
                     this.positionDropdown();
                 }
             }
-            original.apply(this, _.rest(arguments));
+            original.call(this);
         },
 
         /* eslint-disable */
         // Overridden full onSelect method for multi chooses,
         // this solution related to https://github.com/select2/select2/issues/1513
         onSelect: function (data, options) {
+            // Detaches the selected option and attaches it to the end of collection. Ensures correct order of
+            // the submitted options.
+            const option = $(this.select).children('[value="' + $.escapeSelector(data.id) + '"]');
+            option.detach();
+            $(this.select).append(option).change();
 
             if (!this.triggerSelect(data)) { return; }
 
@@ -252,55 +316,78 @@ define(function(require) {
         },
         /* eslint-enable */
         showSearch: function(original, showSearchInput) {
-            original.apply(this, _.rest(arguments));
-            $(this.container).toggleClass('select2-container-with-searchbox', showSearchInput);
+            original.call(this, showSearchInput);
+            this.container.toggleClass('select2-container-with-searchbox', showSearchInput);
+            this.search.attr('aria-hidden', !showSearchInput);
         }
     };
 
     // Override methods of AbstractSelect2 class
     (function(prototype) {
-        var select2SearchName = _.uniqueId('select2searchname');
-        var select2DropBelowClassName = 'select2-drop-below';
-        var positionDropdown = prototype.positionDropdown;
-        var close = prototype.close;
-        var open = prototype.open;
-        var prepareOpts = prototype.prepareOpts;
-        var init = prototype.init;
-        var destroy = prototype.destroy;
+        const select2SearchName = _.uniqueId('select2searchname');
+        const select2DropBelowClassName = 'select2-drop-below';
+        const positionDropdown = prototype.positionDropdown;
+        const close = prototype.close;
+        const open = prototype.open;
+        const prepareOpts = prototype.prepareOpts;
+        const init = prototype.init;
+        const destroy = prototype.destroy;
 
         prototype.dropdownFixedMode = false;
 
         prototype.prepareOpts = function(options) {
             if (options.collapsibleResults) {
                 options.populateResults = populateCollapsibleResults;
-                var matcher = options.matcher || $.fn.select2.defaults.matcher;
+                const matcher = options.matcher || $.fn.select2.defaults.matcher;
                 options.matcher = function(term, text, option) {
-                    return !option.children && matcher.apply(this, arguments);
+                    return !option.children && matcher.call(this, term, text, option);
                 };
             }
 
-            var additionalRequestParams = options.element.data('select2_query_additional_params');
+            const additionalRequestParams = options.element.data('select2_query_additional_params');
             if (additionalRequestParams && options.ajax !== undefined) {
                 options.ajax.url += (options.ajax.url.indexOf('?') < 0 ? '?' : '&') + $.param(additionalRequestParams);
             }
 
-            var preparedOptions = prepareOpts.call(this, options);
-            var query = preparedOptions.query;
+            const preparedOptions = prepareOpts.call(this, options);
+            const query = preparedOptions.query;
 
-            preparedOptions.query = function(queryOptions) {
+            preparedOptions.query = function(queryOptions, ...rest) {
                 queryOptions.term = queryOptions.term && queryOptions.term.trim();
-                return query.apply(this, arguments);
+                return query.call(this, queryOptions, ...rest);
             };
+
+            preparedOptions.populateResults = _.wrap(preparedOptions.populateResults,
+                function(original, container, results, query) {
+                    original.call(this, container, results, query);
+
+                    const $results = $(container).find('.select2-result');
+
+                    if ($results.length) {
+                        $results.each((index, el) => {
+                            const $el = $(el);
+
+                            $el.attr({
+                                id: _.uniqueId('select2-result-'),
+                                role: 'option'
+                            });
+
+                            if ($(this).hasClass('select2-disabled')) {
+                                $el.attr.attr('aria-disabled', true);
+                            }
+                        });
+                    }
+                });
 
             return preparedOptions;
         };
 
         prototype.positionDropdown = function() {
-            var $container = this.container;
-            positionDropdown.apply(this, arguments);
+            const $container = this.container;
+            positionDropdown.call(this);
 
             if (this.dropdownFixedMode) {
-                var top = this.container[0].getBoundingClientRect().top;
+                let top = this.container[0].getBoundingClientRect().top;
 
                 if (this.dropdown.hasClass('select2-drop-above')) {
                     top -= this.dropdown.height();
@@ -313,7 +400,7 @@ define(function(require) {
                 this.dropdown.css('position', '');
             }
 
-            var dialogIsBelow = $container.hasClass('select2-dropdown-open') &&
+            const dialogIsBelow = $container.hasClass('select2-dropdown-open') &&
                 !$container.hasClass('select2-drop-above');
             if ($container.parent().hasClass(select2DropBelowClassName) !== dialogIsBelow) {
                 $container.parent().toggleClass(select2DropBelowClassName, dialogIsBelow);
@@ -324,21 +411,29 @@ define(function(require) {
         prototype.open = function() {
             // Add unique name for select2 search for disabling auto-fill, auto-complete functions.
             this.search.attr('name', select2SearchName);
-            return open.apply(this, arguments);
+            this.selection.attr('aria-expanded', true);
+            this.results.attr('aria-expanded', true);
+            this.results.attr('aria-hidden', false);
+
+            return open.call(this);
         };
 
         prototype.close = function() {
-            close.apply(this, arguments);
+            close.call(this);
             this.container.parent().removeClass(select2DropBelowClassName);
             // Remove previously auto generated name
             this.search.removeAttr('name');
+            this.selection.attr('aria-expanded', false);
+            this.results.attr('aria-expanded', false);
+            this.results.attr('aria-hidden', true);
+            this._activedescendantElements.removeAttr('aria-activedescendant');
         };
 
-        prototype.init = function() {
-            init.apply(this, arguments);
+        prototype.init = function(opts) {
+            init.call(this, opts);
             this.breadcrumbs = $('<ul class="select2-breadcrumbs"></ul>');
             this.breadcrumbs.on('click.select2', '.select2-breadcrumb-item', function(e) {
-                var data = $(e.currentTarget).data('select2-data');
+                const data = $(e.currentTarget).data('select2-data');
                 this.pagePath = data.pagePath;
                 this.search.val('');
                 this.updateResults();
@@ -355,30 +450,37 @@ define(function(require) {
                     this.search.removeAttr('name');
                 }.bind(this));
 
-            this.opts.element.trigger($.Event('select2-init'));
+            this.opts.element
+                .attr('aria-hidden', true)
+                .trigger($.Event('select2-init'));
         };
 
+
         prototype.destroy = function() {
+            toUnAssignAriaAttributesForSelect.call(this);
+
             if (this.propertyObserver) {
                 this.propertyObserver.disconnect();
                 delete this.propertyObserver;
                 this.propertyObserver = null;
             }
+
             this.breadcrumbs.off('.select2');
             // Remove previously auto generated name
             this.search.removeAttr('name');
+            delete this._activedescendantElements;
             destroy.call(this);
         };
 
         prototype.updateBreadcrumbs = function() {
-            var breadcrumbs = this.breadcrumbs;
-            var opts = this.opts;
+            const breadcrumbs = this.breadcrumbs;
+            const opts = this.opts;
             breadcrumbs.empty();
             if (typeof opts.formatBreadcrumbItem === 'function' && typeof opts.breadcrumbs === 'function') {
-                var items = opts.breadcrumbs(this.pagePath);
+                const items = opts.breadcrumbs(this.pagePath);
                 $.each(items, function(i, item) {
-                    var itemHTML = opts.formatBreadcrumbItem(item, {index: i, length: items.length});
-                    var $item = $('<li class="select2-breadcrumb-item">' + itemHTML + '</li>');
+                    const itemHTML = opts.formatBreadcrumbItem(item, {index: i, length: items.length});
+                    const $item = $('<li class="select2-breadcrumb-item">' + itemHTML + '</li>');
                     $item.data('select2-data', {pagePath: item.pagePath});
                     breadcrumbs.append($item);
                 });
@@ -390,14 +492,54 @@ define(function(require) {
             if (this.changedManually) {
                 details.manually = true;
             }
-            original.apply(this, _.rest(arguments));
+            original.call(this, details);
+        });
+
+        prototype.highlightUnderEvent = _.wrap(prototype.highlightUnderEvent, function(original, event) {
+            original.call(this, event);
+
+            // if we are over an unselectable item remove al highlights
+            if (!$(event.target).closest('.select2-result-selectable').length) {
+                this.results.find('.select2-highlighted').attr('aria-selected', false);
+            }
+        });
+
+        prototype.enable = _.wrap(prototype.enable, function(original, enabled) {
+            const returnValue = original.call(this, enabled);
+            const $choiceClose = this.container.find('.select2-search-choice-close');
+
+            if (this._enabled) {
+                this.selection.removeAttr('aria-disabled');
+                $choiceClose.removeAttr('aria-disabled');
+            } else {
+                this.selection.attr('aria-disabled', true);
+                $choiceClose.attr('aria-disabled', true);
+            }
+
+            return returnValue;
+        });
+
+        prototype.highlight = _.wrap(prototype.highlight, function(original, index) {
+            const choices = this.findHighlightableChoices();
+
+            if (index === void 0) {
+                return choices.get().indexOf(choices.filter('.select2-highlighted')[0]);
+            }
+
+            original.call(this, index);
+
+            this._activedescendantElements.attr('aria-activedescendant', $(choices[index]).attr('id'));
         });
     }(Select2['class'].abstract.prototype));
 
     (function(prototype) {
-        var updateResults = prototype.updateResults;
-        var clear = prototype.clear;
-        var isPlaceholderOptionSelected = prototype.isPlaceholderOptionSelected;
+        const clear = prototype.clear;
+        const isPlaceholderOptionSelected = prototype.isPlaceholderOptionSelected;
+        const toggleAriaSelected = function() {
+            this.findHighlightableChoices().each((index, el) => {
+                $(el).attr('aria-selected', this.id($(el).data('select2-data')) === this.opts.element.val());
+            });
+        };
 
         prototype.onSelect = _.wrap(prototype.onSelect, function(original, data, options) {
             if (data.id === undefined && data.pagePath) {
@@ -408,22 +550,23 @@ define(function(require) {
             }
 
             this.changedManually = true;
-            original.apply(this, _.rest(arguments));
+            original.call(this, data, options);
             delete this.changedManually;
 
             // @todo BAP-3928, remove this method override after upgrade select2 to v3.4.6, fix code is taken from there
             if ((!options || !options.noFocus) && this.opts.minimumResultsForSearch >= 0) {
                 this.focusser.focus();
             }
+
+            toggleAriaSelected.call(this);
         });
 
         // Overriding method to avoid bug with placeholder in version 3.4.1
         // see https://github.com/select2/select2/issues/1542
         // @todo remove after upgrade to version >= 3.4.2
         prototype.updateSelection = function(data) {
-            var container = this.selection.find('.select2-chosen');
-            var formatted;
-            var cssClass;
+            const container = this.selection.find('.select2-chosen');
+            let formatted;
 
             this.selection.data('select2-data', data);
 
@@ -434,7 +577,7 @@ define(function(require) {
             if (formatted !== undefined) {
                 container.append(formatted);
             }
-            cssClass = this.opts.formatSelectionCssClass(data, container);
+            const cssClass = this.opts.formatSelectionCssClass(data, container);
             if (cssClass !== undefined) {
                 container.addClass(cssClass);
             }
@@ -457,24 +600,72 @@ define(function(require) {
             return isPlaceholderOptionSelected.call(this);
         };
 
-        prototype.updateResults = function(initial) {
-            updateResults.apply(this, arguments);
+        prototype.updateResults = _.wrap(prototype.updateResults, function(original, initial) {
+            original.call(this, initial);
             if (initial === true && this.opts.element.val()) {
                 this.pagePath = this.opts.element.val();
             }
             this.updateBreadcrumbs();
             this.positionDropdown();
-        };
+            makeExtraElementsAccessible(this.results);
+        });
 
         prototype.clear = function() {
             this.pagePath = '';
-            clear.apply(this, arguments);
+            clear.call(this);
         };
 
-        prototype.postprocessResults = _.wrap(prototype.postprocessResults, overrideMethods.processResult);
+        prototype.createContainer = function() {
+            return $(singleChoiceTpl());
+        };
+
+        prototype.postprocessResults = _.wrap(prototype.postprocessResults, function(original, data, ...rest) {
+            original.call(this, data, ...rest);
+            afterProcessResults.call(this, data);
+            toggleAriaSelected.call(this);
+        });
 
         prototype.moveHighlight = _.wrap(prototype.moveHighlight, overrideMethods.moveHighlight);
-        prototype.initContainer = _.wrap(prototype.initContainer, overrideMethods.initContainer);
+
+        prototype.initContainer = _.wrap(prototype.initContainer, function(original, ...rest) {
+            original.apply(this, rest);
+
+            this._ariaLabelAdded = toAssignAriaAttributesForSelect(this.opts.element, this.focusser);
+
+            this.focusser.off('keyup-change input');
+            this.focusser.on('keyup-change input', this.bind(function(e) {
+                const showSearch = this.results[0].children.length >= this.opts.minimumResultsForSearch;
+
+                if (showSearch) {
+                    e.stopPropagation();
+                    if (this.opened()) {
+                        return;
+                    }
+                    this.open();
+                } else {
+                    this.clearSearch();
+                }
+            }));
+
+            this.search.off('blur');
+            this.search.on('blur', this.bind(function(e) {
+                // a workaround for chrome to keep the search field focussed when the scroll bar is used to scroll the dropdown.
+                // without this the search field loses focus which is annoying
+                if ((e.relatedTarget && e.relatedTarget.nodeName !== 'INPUT') &&
+                    document.activeElement === this.body().get(0)
+                ) {
+                    window.setTimeout(this.bind(function() {
+                        this.search.focus();
+                    }), 0);
+                }
+            }));
+
+            this._activedescendantElements = this.search;
+
+            if (this.focusser) {
+                this._activedescendantElements.add(this.focusser);
+            }
+        });
         prototype.tokenize = _.wrap(prototype.tokenize, overrideMethods.tokenize);
         prototype.showSearch = _.wrap(prototype.showSearch, overrideMethods.showSearch);
     }(Select2['class'].single.prototype));
@@ -488,8 +679,8 @@ define(function(require) {
         }
 
         function indexOf(value, array) {
-            var i = 0;
-            var l = array.length;
+            let i = 0;
+            const l = array.length;
             for (; i < l; i = i + 1) {
                 if (equal(value, array[i])) {
                     return i;
@@ -556,17 +747,17 @@ define(function(require) {
         prototype.resizeSearch = function() {
             //  Determines if search input item is on first row and sets correspondent css class.
             //  This class is needed for additional styling to prevent visual intersection with action buttons
-            var isFirstRow = (
+            const isFirstRow = (
                 this.selection.children(':first-child').position().top ===
                 this.searchContainer.position().top
             );
-            var sideBorderPadding = this.search.outerWidth(false) - this.search.width();
-            var minimumWidth = measureTextWidth(this.search) + 10;
-            var left = this.search.offset().left;
-            var maxWidth = this.selection.width();
-            var containerLeft = this.selection.offset().left;
+            const sideBorderPadding = this.search.outerWidth(false) - this.search.width();
+            const minimumWidth = measureTextWidth(this.search) + 10;
+            const left = this.search.offset().left;
+            const maxWidth = this.selection.width();
+            const containerLeft = this.selection.offset().left;
 
-            var searchWidth = maxWidth - (left - containerLeft) - sideBorderPadding;
+            let searchWidth = maxWidth - (left - containerLeft) - sideBorderPadding;
 
             if (searchWidth < minimumWidth) {
                 searchWidth = maxWidth - sideBorderPadding;
@@ -581,9 +772,9 @@ define(function(require) {
         };
 
         prototype.updateSelection = function(data) {
-            var ids = [];
-            var filtered = [];
-            var self = this;
+            const ids = [];
+            const filtered = [];
+            const self = this;
 
             // filter out duplicates
             $(data).each(function() {
@@ -595,7 +786,7 @@ define(function(require) {
             data = filtered;
 
             this.selection.find('.select2-search-choice').remove();
-            var val = this.getVal();
+            const val = this.getVal();
             $(data).each(function() {
                 self.addSelectedChoiceOptimized(this, val);
             });
@@ -607,29 +798,23 @@ define(function(require) {
          * Makes it possible to render multiselect with 10 000 selected business units
          */
         prototype.addSelectedChoiceOptimized = function(data, val) {
-            var enableChoice = !data.locked;
-            var enabledItem = $(
-                '<li class=\'select2-search-choice\'>' +
-                    '<div></div>' +
-                    '<a href=\'#\' onclick=\'return false;\' ' +
-                        'class=\'select2-search-choice-close\' tabindex=\'-1\'></a>' +
-                '</li>');
-            var disabledItem = $(
-                '<li class=\'select2-search-choice select2-locked\'>' +
-                    '<div></div>' +
-                    '</li>');
-            var choice = enableChoice ? enabledItem : disabledItem;
+            const enableChoice = !data.locked;
+            const enabledItem = $('<li class="select2-search-choice"></li>').html(`
+                <div></div>
+                <a href='#' onclick='return false;' class='select2-search-choice-close' tabindex='-1'></a>
+            `);
+            const disabledItem = $('<li class="select2-search-choice select2-locked"><div></div></li>');
+            const choice = enableChoice ? enabledItem : disabledItem;
             if (data.hidden) {
                 choice.addClass('hide');
             }
-            var id = this.id(data);
-            var formatted;
+            const id = this.id(data);
 
-            formatted = this.opts.formatSelection(data, choice.find('div'), this.opts.escapeMarkup);
+            const formatted = this.opts.formatSelection(data, choice.find('div'), this.opts.escapeMarkup);
             if (formatted !== undefined) {
                 choice.find('div').replaceWith('<div>' + formatted + '</div>');
             }
-            var cssClass = this.opts.formatSelectionCssClass(data, choice.find('div'));
+            const cssClass = this.opts.formatSelectionCssClass(data, choice.find('div'));
             if (cssClass !== undefined) {
                 choice.addClass(cssClass);
             }
@@ -665,10 +850,47 @@ define(function(require) {
             val.push(id);
         };
 
-        prototype.postprocessResults = _.wrap(prototype.postprocessResults, overrideMethods.processResult);
+        prototype.postprocessResults = _.wrap(prototype.postprocessResults, function(original, data, ...rest) {
+            original.call(this, data, ...rest);
+            afterProcessResults.call(this, data);
+
+            const $selectedChoices = this.results.find('.select2-result').add(
+                this.results.find('.select2-result-with-children')
+            );
+
+            $selectedChoices
+                .each((index, el) => $(el).attr('aria-selected', $(el).hasClass('select2-selected')));
+
+            this.selection.find('.select2-search-choice').attr('role', 'presentation');
+            this.selection.find('.select2-search-choice-close').each((index, el) => {
+                $(el).attr({
+                    'role': 'button',
+                    'aria-label': `${__('oro.ui.select2.remove_selected_item', {name: $(el).prev().text()})}`
+                });
+            });
+        });
 
         prototype.moveHighlight = _.wrap(prototype.moveHighlight, overrideMethods.moveHighlight);
 
         prototype.onSelect = overrideMethods.onSelect;
+
+        prototype.createContainer = function() {
+            return $(multipleChoiceTpl());
+        };
+
+        prototype.initContainer = _.wrap(prototype.initContainer, function(original, ...rest) {
+            original.apply(this, rest);
+            this._ariaLabelAdded = toAssignAriaAttributesForSelect(this.opts.element, this.search);
+            this._activedescendantElements = this.search;
+
+            if (this.focusser) {
+                this._activedescendantElements.add(this.focusser);
+            }
+        });
+
+        prototype.updateResults = _.wrap(prototype.updateResults, function(original, initial) {
+            original.call(this, initial);
+            makeExtraElementsAccessible(this.results);
+        });
     }(Select2['class'].multi.prototype));
 });

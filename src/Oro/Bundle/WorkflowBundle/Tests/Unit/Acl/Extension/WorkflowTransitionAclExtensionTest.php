@@ -14,6 +14,7 @@ use Oro\Bundle\WorkflowBundle\Acl\Extension\WorkflowTransitionAclExtension;
 use Oro\Bundle\WorkflowBundle\Acl\Extension\WorkflowTransitionMaskBuilder;
 use Oro\Bundle\WorkflowBundle\Entity\WorkflowDefinition;
 use Oro\Bundle\WorkflowBundle\Model\Transition;
+use Oro\Bundle\WorkflowBundle\Model\TransitionManager;
 use Oro\Bundle\WorkflowBundle\Model\Workflow;
 use Oro\Bundle\WorkflowBundle\Model\WorkflowManager;
 use Oro\Bundle\WorkflowBundle\Resolver\TransitionOptionsResolver;
@@ -22,31 +23,33 @@ use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 
 class WorkflowTransitionAclExtensionTest extends \PHPUnit\Framework\TestCase
 {
+    private const PATTERN_ALL_OFF = '(P) system:. global:. deep:. local:. basic:.';
+
     /** @var ObjectIdAccessor|\PHPUnit\Framework\MockObject\MockObject */
-    protected $objectIdAccessor;
+    private $objectIdAccessor;
 
     /** @var OwnershipMetadataProviderInterface|\PHPUnit\Framework\MockObject\MockObject */
-    protected $metadataProvider;
+    private $metadataProvider;
 
     /** @var EntityOwnerAccessor|\PHPUnit\Framework\MockObject\MockObject */
-    protected $entityOwnerAccessor;
+    private $entityOwnerAccessor;
 
     /** @var AccessLevelOwnershipDecisionMakerInterface|\PHPUnit\Framework\MockObject\MockObject */
-    protected $decisionMaker;
+    private $decisionMaker;
 
     /** @var WorkflowManager|\PHPUnit\Framework\MockObject\MockObject */
-    protected $workflowManager;
+    private $workflowManager;
 
     /** @var \PHPUnit\Framework\MockObject\MockObject|TransitionOptionsResolver */
-    protected $optionsResolver;
+    private $optionsResolver;
 
     /** @var WorkflowTransitionAclExtension */
-    protected $extension;
+    private $extension;
 
     /**
      * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->objectIdAccessor = $this->createMock(ObjectIdAccessor::class);
         $this->metadataProvider = $this->createMock(OwnershipMetadataProviderInterface::class);
@@ -64,6 +67,17 @@ class WorkflowTransitionAclExtensionTest extends \PHPUnit\Framework\TestCase
         );
     }
 
+    /**
+     * @return Transition
+     */
+    private function createStartTransition()
+    {
+        $transition = new Transition($this->optionsResolver);
+        $transition->setStart(true);
+
+        return $transition;
+    }
+
     public function testGetExtensionKey()
     {
         $this->assertEquals(WorkflowAclExtension::NAME, $this->extension->getExtensionKey());
@@ -74,20 +88,56 @@ class WorkflowTransitionAclExtensionTest extends \PHPUnit\Framework\TestCase
         self::assertTrue($this->extension->supports('', ''));
     }
 
-    /**
-     * @expectedException \LogicException
-     */
     public function testGetClasses()
     {
+        $this->expectException(\LogicException::class);
         $this->extension->getClasses();
     }
 
-    /**
-     * @expectedException \LogicException
-     */
     public function testGetObjectIdentity()
     {
+        $this->expectException(\LogicException::class);
         $this->extension->getObjectIdentity('');
+    }
+
+    public function testGetDefaultPermission()
+    {
+        self::assertSame('', $this->extension->getDefaultPermission());
+    }
+
+    /**
+     * @dataProvider getPermissionGroupMaskProvider
+     */
+    public function testGetPermissionGroupMask(int $mask, ?int $expectedPermissionGroupMask)
+    {
+        self::assertSame($expectedPermissionGroupMask, $this->extension->getPermissionGroupMask($mask));
+    }
+
+    public function getPermissionGroupMaskProvider()
+    {
+        return [
+            [0, null],
+            [
+                WorkflowTransitionMaskBuilder::MASK_PERFORM_TRANSITION_BASIC,
+                WorkflowTransitionMaskBuilder::GROUP_PERFORM_TRANSITION
+            ],
+            [
+                WorkflowTransitionMaskBuilder::MASK_PERFORM_TRANSITION_LOCAL,
+                WorkflowTransitionMaskBuilder::GROUP_PERFORM_TRANSITION
+            ],
+            [
+                WorkflowTransitionMaskBuilder::MASK_PERFORM_TRANSITION_DEEP,
+                WorkflowTransitionMaskBuilder::GROUP_PERFORM_TRANSITION
+            ],
+            [
+                WorkflowTransitionMaskBuilder::MASK_PERFORM_TRANSITION_GLOBAL,
+                WorkflowTransitionMaskBuilder::GROUP_PERFORM_TRANSITION
+            ],
+            [
+                WorkflowTransitionMaskBuilder::MASK_PERFORM_TRANSITION_SYSTEM,
+                WorkflowTransitionMaskBuilder::GROUP_PERFORM_TRANSITION
+            ]
+        ];
     }
 
     public function testGetAllowedPermissions()
@@ -100,10 +150,7 @@ class WorkflowTransitionAclExtensionTest extends \PHPUnit\Framework\TestCase
 
     public function testGetMaskPattern()
     {
-        self::assertEquals(
-            WorkflowTransitionMaskBuilder::PATTERN_ALL_OFF,
-            $this->extension->getMaskPattern(0)
-        );
+        self::assertEquals(self::PATTERN_ALL_OFF, $this->extension->getMaskPattern(0));
     }
 
     public function testGetMaskBuilder()
@@ -218,12 +265,8 @@ class WorkflowTransitionAclExtensionTest extends \PHPUnit\Framework\TestCase
         $relatedEntity = new \stdClass();
         $securityToken = $this->createMock(TokenInterface::class);
 
-        $workflow = $this->getMockBuilder(Workflow::class)
-            ->disableOriginalConstructor()
-            ->getMock();
-        $workflowDefinition = $this->getMockBuilder(WorkflowDefinition::class)
-            ->disableOriginalConstructor()
-            ->getMock();
+        $workflow = $this->createMock(Workflow::class);
+        $workflowDefinition = $this->createMock(WorkflowDefinition::class);
         $workflow->expects(self::once())
             ->method('getDefinition')
             ->willReturn($workflowDefinition);
@@ -285,9 +328,7 @@ class WorkflowTransitionAclExtensionTest extends \PHPUnit\Framework\TestCase
     {
         $object = 'workflow:test_flow::trans1|step1|step2';
 
-        $workflow = $this->getMockBuilder('Oro\Bundle\WorkflowBundle\Model\Workflow')
-            ->disableOriginalConstructor()
-            ->getMock();
+        $workflow = $this->createMock(Workflow::class);
 
         $definition = new WorkflowDefinition();
         $definition->setRelatedEntity('\stdClass');
@@ -319,9 +360,7 @@ class WorkflowTransitionAclExtensionTest extends \PHPUnit\Framework\TestCase
     {
         $object = 'workflow:test_flow::trans1||step2';
 
-        $workflow = $this->getMockBuilder('Oro\Bundle\WorkflowBundle\Model\Workflow')
-            ->disableOriginalConstructor()
-            ->getMock();
+        $workflow = $this->createMock(Workflow::class);
 
         $definition = new WorkflowDefinition();
         $definition->setRelatedEntity('\stdClass');
@@ -330,9 +369,7 @@ class WorkflowTransitionAclExtensionTest extends \PHPUnit\Framework\TestCase
             ->method('getDefinition')
             ->willReturn($definition);
 
-        $transitionManager = $this->getMockBuilder('Oro\Bundle\WorkflowBundle\Model\TransitionManager')
-            ->disableOriginalConstructor()
-            ->getMock();
+        $transitionManager = $this->createMock(TransitionManager::class);
 
         $transitionManager->expects($this->once())
             ->method('getTransition')
@@ -366,16 +403,12 @@ class WorkflowTransitionAclExtensionTest extends \PHPUnit\Framework\TestCase
         $object = 'workflow:test_flow::trans1||step2';
         $transition = $this->createStartTransition()->setInitEntities(['\Acme\DemoBundle\Entity\TestEntity']);
 
-        $workflow = $this->getMockBuilder('Oro\Bundle\WorkflowBundle\Model\Workflow')
-            ->disableOriginalConstructor()
-            ->getMock();
+        $workflow = $this->createMock(Workflow::class);
 
         $workflow->expects($this->never())
             ->method('getDefinition');
 
-        $transitionManager = $this->getMockBuilder('Oro\Bundle\WorkflowBundle\Model\TransitionManager')
-            ->disableOriginalConstructor()
-            ->getMock();
+        $transitionManager = $this->createMock(TransitionManager::class);
 
         $transitionManager->expects($this->once())
             ->method('getTransition')
@@ -409,16 +442,12 @@ class WorkflowTransitionAclExtensionTest extends \PHPUnit\Framework\TestCase
         $object = 'workflow:test_flow::trans1||step2';
         $transition = $this->createStartTransition()->setInitRoutes(['some_route']);
 
-        $workflow = $this->getMockBuilder('Oro\Bundle\WorkflowBundle\Model\Workflow')
-            ->disableOriginalConstructor()
-            ->getMock();
+        $workflow = $this->createMock(Workflow::class);
 
         $workflow->expects($this->never())
             ->method('getDefinition');
 
-        $transitionManager = $this->getMockBuilder('Oro\Bundle\WorkflowBundle\Model\TransitionManager')
-            ->disableOriginalConstructor()
-            ->getMock();
+        $transitionManager = $this->createMock(TransitionManager::class);
 
         $transitionManager->expects($this->once())
             ->method('getTransition')
@@ -445,15 +474,5 @@ class WorkflowTransitionAclExtensionTest extends \PHPUnit\Framework\TestCase
             [0 => 'NONE', 5 => 'SYSTEM'],
             $result
         );
-    }
-
-    /**
-     * @return Transition
-     */
-    protected function createStartTransition()
-    {
-        $transition = new Transition($this->optionsResolver);
-
-        return $transition->setStart(true);
     }
 }

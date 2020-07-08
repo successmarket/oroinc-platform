@@ -29,6 +29,7 @@ class JsonApiDocumentBuilder extends AbstractDocumentBuilder
     public const ID            = 'id';
     public const TYPE          = 'type';
     public const HREF          = 'href';
+    public const META_UPDATE   = 'update';
 
     private const ERROR_STATUS    = 'status';
     private const ERROR_CODE      = 'code';
@@ -197,7 +198,7 @@ class JsonApiDocumentBuilder extends AbstractDocumentBuilder
                 continue;
             }
             $propertyPath = $property->getPropertyPath();
-            if ($this->isIgnoredMeta($propertyPath, $metadata)) {
+            if (!$propertyPath || $this->isIgnoredMeta($propertyPath, $metadata)) {
                 continue;
             }
             $resultName = $property->getResultName();

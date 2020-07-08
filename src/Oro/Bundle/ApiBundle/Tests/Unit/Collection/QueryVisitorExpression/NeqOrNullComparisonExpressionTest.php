@@ -14,12 +14,11 @@ use Oro\Bundle\EntityBundle\ORM\EntityClassResolver;
 
 class NeqOrNullComparisonExpressionTest extends OrmRelatedTestCase
 {
-    /**
-     * @expectedException \Doctrine\ORM\Query\QueryException
-     * @expectedExceptionMessage The value for "e.test" must not be NULL.
-     */
     public function testWalkComparisonExpressionForNullValue()
     {
+        $this->expectException(\Doctrine\ORM\Query\QueryException::class);
+        $this->expectExceptionMessage('The value for "e.test" must not be NULL.');
+
         $expression = new NeqOrNullComparisonExpression();
         $expressionVisitor = new QueryExpressionVisitor(
             [],
@@ -71,7 +70,7 @@ class NeqOrNullComparisonExpressionTest extends OrmRelatedTestCase
             $result
         );
         self::assertEquals(
-            [new Parameter($parameterName, $value, \PDO::PARAM_STR)],
+            [new Parameter($parameterName, $value)],
             $expressionVisitor->getParameters()
         );
     }
@@ -125,8 +124,8 @@ class NeqOrNullComparisonExpressionTest extends OrmRelatedTestCase
         );
         self::assertEquals(
             [
-                new Parameter('groups_1_from', $fromValue, 'integer'),
-                new Parameter('groups_1_to', $toValue, 'integer')
+                new Parameter('groups_1_from', $fromValue),
+                new Parameter('groups_1_to', $toValue)
             ],
             $expressionVisitor->getParameters()
         );
@@ -181,8 +180,8 @@ class NeqOrNullComparisonExpressionTest extends OrmRelatedTestCase
         );
         self::assertEquals(
             [
-                new Parameter('groups_1_from', $fromValue, 'integer'),
-                new Parameter('groups_1_to', $toValue, 'integer')
+                new Parameter('groups_1_from', $fromValue),
+                new Parameter('groups_1_to', $toValue)
             ],
             $expressionVisitor->getParameters()
         );

@@ -1,6 +1,6 @@
 /* @theme: admin.oro; */
 
-/* dialog jQuery ui  start */
+/* dialog jQuery ui start */
 .ui-dialog {
     background: $dialog-background;
     box-shadow: $dialog-box-shadow;
@@ -50,6 +50,7 @@
     }
 
     &-title {
+        position: relative;
         color: $primary-inverse;
         font-weight: $dialog-title-font-weight;
         font-size: $base-font-size--l;
@@ -65,19 +66,39 @@
         .lang-en & {
             text-transform: capitalize;
         }
+
+        &:after {
+            display: inline-block;
+            content: '';
+        }
+
+        &__inner {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     }
 
     &-content {
-        padding: $dialog-content-inner-offset;
         margin: $dialog-content-outer-offset;
         background: $primary-inverse;
         position: $dialog-content-position;
         min-width: $dialog-content-min-width;
         width: $dialog-content-width;
+        max-width: 100%;
         min-height: $dialog-content-min-height; // since minHeight of dialog is 199px (clientHeight 197px - header 30px - ActionPanel 49px)
         overflow: $dialog-content-overflow;
         flex-shrink: $dialog-content-flex-shrink;
         flex-grow: $dialog-content-flex-grow;
+
+        &:focus {
+            outline: none;
+        }
 
         .ui-resizable-handle {
             cursor: $dialog-resizable-handle-cursor;
@@ -85,6 +106,7 @@
 
         .widget-content {
             position: relative;
+            margin: $dialog-content-inner-offset;
         }
     }
 

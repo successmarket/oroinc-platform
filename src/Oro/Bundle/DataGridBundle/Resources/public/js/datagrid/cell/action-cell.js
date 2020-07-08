@@ -1,18 +1,16 @@
-define(function(require) {
+define(function(require, exports, module) {
     'use strict';
 
-    var $ = require('jquery');
-    var _ = require('underscore');
-    var __ = require('orotranslation/js/translator');
-    var Backgrid = require('backgrid');
-    var module = require('module');
+    const $ = require('jquery');
+    const _ = require('underscore');
+    const __ = require('orotranslation/js/translator');
+    const Backgrid = require('backgrid');
+    let config = require('module-config').default(module.id);
 
-    var config = module.config();
     config = _.extend({
-        showCloseButton: false
+        showCloseButton: false,
+        allowDefaultAriaLabel: true
     }, config);
-
-    var ActionCell;
 
     /**
      * Cell for grid, contains actions
@@ -21,7 +19,7 @@ define(function(require) {
      * @class   oro.datagrid.cell.ActionCell
      * @extends Backgrid.Cell
      */
-    ActionCell = Backgrid.Cell.extend({
+    const ActionCell = Backgrid.Cell.extend({
 
         /** @property */
         className: 'action-cell',
@@ -29,7 +27,7 @@ define(function(require) {
         /** @property {Array} */
         actions: undefined,
 
-        /** @property {Boolean} */
+        /** @property {boolean} */
         isDropdownActions: null,
 
         /** @property Integer */
@@ -38,13 +36,20 @@ define(function(require) {
         /** @property {Array} */
         launchers: undefined,
 
-        /** @property Boolean */
+        /** @property boolean */
         showCloseButton: config.showCloseButton,
 
-        /** @property {String}: 'icon-text' | 'icon-only' | 'text-only' */
+        /** @property {string}: 'icon-text' | 'icon-only' | 'text-only' */
         launcherMode: '',
 
-        /** @property {String}: 'show' | 'hide' */
+        /**
+         * Allow launcher to use / set default aria-label attribute if it not defined
+         *
+         * @property boolean
+         * */
+        allowDefaultAriaLabel: config.allowDefaultAriaLabel,
+
+        /** @property {string}: 'show' | 'hide' */
         actionsState: '',
 
         /** @property */
@@ -98,6 +103,7 @@ define(function(require) {
         /** @property */
         events: {
             'click': '_showDropdown',
+            'keydown .dropdown-menu': 'onKeydown',
             'mouseover .dropdown-toggle': '_showDropdown',
             'mouseleave .dropleft.show': '_hideDropdown',
             'click .dropdown-close .fa-close': '_hideDropdown'
@@ -106,23 +112,27 @@ define(function(require) {
         /**
          * @inheritDoc
          */
-        constructor: function ActionCell() {
-            ActionCell.__super__.constructor.apply(this, arguments);
+        constructor: function ActionCell(options) {
+            ActionCell.__super__.constructor.call(this, options);
         },
 
         /**
          * Initialize cell actions and launchers
          */
         initialize: function(options) {
-            var opts = options || {};
+            const opts = options || {};
             this.subviews = [];
 
-            if (!_.isUndefined(opts.actionsHideCount)) {
+            if (opts.actionsHideCount !== void 0) {
                 this.actionsHideCount = opts.actionsHideCount;
             }
 
-            if (!_.isUndefined(opts.themeOptions.actionsHideCount)) {
+            if (opts.themeOptions.actionsHideCount !== void 0) {
                 this.actionsHideCount = opts.themeOptions.actionsHideCount;
+            }
+
+            if (opts.allowDefaultAriaLabel !== void 0) {
+                this.allowDefaultAriaLabel = opts.allowDefaultAriaLabel;
             }
 
             if (_.isObject(opts.themeOptions.launcherOptions)) {
@@ -130,13 +140,13 @@ define(function(require) {
                 this.actionsState = opts.themeOptions.launcherOptions.actionsState || this.actionsState;
             }
 
-            ActionCell.__super__.initialize.apply(this, arguments);
+            ActionCell.__super__.initialize.call(this, options);
             this.actions = this.createActions();
             _.each(this.actions, function(action) {
                 this.listenTo(action, 'preExecute', this.onActionRun);
             }, this);
 
-            this.subviews.push.apply(this.subviews, this.actions);
+            this.subviews.push(...this.actions);
         },
 
         /**
@@ -148,7 +158,7 @@ define(function(require) {
             }
             delete this.actions;
             delete this.column;
-            ActionCell.__super__.dispose.apply(this, arguments);
+            ActionCell.__super__.dispose.call(this);
         },
 
         /**
@@ -166,9 +176,9 @@ define(function(require) {
          * @return {Array}
          */
         createActions: function() {
-            var result = [];
-            var actions = this.column.get('actions');
-            var config = this.model.get('action_configuration') || {};
+            const result = [];
+            const actions = this.column.get('actions');
+            const config = this.model.get('action_configuration') || {};
 
             _.each(actions, function(action, name) {
                 // filter available actions for current row
@@ -202,7 +212,10 @@ define(function(require) {
          */
         createLaunchers: function() {
             return _.map(this.actions, function(action) {
-                return action.createLauncher({launcherMode: this.launcherMode});
+                return action.createLauncher({
+                    launcherMode: this.launcherMode,
+                    allowDefaultAriaLabel: this.allowDefaultAriaLabel
+                });
             }, this);
         },
 
@@ -210,7 +223,7 @@ define(function(require) {
          * Render cell with actions
          */
         render: function() {
-            var isSimplifiedMarkupApplied = false;
+            let isSimplifiedMarkupApplied = false;
             // don't render anything if list of launchers is empty
             if (_.isEmpty(this.actions)) {
                 this.$el.empty();
@@ -254,10 +267,10 @@ define(function(require) {
             if (!this.isLauncherListFilled) {
                 this.isLauncherListFilled = true;
 
-                var launcherList = this.createLaunchers();
+                const launcherList = this.createLaunchers();
 
-                var launchers = this.getLaunchersByIcons(launcherList);
-                var $listsContainer = this.$(this.launchersContainerSelector);
+                const launchers = this.getLaunchersByIcons(launcherList);
+                const $listsContainer = this.$(this.launchersContainerSelector);
 
                 if (this.showCloseButton && launcherList.length >= this.actionsHideCount) {
                     $listsContainer.append(this.closeButtonTemplate());
@@ -269,7 +282,7 @@ define(function(require) {
                 }
 
                 if (launchers.withIcons.length && launchers.withoutIcons.length) {
-                    var divider = document.createElement($listsContainer[0].tagName === 'UL' ? 'li' : 'span');
+                    const divider = document.createElement($listsContainer[0].tagName === 'UL' ? 'li' : 'span');
 
                     divider.classList.add('divider');
                     $listsContainer.append(divider);
@@ -291,8 +304,8 @@ define(function(require) {
          */
         renderLaunchersList: function(launchers, params) {
             params = params || {};
-            var result = $(this.launchersListTemplate(params));
-            var $launchersList = result.filter('.launchers-list').length ? result : $('.launchers-list', result);
+            const result = $(this.launchersListTemplate(params));
+            const $launchersList = result.filter('.launchers-list').length ? result : $('.launchers-list', result);
             _.each(launchers, function(launcher) {
                 $launchersList.append(this.renderLauncherItem(launcher));
             }, this);
@@ -309,11 +322,14 @@ define(function(require) {
          */
         renderLauncherItem: function(launcher, params) {
             params = _.extend(params || {}, {className: launcher.launcherMode});
-            var result = $(this.launcherItemTemplate(params));
-            var $launcherItem = result.filter('.launcher-item').length ? result : $('.launcher-item', result);
+            const result = $(this.launcherItemTemplate(params));
+            const $launcherItem = result.filter('.launcher-item').length ? result : $('.launcher-item', result);
             $launcherItem.append(launcher.render().$el);
-            var className = 'mode-' + launcher.launcherMode;
+            const className = 'mode-' + launcher.launcherMode;
             $launcherItem.addClass(className);
+            if (this.isDropdownActions) {
+                launcher.$el.addClass('dropdown-item');
+            }
             return result;
         },
 
@@ -324,7 +340,7 @@ define(function(require) {
          * @protected
          */
         getLaunchersByIcons: function(launcherList) {
-            var launchers = {
+            const launchers = {
                 withIcons: [],
                 withoutIcons: []
             };
@@ -366,6 +382,13 @@ define(function(require) {
                 this.$('[data-toggle="dropdown"]').dropdown('toggle');
             }
             e.stopPropagation();
+        },
+
+        onKeydown: function(event) {
+            // close dropdown on ESC key
+            if (event.which === 27) {
+                this._hideDropdown(event);
+            }
         }
     });
 

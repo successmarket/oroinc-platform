@@ -32,6 +32,19 @@ trait RolePermissionExtension
     }
 
     /**
+     * @after
+     */
+    protected function afterTest()
+    {
+        $container = self::getContainer();
+        if (null !== $container) {
+            $container->get('tests.security.acl.cache.doctrine')->clearCache();
+        }
+
+        parent::afterTest();
+    }
+
+    /**
      * Updates a permission for given entity for the given role.
      *
      * @param string $roleName
@@ -191,19 +204,18 @@ trait RolePermissionExtension
      */
     private function buildAclMask(MaskBuilder $maskBuilder, array $permissions): int
     {
-        $mask = $maskBuilder->reset()->get();
         foreach ($permissions as $permission => $accessLevel) {
-            $maskName = null;
+            $permissionName = null;
             if (is_int($accessLevel)) {
-                $maskName = sprintf('%s_%s', $permission, AccessLevel::getAccessLevelName($accessLevel));
+                $permissionName = sprintf('%s_%s', $permission, AccessLevel::getAccessLevelName($accessLevel));
             } elseif (true === $accessLevel) {
-                $maskName = $permission;
+                $permissionName = $permission;
             }
-            if (null !== $maskName && $maskBuilder->hasMask('MASK_' . $maskName)) {
-                $mask = $maskBuilder->add($maskName)->get();
+            if (null !== $permissionName && $maskBuilder->hasMaskForPermission($permissionName)) {
+                $maskBuilder->add($permissionName);
             }
         }
 
-        return $mask;
+        return $maskBuilder->get();
     }
 }

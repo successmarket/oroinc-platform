@@ -22,7 +22,7 @@ class RestDocumentBuilderTest extends DocumentBuilderTestCase
     /** @var LoggerInterface|\PHPUnit\Framework\MockObject\MockObject */
     private $logger;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->requestType = new RequestType([RequestType::REST]);
         $valueNormalizer = $this->getValueNormalizer();
@@ -863,6 +863,27 @@ class RestDocumentBuilderTest extends DocumentBuilderTestCase
             [
                 'id'          => '123',
                 'resultMeta1' => 'Meta1'
+            ],
+            $this->documentBuilder->getDocument()
+        );
+    }
+
+    public function testMetaPropertyThatNotMappedToAnyField()
+    {
+        $object = [
+            'id'    => 123,
+            'meta1' => 'Meta1'
+        ];
+
+        $metadata = $this->getEntityMetadata('Test\Entity', ['id']);
+        $metadata->addField($this->createFieldMetadata('id'));
+        $metadata->addMetaProperty($this->createMetaPropertyMetadata('meta1'))
+            ->setPropertyPath(ConfigUtil::IGNORE_PROPERTY_PATH);
+
+        $this->documentBuilder->setDataObject($object, $this->requestType, $metadata);
+        self::assertEquals(
+            [
+                'id' => '123'
             ],
             $this->documentBuilder->getDocument()
         );

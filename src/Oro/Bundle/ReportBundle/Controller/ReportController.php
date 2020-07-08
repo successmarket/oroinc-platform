@@ -2,7 +2,7 @@
 
 namespace Oro\Bundle\ReportBundle\Controller;
 
-use Doctrine\DBAL\Types\Type;
+use Doctrine\DBAL\Types\Types;
 use Oro\Bundle\ChartBundle\Model\ChartOptionsBuilder;
 use Oro\Bundle\ChartBundle\Model\ChartViewBuilder;
 use Oro\Bundle\DashboardBundle\Helper\DateHelper;
@@ -10,7 +10,7 @@ use Oro\Bundle\DataGridBundle\Datagrid\DatagridInterface;
 use Oro\Bundle\DataGridBundle\Datagrid\Manager;
 use Oro\Bundle\DataGridBundle\Extension\Pager\PagerInterface;
 use Oro\Bundle\EntityBundle\Provider\EntityProvider;
-use Oro\Bundle\EntityConfigBundle\Provider\ConfigProvider;
+use Oro\Bundle\EntityConfigBundle\Config\ConfigManager;
 use Oro\Bundle\FeatureToggleBundle\Checker\FeatureChecker;
 use Oro\Bundle\QueryDesignerBundle\QueryDesigner\Manager as QueryDesignerManager;
 use Oro\Bundle\ReportBundle\Entity\Report;
@@ -22,10 +22,10 @@ use Oro\Bundle\SecurityBundle\Annotation\Acl;
 use Oro\Bundle\SecurityBundle\Annotation\AclAncestor;
 use Oro\Bundle\SegmentBundle\Provider\EntityNameProvider;
 use Oro\Bundle\UIBundle\Route\Router;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
@@ -39,8 +39,8 @@ class ReportController extends AbstractController
     public static function getSubscribedServices()
     {
         return array_merge(parent::getSubscribedServices(), [
-            'oro_entity_config.provider.entity' => ConfigProvider::class,
-            EntityProvider::class,
+            'oro_report.entity_provider' => EntityProvider::class,
+            ConfigManager::class,
             EntityNameProvider::class,
             QueryDesignerManager::class,
             Manager::class,
@@ -50,7 +50,8 @@ class ReportController extends AbstractController
             TranslatorInterface::class,
             ReportHandler::class,
             Router::class,
-            FeatureChecker::class
+            FeatureChecker::class,
+            DateHelper::class,
         ]);
     }
 
@@ -71,8 +72,8 @@ class ReportController extends AbstractController
         $this->checkReport($entity);
         $this->get(EntityNameProvider::class)->setCurrentItem($entity);
 
-        $reportGroup = $this->get('oro_entity_config.provider.entity')
-            ->getConfig($entity->getEntity())
+        $reportGroup = $this->get(ConfigManager::class)
+            ->getEntityConfig('entity', $entity->getEntity())
             ->get('plural_label');
         $parameters  = [
             'entity'      => $entity,
@@ -239,7 +240,7 @@ class ReportController extends AbstractController
         return [
             'entity'   => $entity,
             'form'     => $reportForm->createView(),
-            'entities' => $this->get(EntityProvider::class)->getEntities(),
+            'entities' => $this->get('oro_report.entity_provider')->getEntities(),
             'metadata' => $this->get(QueryDesignerManager::class)->getMetadata('report')
         ];
     }
@@ -264,8 +265,8 @@ class ReportController extends AbstractController
         );
 
         /** @var DateHelper $dateTimeHelper */
-        $dateTimeHelper = $this->get('oro_dashboard.datetime.helper');
-        $dateTypes      = [Type::DATETIME, Type::DATE, Type::DATETIMETZ];
+        $dateTimeHelper = $this->get(DateHelper::class);
+        $dateTypes      = [Types::DATETIME_MUTABLE, Types::DATE_MUTABLE, Types::DATETIMETZ_MUTABLE];
 
         if (in_array($labelFieldType, $dateTypes)) {
             $data  = $datagrid->getData()->offsetGet('data');

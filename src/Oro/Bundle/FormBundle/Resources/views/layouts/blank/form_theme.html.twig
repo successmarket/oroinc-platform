@@ -42,7 +42,7 @@
             {%- else -%}
                 {{ label|trans({}, translation_domain) }}
             {%- endif -%}
-            <em>{% if required and not isRadioLabel %}*{% else %}&nbsp;{% endif %}</em>
+            <em aria-hidden="true">{% if required and not isRadioLabel %}*{% else %}&nbsp;{% endif %}</em>
             </label>
         {%- endif -%}
     {% endspaceless %}
@@ -68,7 +68,16 @@
         {% endif %}
     {% endfor %}
 
-    {{ parent() }}
+    {%- for attrname, attrvalue in attr -%}
+        {{- " " -}}
+        {%- if attrname in ['placeholder', 'title', 'aria-label'] -%}
+            {{- attrname }}="{{ translation_domain is same as(false) ? attrvalue : attrvalue|trans(attr_translation_parameters, translation_domain) }}"
+        {%- elseif attrvalue is same as(true) -%}
+            {{- attrname }}="{{ attrname }}"
+        {%- elseif attrvalue is not same as(false) -%}
+            {{- attrname }}="{{ attrvalue }}"
+        {%- endif -%}
+    {%- endfor -%}
 {%- endblock attributes -%}
 
 {%- block choice_widget_collapsed %}

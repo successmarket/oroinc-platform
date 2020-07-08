@@ -15,13 +15,12 @@ use Oro\Bundle\DataGridBundle\Extension\GridViews\GridViewsExtension;
 use Oro\Bundle\DataGridBundle\Provider\ConfigurationProviderInterface;
 use Oro\Bundle\SecurityBundle\Annotation\Acl;
 use Oro\Bundle\UIBundle\Route\Router;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Method;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -113,8 +112,7 @@ class DashboardController extends AbstractController
     }
 
     /**
-     * @Route("/configure/{id}", name="oro_dashboard_configure", requirements={"id"="\d+"})
-     * @Method({"GET", "POST"})
+     * @Route("/configure/{id}", name="oro_dashboard_configure", requirements={"id"="\d+"}, methods={"GET", "POST"})
      * @Template("OroDashboardBundle:Dashboard:dialog/configure.html.twig")
      *
      * @param Request $request
@@ -221,7 +219,7 @@ class DashboardController extends AbstractController
      * @Route(
      *      "/widget/{widget}/{bundle}/{name}",
      *      name="oro_dashboard_widget",
-     *      requirements={"widget"="[\w-]+", "bundle"="\w+", "name"="[\w-]+"}
+     *      requirements={"widget"="[\w\-]+", "bundle"="\w+", "name"="[\w\-]+"}
      * )
      *
      * @param string $widget
@@ -241,7 +239,7 @@ class DashboardController extends AbstractController
      * @Route(
      *      "/itemized_widget/{widget}/{bundle}/{name}",
      *      name="oro_dashboard_itemized_widget",
-     *      requirements={"widget"="[\w-]+", "bundle"="\w+", "name"="[\w-]+"}
+     *      requirements={"widget"="[\w\-]+", "bundle"="\w+", "name"="[\w\-]+"}
      * )
      *
      * @param string $widget
@@ -271,7 +269,7 @@ class DashboardController extends AbstractController
      * @Route(
      *      "/itemized_data_widget/{widget}/{bundle}/{name}",
      *      name="oro_dashboard_itemized_data_widget",
-     *      requirements={"widget"="[\w-]+", "bundle"="\w+", "name"="[\w-]+"}
+     *      requirements={"widget"="[\w\-]+", "bundle"="\w+", "name"="[\w\-]+"}
      * )
      * @param Request $request
      * @param string $widget

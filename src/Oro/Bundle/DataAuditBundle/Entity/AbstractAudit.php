@@ -1,4 +1,5 @@
 <?php
+
 namespace Oro\Bundle\DataAuditBundle\Entity;
 
 use Doctrine\Common\Collections\ArrayCollection;
@@ -23,11 +24,18 @@ use Oro\Bundle\UserBundle\Entity\Impersonation;
  *         @ORM\Index(name="idx_oro_audit_owner_descr", columns={"owner_description"})
  *     },
  *     uniqueConstraints={
- *         @ORM\UniqueConstraint(name="idx_oro_audit_version", columns={"object_id", "object_class", "version"})
+ *         @ORM\UniqueConstraint(
+ *              name="idx_oro_audit_version",
+ *              columns={"object_id", "object_class", "version", "type"}
+ *         ),
+ *         @ORM\UniqueConstraint(
+ *              name="idx_oro_audit_transaction",
+ *              columns={"object_id", "object_class", "transaction_id", "type"}
+ *         )
  *     }
  * )
  * @ORM\InheritanceType("SINGLE_TABLE")
- * @ORM\DiscriminatorColumn(name="type", type="string")
+ * @ORM\DiscriminatorColumn(name="type", type="string", length=30)
  * @ORM\DiscriminatorMap({"audit" = "Oro\Bundle\DataAuditBundle\Entity\Audit"})
  *
  * @Config(
@@ -80,7 +88,7 @@ abstract class AbstractAudit
     /**
      * @var string $objectId
      *
-     * @ORM\Column(name="object_id", type="integer", nullable=true)
+     * @ORM\Column(name="object_id", type="string", length=255, nullable=true)
      */
     protected $objectId;
 
@@ -135,7 +143,7 @@ abstract class AbstractAudit
     /**
      * @var string $transactionId
      *
-     * @ORM\Column(name="transaction_id", type="string", length=255)
+     * @ORM\Column(name="transaction_id", type="string", length=36)
      */
     protected $transactionId;
 
@@ -384,7 +392,7 @@ abstract class AbstractAudit
      */
     public function setObjectId($objectId)
     {
-        $this->objectId = $objectId;
+        $this->objectId = (string) $objectId;
     }
 
     /**

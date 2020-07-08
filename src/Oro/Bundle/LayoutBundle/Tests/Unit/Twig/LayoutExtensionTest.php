@@ -24,7 +24,7 @@ class LayoutExtensionTest extends \PHPUnit\Framework\TestCase
     /** @var LayoutExtension */
     protected $extension;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->renderer = $this->createMock(TwigRendererInterface::class);
         $this->textHelper = $this->createMock(TextHelper::class);
@@ -241,5 +241,29 @@ class LayoutExtensionTest extends \PHPUnit\Framework\TestCase
                 'some string'
             ]
         ];
+    }
+
+    public function testCloneFormViewWithUniqueId(): void
+    {
+        $formView = new FormView();
+        $formView->vars['id'] = 'root-view';
+        $formView->vars['additionalField'] = 'value1';
+        $childFormView = new FormView($formView);
+        $childFormView->vars['id'] = 'child-view';
+        $childFormView->vars['extraField'] = 'value2';
+        $formView->children['child'] = $childFormView;
+
+        $newFormView = $this->extension->cloneFormViewWithUniqueId($formView, 'foo');
+
+        $formView->setRendered();
+        $formView->offsetGet('child')->setRendered();
+
+        $this->assertEquals('root-view-foo', $newFormView->vars['id']);
+        $this->assertEquals('value1', $newFormView->vars['additionalField']);
+        $this->assertFalse($newFormView->isRendered());
+        $this->assertEquals('child-view-foo', $newFormView->offsetGet('child')->vars['id']);
+        $this->assertEquals('value2', $newFormView->offsetGet('child')->vars['extraField']);
+        $this->assertEquals($newFormView, $newFormView->offsetGet('child')->parent);
+        $this->assertFalse($newFormView->offsetGet('child')->isRendered());
     }
 }

@@ -2,11 +2,11 @@
 
 namespace Oro\Bundle\ApiBundle\Normalizer;
 
-use Doctrine\Common\Util\ClassUtils;
 use Oro\Bundle\ApiBundle\Config\EntityDefinitionConfig;
 use Oro\Bundle\ApiBundle\Config\EntityDefinitionFieldConfig;
 use Oro\Bundle\ApiBundle\Exception\RuntimeException;
 use Oro\Bundle\ApiBundle\Model\EntityIdentifier;
+use Oro\Bundle\ApiBundle\Processor\ApiContext;
 use Oro\Bundle\ApiBundle\Util\DoctrineHelper;
 use Oro\Component\EntitySerializer\ConfigUtil;
 use Oro\Component\EntitySerializer\DataAccessorInterface;
@@ -71,33 +71,56 @@ class ObjectNormalizer
      * @param array                       $objects The list of objects to be normalized
      * @param EntityDefinitionConfig|null $config  Normalization rules
      * @param array                       $context Options post serializers and data transformers have access to
+     * @param bool                        $skipPostSerializationForPrimaryObjects
      *
      * @return array
      */
     public function normalizeObjects(
         array $objects,
         EntityDefinitionConfig $config = null,
-        array $context = []
+        array $context = [],
+        bool $skipPostSerializationForPrimaryObjects = false
     ): array {
         $normalizedObjects = [];
         if ($objects) {
-            if (null !== $config) {
-                $normalizedConfig = clone $config;
-                $this->configNormalizer->normalizeConfig($normalizedConfig);
-                $config = $normalizedConfig;
-            }
-            foreach ($objects as $key => $object) {
-                $object = $this->normalizeValue($object, 1, $context, $config);
-                if (null !== $config) {
-                    $data = $this->dataNormalizer->normalizeData([$object], $config);
-                    $object = reset($data);
+            if (null === $config) {
+                foreach ($objects as $key => $object) {
+                    $normalizedObjects[$key] = $this->normalizeValue($object, 1, $context, $config);
                 }
-                $normalizedObjects[$key] = $object;
+            } else {
+                $config = $this->getNormalizedConfig($config);
+                $processedObjects = [];
+                foreach ($objects as $key => $object) {
+                    $processedObjects[$key] = $this->normalizeObjectByConfig($object, 1, $config, $context);
+                }
+                if (!$skipPostSerializationForPrimaryObjects) {
+                    $processedObjects = $this->serializationHelper->processPostSerializeItems(
+                        $processedObjects,
+                        $config,
+                        $context
+                    );
+                }
+                foreach ($processedObjects as $key => $object) {
+                    $data = $this->dataNormalizer->normalizeData([$object], $config);
+                    $normalizedObjects[$key] = reset($data);
+                }
             }
-            $normalizedObjects = $this->postSerializeCollection($normalizedObjects, $config, $context);
         }
 
         return $normalizedObjects;
+    }
+
+    /**
+     * @param EntityDefinitionConfig $config
+     *
+     * @return EntityDefinitionConfig
+     */
+    private function getNormalizedConfig(EntityDefinitionConfig $config): EntityDefinitionConfig
+    {
+        $normalizedConfig = clone $config;
+        $this->configNormalizer->normalizeConfig($normalizedConfig);
+
+        return $normalizedConfig;
     }
 
     /**
@@ -175,7 +198,7 @@ class ObjectNormalizer
             throw new RuntimeException(sprintf(
                 'The exclusion policy must be "%s". Object type: "%s".',
                 ConfigUtil::EXCLUSION_POLICY_ALL,
-                ClassUtils::getClass($object)
+                $this->doctrineHelper->getClass($object)
             ));
         }
 
@@ -184,6 +207,10 @@ class ObjectNormalizer
         $entityClass = $this->getEntityClass($object);
         $fields = $config->getFields();
         foreach ($fields as $fieldName => $field) {
+            if ($field->isExcluded()) {
+                continue;
+            }
+
             $propertyPath = $field->getPropertyPath($fieldName);
 
             if (null === $field->getAssociationQuery()
@@ -219,7 +246,7 @@ class ObjectNormalizer
             $result = $this->handleFieldsReferencedToChildFields($result, $object, $referenceFields);
         }
 
-        return $this->postSerializeItem($result, $config, $context);
+        return $result;
     }
 
     /**
@@ -269,9 +296,9 @@ class ObjectNormalizer
             }
             $value = $this->postSerializeCollection($value, $config, $context);
         } elseif (is_object($value)) {
-            $objectNormalizer = $this->normalizerRegistry->getObjectNormalizer($value);
+            $objectNormalizer = $this->getObjectNormalizer($value, $context);
             if (null !== $objectNormalizer) {
-                $value = $objectNormalizer->normalize($value);
+                $value = $objectNormalizer->normalize($value, $context[ApiContext::REQUEST_TYPE]);
             } elseif ($value instanceof \Traversable) {
                 $normalizedValues = [];
                 $nextLevel = $level + 1;
@@ -280,7 +307,11 @@ class ObjectNormalizer
                 }
                 $value = $this->postSerializeCollection($normalizedValues, $config, $context);
             } elseif (null !== $config) {
-                $value = $this->normalizeObjectByConfig($value, $level, $config, $context);
+                $value = $this->serializationHelper->postSerializeItem(
+                    $this->normalizeObjectByConfig($value, $level, $config, $context),
+                    $config,
+                    $context
+                );
             } elseif ($this->doctrineHelper->isManageableEntity($value)) {
                 if ($level <= self::MAX_NESTING_LEVEL) {
                     $value = $this->normalizeEntity($value, $level, $context);
@@ -294,7 +325,7 @@ class ObjectNormalizer
                     } else {
                         throw new RuntimeException(sprintf(
                             'The entity "%s" does not have an identifier.',
-                            ClassUtils::getClass($value)
+                            $this->doctrineHelper->getClass($value)
                         ));
                     }
                 }
@@ -361,7 +392,7 @@ class ObjectNormalizer
     {
         return $object instanceof EntityIdentifier
             ? $object->getClass()
-            : ClassUtils::getClass($object);
+            : $this->doctrineHelper->getClass($object);
     }
 
     /**
@@ -414,22 +445,6 @@ class ObjectNormalizer
     }
 
     /**
-     * @param array                       $item
-     * @param EntityDefinitionConfig|null $config
-     * @param array                       $context
-     *
-     * @return array
-     */
-    private function postSerializeItem(array $item, ?EntityDefinitionConfig $config, array $context): array
-    {
-        if (null === $config) {
-            return $item;
-        }
-
-        return $this->serializationHelper->postSerializeItem($item, $config, $context);
-    }
-
-    /**
      * @param array                       $items
      * @param EntityDefinitionConfig|null $config
      * @param array                       $context
@@ -443,5 +458,23 @@ class ObjectNormalizer
         }
 
         return $this->serializationHelper->postSerializeCollection($items, $config, $context);
+    }
+
+    /**
+     * @param object $object
+     * @param array  $context
+     *
+     * @return ObjectNormalizerInterface|null
+     */
+    private function getObjectNormalizer($object, array $context): ?ObjectNormalizerInterface
+    {
+        if (!isset($context[ApiContext::REQUEST_TYPE])) {
+            throw new \InvalidArgumentException(sprintf(
+                'The object normalization context must have "%s" attribute.',
+                ApiContext::REQUEST_TYPE
+            ));
+        }
+
+        return $this->normalizerRegistry->getObjectNormalizer($object, $context[ApiContext::REQUEST_TYPE]);
     }
 }

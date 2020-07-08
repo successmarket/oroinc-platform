@@ -21,7 +21,7 @@ class EntityNameProviderTest extends \PHPUnit\Framework\TestCase
     /** @var ConfigProviderMock */
     protected $extendConfigProvider;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->doctrine = $this->createMock('Doctrine\Common\Persistence\ManagerRegistry');
         $manager        = $this->getMockBuilder('Doctrine\Common\Persistence\ObjectManager')
@@ -65,6 +65,9 @@ class EntityNameProviderTest extends \PHPUnit\Framework\TestCase
         $entity = new TestEntity();
         $entity->setName('test');
 
+        $this->metadata->expects($this->any())
+            ->method('getName')
+            ->willReturn(TestEntity::class);
         $this->metadata->expects($this->any())
             ->method('hasField')
             ->willReturnMap(
@@ -173,6 +176,9 @@ class EntityNameProviderTest extends \PHPUnit\Framework\TestCase
 
     public function testGetNameDQLShortNoIdentifier()
     {
+        $this->metadata->expects($this->any())
+            ->method('getName')
+            ->willReturn(TestEntity::class);
         $this->metadata->expects($this->any())
             ->method('hasField')
             ->willReturnMap(

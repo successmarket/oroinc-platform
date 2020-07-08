@@ -11,6 +11,8 @@ use Oro\Bundle\WorkflowBundle\Button\TransitionButton;
 use Oro\Bundle\WorkflowBundle\EventListener\ProcessButtonsStaticTranslations;
 use Oro\Bundle\WorkflowBundle\Model\Transition;
 use Oro\Bundle\WorkflowBundle\Translation\Helper\TransitionTranslationHelper;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 class ProcessButtonsStaticTranslationsTest extends \PHPUnit\Framework\TestCase
 {
@@ -29,12 +31,15 @@ class ProcessButtonsStaticTranslationsTest extends \PHPUnit\Framework\TestCase
     /**
      * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->translationHelper = $this->createMock(TransitionTranslationHelper::class);
         $this->extension = $this->createMock(ButtonProviderExtensionInterface::class);
-        $this->buttonProvider = new ButtonProvider();
-        $this->buttonProvider->addExtension($this->extension);
+        $this->buttonProvider = new ButtonProvider(
+            [$this->extension],
+            $this->createMock(EventDispatcherInterface::class),
+            $this->createMock(LoggerInterface::class)
+        );
 
         $this->listener = new ProcessButtonsStaticTranslations($this->translationHelper);
     }

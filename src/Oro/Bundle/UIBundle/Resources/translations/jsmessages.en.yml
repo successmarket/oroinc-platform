@@ -72,19 +72,19 @@ oro:
             unexpected: "Unexpected content format"
             performing: "There was an error performing the requested operation. Please try again or contact us for assistance."
         request_too_large_error: >
-            The information you are submitting does not fit the doorway on the server side.
-            This may happen due to the extremely high-resolution images in your data.
-            Please replace the attached information to reduce the total data size,
-            or talk to your admin to extend the doorway by updating HTTP server configuration.
+            The data you are submitting is too large to be processed by the web server.
+            This can happen due to attachments such as high-resolution images.
+            Please reduce the file size, or contact your admin to adjust the web server configuration.
         page_header:
             button:
                 more: "More"
         datepicker:
             today: Today
-            prev: Prev
-            next: Next
+            prev: 'Switch to previous month'
+            next: 'Switch to next month'
             close: Close
             wk: Wk
+            aria_label: 'Select date ...'
         timepicker:
             am: am
             pm: pm
@@ -119,6 +119,11 @@ oro:
             input_too_long: "{1}Please delete {{ number }} character|[2,Inf[Please delete {{ number }} characters"
             selection_too_big: "{1}You can only select {{ limit }} item|[2,Inf[You can only select {{ limit }} items"
             load_more: "Loading more results..."
+            clear:
+                aria_label: 'Clear selection'
+            search:
+                aria_label: 'Search field'
+            remove_selected_item: 'Remove {{ name }} item'
         widget_form_component:
             save_flash_success: Saved successfully
         highlight_switcher:
@@ -149,6 +154,14 @@ oro:
         tab_view_more: '...'
         scroll_up_label: 'Scroll up'
         scroll_down_label: 'Scroll down'
+        collapse:
+            more: 'View More'
+            less: 'View Less'
+        show_more_view:
+            show_more: '{1}And {{ number }} more item|[2,Inf[And {{ number }} more items'
+            show_less: 'Show less items'
+        dropdown_option_aria_label: "More Actions"
+        dropdown_main_btn_prefix: "Action"
 articles: "a|an|the|some|every|any|no"
 abbreviate_ignore_list: "a|an|the|of|at|per|in|on"
 postpositions: "ago|apart|aside|away|hence|through"

@@ -48,6 +48,7 @@ class OroApiExtension extends Extension implements PrependExtensionInterface
 
         $loader = new Loader\YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yml');
+        $loader->load('services_api.yml');
         $loader->load('data_transformers.yml');
         $loader->load('filters.yml');
         $loader->load('form.yml');
@@ -60,18 +61,22 @@ class OroApiExtension extends Extension implements PrependExtensionInterface
         $loader->load('processors.customize_form_data.yml');
         $loader->load('processors.shared.yml');
         $loader->load('processors.options.yml');
-        $loader->load('processors.get_list.yml');
         $loader->load('processors.get.yml');
+        $loader->load('processors.get_list.yml');
         $loader->load('processors.delete.yml');
         $loader->load('processors.delete_list.yml');
         $loader->load('processors.create.yml');
         $loader->load('processors.update.yml');
+        $loader->load('processors.update_list.yml');
         $loader->load('processors.get_subresource.yml');
         $loader->load('processors.change_subresource.yml');
         $loader->load('processors.get_relationship.yml');
         $loader->load('processors.delete_relationship.yml');
         $loader->load('processors.add_relationship.yml');
         $loader->load('processors.update_relationship.yml');
+        $loader->load('processors.batch_update.yml');
+        $loader->load('processors.batch_update_item.yml');
+        $loader->load('processors.not_allowed.yml');
         $loader->load('commands.yml');
         $loader->load('controllers.yml');
 
@@ -102,8 +107,11 @@ class OroApiExtension extends Extension implements PrependExtensionInterface
         $this->configureCors($container, $config);
 
         if ('test' === $container->getParameter('kernel.environment')) {
+            $loader->load('services_test.yml');
             $this->configureTestEnvironment($container);
         }
+
+        $container->prependExtensionConfig($this->getAlias(), array_intersect_key($config, array_flip(['settings'])));
     }
 
     /**
@@ -165,12 +173,6 @@ class OroApiExtension extends Extension implements PrependExtensionInterface
      */
     private function configureTestEnvironment(ContainerBuilder $container)
     {
-        $loader = new Loader\YamlFileLoader(
-            $container,
-            new FileLocator(__DIR__ . '/../Tests/Functional/Environment')
-        );
-        $loader->load('services.yml');
-
         // oro_api.tests.config_bag.*
         $configBags = $container->getDefinition('oro_api.config_bag_registry')->getArgument(0);
         foreach ($configBags as $configBag) {

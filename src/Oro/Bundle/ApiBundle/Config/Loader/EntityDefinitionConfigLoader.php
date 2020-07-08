@@ -11,15 +11,22 @@ use Oro\Bundle\ApiBundle\Util\ConfigUtil;
 class EntityDefinitionConfigLoader extends AbstractConfigLoader implements ConfigLoaderFactoryAwareInterface
 {
     private const METHOD_MAP = [
-        ConfigUtil::DOCUMENTATION_RESOURCE    => 'setDocumentationResources',
-        ConfigUtil::COLLAPSE                  => 'setCollapsed',
-        ConfigUtil::POST_SERIALIZE            => 'setPostSerializeHandler',
-        ConfigUtil::POST_SERIALIZE_COLLECTION => 'setPostSerializeCollectionHandler',
-        ConfigUtil::DISABLE_SORTING           => ['disableSorting', 'enableSorting'],
-        ConfigUtil::DISABLE_INCLUSION         => ['disableInclusion', 'enableInclusion'],
-        ConfigUtil::DISABLE_FIELDSET          => ['disableFieldset', 'enableFieldset'],
-        ConfigUtil::DISABLE_META_PROPERTIES   => ['disableMetaProperties', 'enableMetaProperties'],
-        ConfigUtil::FORM_EVENT_SUBSCRIBER     => 'setFormEventSubscribers'
+        ConfigUtil::EXCLUSION_POLICY        => 'setExclusionPolicy',
+        ConfigUtil::IDENTIFIER_FIELD_NAMES  => 'setIdentifierFieldNames',
+        ConfigUtil::MAX_RESULTS             => 'setMaxResults',
+        ConfigUtil::ORDER_BY                => 'setOrderBy',
+        ConfigUtil::HINTS                   => 'setHints',
+        ConfigUtil::INNER_JOIN_ASSOCIATIONS => 'setInnerJoinAssociations',
+        ConfigUtil::FORM_TYPE               => 'setFormType',
+        ConfigUtil::FORM_OPTIONS            => 'setFormOptions',
+        ConfigUtil::DOCUMENTATION_RESOURCE  => 'setDocumentationResources',
+        ConfigUtil::COLLAPSE                => 'setCollapsed',
+        ConfigUtil::DISABLE_SORTING         => ['disableSorting', 'enableSorting'],
+        ConfigUtil::DISABLE_INCLUSION       => ['disableInclusion', 'enableInclusion'],
+        ConfigUtil::DISABLE_FIELDSET        => ['disableFieldset', 'enableFieldset'],
+        ConfigUtil::DISABLE_META_PROPERTIES => ['disableMetaProperties', 'enableMetaProperties'],
+        ConfigUtil::DISABLE_PARTIAL_LOAD    => ['disablePartialLoad', 'enablePartialLoad'],
+        ConfigUtil::FORM_EVENT_SUBSCRIBER   => 'setFormEventSubscribers'
     ];
 
     /** @var ConfigLoaderFactory */

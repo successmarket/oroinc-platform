@@ -1,5 +1,8 @@
 api:
     entity_aliases:
+        Extend\Entity\EV_Auth_Status:
+            alias: userauthstatus
+            plural_alias: userauthstatuses
         Oro\Bundle\UserBundle\Api\Model\UserProfile:
             alias: userprofile
             plural_alias: userprofile
@@ -15,7 +18,7 @@ api:
             documentation_resource: '@OroUserBundle/Resources/doc/api/user.md'
             fields:
                 emails:
-                    data_type: array
+                    data_type: objects
                     exclusion_policy: all
                     fields:
                         email: ~
@@ -23,6 +26,18 @@ api:
                     exclude: true
                 usernameLowercase:
                     exclude: true
+                passwordChangedAt:
+                    form_options:
+                        mapped: false
+                passwordRequestedAt:
+                    form_options:
+                        mapped: false
+                loginCount:
+                    form_options:
+                        mapped: false
+                lastLogin:
+                    form_options:
+                        mapped: false
             actions:
                 delete:
                     exclude: false # set manually because this entity is marked as a dictionary
@@ -31,30 +46,12 @@ api:
                 create:
                     exclude: false # set manually because this entity is marked as a dictionary
                     fields:
-                        passwordChangedAt:
-                            exclude: true
-                        passwordRequestedAt:
-                            exclude: true
-                        loginCount:
-                            exclude: true
-                        lastLogin:
-                            exclude: true
                         password:
                             exclude: false # set manually because this field is excluded globally
                             form_options:
                                 property_path: plainPassword
-
                 update:
                     exclude: false # set manually because this entity is marked as a dictionary
-                    fields:
-                        passwordChangedAt:
-                            exclude: true
-                        passwordRequestedAt:
-                            exclude: true
-                        loginCount:
-                            exclude: true
-                        lastLogin:
-                            exclude: true
 
         Extend\Entity\EV_Auth_Status:
             documentation_resource: '@OroUserBundle/Resources/doc/api/user.md'

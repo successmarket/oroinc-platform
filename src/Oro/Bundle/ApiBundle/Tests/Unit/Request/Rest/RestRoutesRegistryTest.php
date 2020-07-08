@@ -6,6 +6,7 @@ use Oro\Bundle\ApiBundle\Request\RequestType;
 use Oro\Bundle\ApiBundle\Request\Rest\RestRoutes;
 use Oro\Bundle\ApiBundle\Request\Rest\RestRoutesRegistry;
 use Oro\Bundle\ApiBundle\Util\RequestExpressionMatcher;
+use Oro\Component\Testing\Unit\TestContainerBuilder;
 
 class RestRoutesRegistryTest extends \PHPUnit\Framework\TestCase
 {
@@ -18,7 +19,7 @@ class RestRoutesRegistryTest extends \PHPUnit\Framework\TestCase
     /** @var \PHPUnit\Framework\MockObject\MockObject|RestRoutes */
     private $secondProvider;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->defaultProvider = $this->createMock(RestRoutes::class);
         $this->firstProvider = $this->createMock(RestRoutes::class);
@@ -34,16 +35,20 @@ class RestRoutesRegistryTest extends \PHPUnit\Framework\TestCase
     {
         return new RestRoutesRegistry(
             $providers,
+            TestContainerBuilder::create()
+                ->add('default_provider', $this->defaultProvider)
+                ->add('first_provider', $this->firstProvider)
+                ->add('second_provider', $this->secondProvider)
+                ->getContainer($this),
             new RequestExpressionMatcher()
         );
     }
 
-    /**
-     * @expectedException \LogicException
-     * @expectedExceptionMessage Cannot find a routes provider for the request "rest,another".
-     */
     public function testGetRoutesForUnsupportedRequestType()
     {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Cannot find a routes provider for the request "rest,another".');
+
         $requestType = new RequestType(['rest', 'another']);
         $registry = $this->getRegistry([]);
         $registry->getRoutes($requestType);
@@ -53,9 +58,9 @@ class RestRoutesRegistryTest extends \PHPUnit\Framework\TestCase
     {
         $registry = $this->getRegistry(
             [
-                [$this->firstProvider, 'first&rest'],
-                [$this->secondProvider, 'second&rest'],
-                [$this->defaultProvider, 'rest']
+                ['first_provider', 'first&rest'],
+                ['second_provider', 'second&rest'],
+                ['default_provider', 'rest']
             ]
         );
 
@@ -67,9 +72,9 @@ class RestRoutesRegistryTest extends \PHPUnit\Framework\TestCase
     {
         $registry = $this->getRegistry(
             [
-                [$this->firstProvider, 'first&rest'],
-                [$this->secondProvider, 'second&rest'],
-                [$this->defaultProvider, 'rest']
+                ['first_provider', 'first&rest'],
+                ['second_provider', 'second&rest'],
+                ['default_provider', 'rest']
             ]
         );
 
@@ -81,9 +86,9 @@ class RestRoutesRegistryTest extends \PHPUnit\Framework\TestCase
     {
         $registry = $this->getRegistry(
             [
-                [$this->firstProvider, 'first&rest'],
-                [$this->secondProvider, 'second&rest'],
-                [$this->defaultProvider, 'rest']
+                ['first_provider', 'first&rest'],
+                ['second_provider', 'second&rest'],
+                ['default_provider', 'rest']
             ]
         );
 
@@ -95,8 +100,8 @@ class RestRoutesRegistryTest extends \PHPUnit\Framework\TestCase
     {
         $registry = $this->getRegistry(
             [
-                [$this->firstProvider, 'first'],
-                [$this->defaultProvider, '']
+                ['first_provider', 'first'],
+                ['default_provider', '']
             ]
         );
 

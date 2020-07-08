@@ -17,6 +17,8 @@ use Oro\Bundle\SearchBundle\Provider\SearchMappingProvider;
 use Oro\Bundle\SearchBundle\Query\Result;
 use Oro\Bundle\SearchBundle\Query\Result\Item;
 use Oro\Bundle\SecurityBundle\ORM\Walker\AclHelper;
+use PHPUnit\Framework\MockObject\MockObject;
+use Psr\Log\LoggerInterface;
 
 /**
  * @SuppressWarnings(PHPMD.TooManyPublicMethods)
@@ -30,80 +32,59 @@ class SearchHandlerTest extends \PHPUnit\Framework\TestCase
     const TEST_FIRST_RESULT = 30;
     const TEST_MAX_RESULTS = 10;
 
-    /**
-     * @var array
-     */
+    /** @var array */
     protected $testProperties = ['name', 'email', 'property.path'];
 
-    /**
-     * @var array
-     */
+    /** @var array */
     protected $testSearchConfig = [self::TEST_ENTITY_CLASS => ['alias' => self::TEST_ENTITY_SEARCH_ALIAS]];
 
-    /**
-     * @var Indexer|\PHPUnit\Framework\MockObject\MockObject
-     */
+    /** @var Indexer|MockObject */
     protected $indexer;
 
-    /**
-     * @var ManagerRegistry|\PHPUnit\Framework\MockObject\MockObject
-     */
+    /** @var ManagerRegistry|MockObject */
     protected $managerRegistry;
 
-    /**
-     * @var EntityManager|\PHPUnit\Framework\MockObject\MockObject
-     */
+    /** @var EntityManager|MockObject */
     protected $entityManager;
 
-    /**
-     * @var EntityRepository|\PHPUnit\Framework\MockObject\MockObject
-     */
+    /** @var EntityRepository|MockObject */
     protected $entityRepository;
 
-    /**
-     * @var QueryBuilder|\PHPUnit\Framework\MockObject\MockObject
-     */
+    /** @var QueryBuilder|MockObject */
     protected $queryBuilder;
 
-    /**
-     * @var AbstractQuery|\PHPUnit\Framework\MockObject\MockObject
-     */
+    /** @var AbstractQuery|MockObject */
     protected $query;
 
-    /**
-     * @var Expr|\PHPUnit\Framework\MockObject\MockObject
-     */
+    /** @var Expr|MockObject */
     protected $expr;
 
-    /**
-     * @var Result|\PHPUnit\Framework\MockObject\MockObject
-     */
+    /** @var Result|MockObject */
     protected $searchResult;
 
-    /**
-     * @var SearchHandler
-     */
+    /** @var SearchHandler */
     protected $searchHandler;
 
-    /**
-     * @var AclHelper|\PHPUnit\Framework\MockObject\MockObject
-     */
+    /** @var AclHelper|MockObject */
     protected $aclHelper;
 
-    protected function setUp()
+    /** @var LoggerInterface|MockObject */
+    protected $logger;
+
+    protected function setUp(): void
     {
         $this->indexer = $this->getMockBuilder(Indexer::class)
-            ->setMethods(['simpleSearch'])
+            ->onlyMethods(['simpleSearch'])
             ->disableOriginalConstructor()
             ->getMock();
 
         $this->entityRepository = $this->getMockBuilder(EntityRepository::class)
             ->disableOriginalConstructor()
-            ->setMethods(['createQueryBuilder'])
+            ->onlyMethods(['createQueryBuilder'])
             ->getMock();
 
         $metadata = $this->getMockBuilder(ClassMetadata::class)
-            ->setMethods(['getSingleIdentifierFieldName'])
+            ->onlyMethods(['getSingleIdentifierFieldName'])
             ->disableOriginalConstructor()
             ->getMock();
         $metadata->expects($this->once())
@@ -111,7 +92,7 @@ class SearchHandlerTest extends \PHPUnit\Framework\TestCase
             ->will($this->returnValue(self::TEST_ID_FIELD));
 
         $metadataFactory = $this->getMockBuilder(ClassMetadataFactory::class)
-            ->setMethods(['getMetadataFor'])
+            ->onlyMethods(['getMetadataFor'])
             ->disableOriginalConstructor()
             ->getMock();
         $metadataFactory->expects($this->once())
@@ -121,7 +102,7 @@ class SearchHandlerTest extends \PHPUnit\Framework\TestCase
 
         $this->entityManager = $this->getMockBuilder(EntityManager::class)
             ->disableOriginalConstructor()
-            ->setMethods(['getRepository', 'getMetadataFactory'])
+            ->onlyMethods(['getRepository', 'getMetadataFactory'])
             ->getMock();
         $this->entityManager->expects($this->once())
             ->method('getRepository')
@@ -138,27 +119,28 @@ class SearchHandlerTest extends \PHPUnit\Framework\TestCase
 
         $this->queryBuilder = $this->getMockBuilder(QueryBuilder::class)
             ->disableOriginalConstructor()
-            ->setMethods(['expr', 'getQuery', 'where', 'setParameter'])
+            ->onlyMethods(['expr', 'getQuery', 'where', 'setParameter'])
             ->getMock();
 
         $this->query = $this->getMockBuilder(AbstractQuery::class)
             ->disableOriginalConstructor()
-            ->setMethods(['getResult', 'getAST'])
+            ->onlyMethods(['getResult'])
+            ->addMethods(['getAST'])
             ->getMockForAbstractClass();
 
         $this->expr = $this->getMockBuilder(Expr::class)
             ->disableOriginalConstructor()
-            ->setMethods(['in'])
+            ->onlyMethods(['in'])
             ->getMock();
 
         $this->searchResult = $this->getMockBuilder(Result::class)
-            ->setMethods(['getElements'])
+            ->onlyMethods(['getElements'])
             ->disableOriginalConstructor()
             ->getMock();
 
         $this->aclHelper = $this->getMockBuilder(AclHelper::class)
             ->disableOriginalConstructor()
-            ->setMethods(['apply'])
+            ->onlyMethods(['apply'])
             ->getMock();
 
         $searchMappingProvider = $this->createMock(SearchMappingProvider::class);
@@ -167,39 +149,14 @@ class SearchHandlerTest extends \PHPUnit\Framework\TestCase
             ->with(self::TEST_ENTITY_CLASS)
             ->willReturn($this->testSearchConfig[self::TEST_ENTITY_CLASS]['alias']);
 
+        $this->logger = $this->createMock(LoggerInterface::class);
+
         $this->searchHandler = new SearchHandler(self::TEST_ENTITY_CLASS, $this->testProperties);
+
         $this->searchHandler->initDoctrinePropertiesByManagerRegistry($this->managerRegistry);
         $this->searchHandler->initSearchIndexer($this->indexer, $searchMappingProvider);
         $this->searchHandler->setAclHelper($this->aclHelper);
-    }
-
-    public function testConstructorAndInitialize()
-    {
-        $this->assertAttributeSame(
-            $this->indexer,
-            'indexer',
-            $this->searchHandler
-        );
-        $this->assertAttributeSame(
-            $this->entityRepository,
-            'entityRepository',
-            $this->searchHandler
-        );
-        $this->assertAttributeEquals(
-            self::TEST_ENTITY_CLASS,
-            'entityName',
-            $this->searchHandler
-        );
-        $this->assertAttributeEquals(
-            self::TEST_ID_FIELD,
-            'idFieldName',
-            $this->searchHandler
-        );
-        $this->assertAttributeEquals(
-            $this->testProperties,
-            'properties',
-            $this->searchHandler
-        );
+        $this->searchHandler->setLogger($this->logger);
     }
 
     public function testGetProperties()
@@ -239,6 +196,12 @@ class SearchHandlerTest extends \PHPUnit\Framework\TestCase
         MockHelper::addMockExpectedCalls($this->queryBuilder, $expectQueryBuilderCalls, $this);
         MockHelper::addMockExpectedCalls($this->expr, $expectExprCalls, $this);
         MockHelper::addMockExpectedCalls($this->query, $expectQueryCalls, $this);
+
+        $this->logger->expects($this->never())->method('critical');
+        $this->aclHelper->expects($this->once())
+            ->method('apply')
+            ->with($this->query)
+            ->willReturn($this->query);
 
         $actualResult = $this->searchHandler->search($query['query'], $query['page'], $query['perPage']);
         $this->assertEquals($expectedResult, $actualResult);
@@ -383,7 +346,7 @@ class SearchHandlerTest extends \PHPUnit\Framework\TestCase
     }
 
     /**
-     * @return Result|\PHPUnit\Framework\MockObject\MockObject
+     * @return Result|MockObject
      */
     public function getMockSearchResult()
     {
@@ -391,7 +354,7 @@ class SearchHandlerTest extends \PHPUnit\Framework\TestCase
     }
 
     /**
-     * @return QueryBuilder|\PHPUnit\Framework\MockObject\MockObject
+     * @return QueryBuilder|MockObject
      */
     public function getMockQueryBuilder()
     {
@@ -399,7 +362,7 @@ class SearchHandlerTest extends \PHPUnit\Framework\TestCase
     }
 
     /**
-     * @return Expr|\PHPUnit\Framework\MockObject\MockObject
+     * @return Expr|MockObject
      */
     public function getMockExpr()
     {
@@ -407,7 +370,7 @@ class SearchHandlerTest extends \PHPUnit\Framework\TestCase
     }
 
     /**
-     * @return AbstractQuery|\PHPUnit\Framework\MockObject\MockObject
+     * @return AbstractQuery|MockObject
      */
     public function getMockQuery()
     {
@@ -461,7 +424,7 @@ class SearchHandlerTest extends \PHPUnit\Framework\TestCase
 
     /**
      * @param array $data
-     * @return \PHPUnit\Framework\MockObject\MockObject
+     * @return MockObject
      */
     public function createMockEntity(array $data)
     {
@@ -469,7 +432,9 @@ class SearchHandlerTest extends \PHPUnit\Framework\TestCase
         foreach (array_keys($data) as $name) {
             $methods[$name] = 'get' . ucfirst($name);
         }
-        $result = $this->createPartialMock(\stdClass::class, array_values($methods));
+        $result = $this->getMockBuilder(\stdClass::class)
+            ->addMethods($methods)
+            ->getMock();
         foreach ($data as $name => $property) {
             $result->expects($this->any())
                 ->method($methods[$name])
@@ -588,6 +553,57 @@ class SearchHandlerTest extends \PHPUnit\Framework\TestCase
         $qb->expects($this->once())
             ->method('getQuery')
             ->willReturn($query);
+        $this->aclHelper->expects($this->once())
+            ->method('apply')
+            ->with($query)
+            ->willReturn($query);
+
+        $this->assertEquals($expected, $this->searchHandler->search($searchQuery, 1, 10, true));
+    }
+
+    public function testSearchByIdsExceptionLogged()
+    {
+        $searchQuery = 'some-wrong-query-string';
+        $searchIds = ['some-wrong-query-string'];
+        $expected = [
+            'results' => [],
+            'more' => false
+        ];
+
+        $expr = new Expr();
+        $qb = $this->createMock(QueryBuilder::class);
+        $qb->expects($this->any())
+            ->method('expr')
+            ->willReturn($expr);
+        $qb->expects($this->once())
+            ->method('where')
+            ->with($expr->in('e.id', ':entityIds'))
+            ->willReturnSelf();
+        $qb->expects($this->once())
+            ->method('setParameter')
+            ->with('entityIds', $searchIds)
+            ->willReturnSelf();
+
+        $this->entityRepository->expects($this->once())
+            ->method('createQueryBuilder')
+            ->willReturn($qb);
+
+        $query = $this->createMock(AbstractQuery::class);
+        $query->expects($this->once())
+            ->method('getResult')
+            ->willThrowException(new \Exception('Some exception message'));
+
+        $qb->expects($this->once())
+            ->method('getQuery')
+            ->willReturn($query);
+        $this->aclHelper->expects($this->once())
+            ->method('apply')
+            ->with($query)
+            ->willReturn($query);
+
+        $this->logger->expects($this->once())
+            ->method('critical')
+            ->with('Some exception message');
 
         $this->assertEquals($expected, $this->searchHandler->search($searchQuery, 1, 10, true));
     }
@@ -632,6 +648,10 @@ class SearchHandlerTest extends \PHPUnit\Framework\TestCase
             ->disableOriginalConstructor()
             ->setMethods(['getResult'])
             ->getMockForAbstractClass();
+        $this->aclHelper->expects($this->once())
+            ->method('apply')
+            ->with($query)
+            ->willReturn($query);
         $query->expects($this->once())
             ->method('getResult')
             ->willReturn($result);

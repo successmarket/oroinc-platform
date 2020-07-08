@@ -89,7 +89,7 @@ class ConfigNormalizer
                             $path = ConfigUtil::explodePropertyPath($propertyPath);
                             if (\count($path) === 1) {
                                 $renamedFields[$propertyPath] = $field;
-                            } else {
+                            } elseif (!ConfigUtil::isExclude($fieldConfig)) {
                                 $config = $this->applyPropertyPathConfig($config, $path);
                             }
                         } else {
@@ -183,7 +183,7 @@ class ConfigNormalizer
         // it is a case when a field was renamed
         $field = $this->findFieldByPropertyPath($fields, $property);
         // if a renamed field was not found, check if a field with the specifies name exists in the config
-        if (!$field && array_key_exists($property, $fields)) {
+        if (!$field && \array_key_exists($property, $fields)) {
             $field = $property;
         }
 

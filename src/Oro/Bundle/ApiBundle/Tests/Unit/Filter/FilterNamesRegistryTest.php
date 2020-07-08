@@ -6,6 +6,7 @@ use Oro\Bundle\ApiBundle\Filter\FilterNames;
 use Oro\Bundle\ApiBundle\Filter\FilterNamesRegistry;
 use Oro\Bundle\ApiBundle\Request\RequestType;
 use Oro\Bundle\ApiBundle\Util\RequestExpressionMatcher;
+use Oro\Component\Testing\Unit\TestContainerBuilder;
 
 class FilterNamesRegistryTest extends \PHPUnit\Framework\TestCase
 {
@@ -18,7 +19,7 @@ class FilterNamesRegistryTest extends \PHPUnit\Framework\TestCase
     /** @var \PHPUnit\Framework\MockObject\MockObject|FilterNames */
     private $secondProvider;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->defaultProvider = $this->createMock(FilterNames::class);
         $this->firstProvider = $this->createMock(FilterNames::class);
@@ -34,16 +35,20 @@ class FilterNamesRegistryTest extends \PHPUnit\Framework\TestCase
     {
         return new FilterNamesRegistry(
             $providers,
+            TestContainerBuilder::create()
+                ->add('default_provider', $this->defaultProvider)
+                ->add('first_provider', $this->firstProvider)
+                ->add('second_provider', $this->secondProvider)
+                ->getContainer($this),
             new RequestExpressionMatcher()
         );
     }
 
-    /**
-     * @expectedException \LogicException
-     * @expectedExceptionMessage Cannot find a filter names provider for the request "rest,another".
-     */
     public function testGetFilterNamesForUnsupportedRequestType()
     {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Cannot find a filter names provider for the request "rest,another".');
+
         $requestType = new RequestType(['rest', 'another']);
         $registry = $this->getRegistry([]);
         $registry->getFilterNames($requestType);
@@ -53,9 +58,9 @@ class FilterNamesRegistryTest extends \PHPUnit\Framework\TestCase
     {
         $registry = $this->getRegistry(
             [
-                [$this->firstProvider, 'first&rest'],
-                [$this->secondProvider, 'second&rest'],
-                [$this->defaultProvider, 'rest']
+                ['first_provider', 'first&rest'],
+                ['second_provider', 'second&rest'],
+                ['default_provider', 'rest']
             ]
         );
 
@@ -67,9 +72,9 @@ class FilterNamesRegistryTest extends \PHPUnit\Framework\TestCase
     {
         $registry = $this->getRegistry(
             [
-                [$this->firstProvider, 'first&rest'],
-                [$this->secondProvider, 'second&rest'],
-                [$this->defaultProvider, 'rest']
+                ['first_provider', 'first&rest'],
+                ['second_provider', 'second&rest'],
+                ['default_provider', 'rest']
             ]
         );
 
@@ -81,9 +86,9 @@ class FilterNamesRegistryTest extends \PHPUnit\Framework\TestCase
     {
         $registry = $this->getRegistry(
             [
-                [$this->firstProvider, 'first&rest'],
-                [$this->secondProvider, 'second&rest'],
-                [$this->defaultProvider, 'rest']
+                ['first_provider', 'first&rest'],
+                ['second_provider', 'second&rest'],
+                ['default_provider', 'rest']
             ]
         );
 
@@ -95,8 +100,8 @@ class FilterNamesRegistryTest extends \PHPUnit\Framework\TestCase
     {
         $registry = $this->getRegistry(
             [
-                [$this->firstProvider, 'first'],
-                [$this->defaultProvider, '']
+                ['first_provider', 'first'],
+                ['default_provider', '']
             ]
         );
 

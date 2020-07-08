@@ -22,7 +22,7 @@ class PlaceholderConfigurationProviderTest extends \PHPUnit\Framework\TestCase
     /**
      * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->cacheFile = $this->getTempFile('PlaceholderConfigurationProvider');
 
@@ -91,7 +91,7 @@ class PlaceholderConfigurationProviderTest extends \PHPUnit\Framework\TestCase
 
         foreach ($placeholders as $placeholderName => $placeholder) {
             self::assertSame(
-                $placeholder['items'],
+                $placeholder['items'] ?? null,
                 $this->configurationProvider->getPlaceholderItems($placeholderName),
                 sprintf('Placeholder Items for "%s"', $placeholderName)
             );

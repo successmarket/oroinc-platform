@@ -3,6 +3,7 @@
 namespace Oro\Bundle\EntityConfigBundle\Layout\Block\Type;
 
 use Oro\Bundle\EntityConfigBundle\Attribute\Entity\AttributeFamily;
+use Oro\Bundle\EntityConfigBundle\Attribute\Entity\AttributeGroup;
 use Oro\Bundle\EntityConfigBundle\Layout\AttributeRenderRegistry;
 use Oro\Bundle\EntityConfigBundle\Layout\Mapper\AttributeBlockTypeMapperInterface;
 use Oro\Bundle\EntityConfigBundle\Manager\AttributeManager;
@@ -14,6 +15,9 @@ use Oro\Component\Layout\BlockInterface;
 use Oro\Component\Layout\BlockView;
 use Oro\Component\Layout\Util\BlockUtils;
 
+/**
+ * Layout block type representing group of attributes.
+ */
 class AttributeGroupType extends AbstractContainerType
 {
     const NAME = 'attribute_group';
@@ -78,7 +82,7 @@ class AttributeGroupType extends AbstractContainerType
 
         $layoutManipulator = $builder->getLayoutManipulator();
         $attributeGroupBlockId = $builder->getId();
-        $attributes = $this->attributeManager->getAttributesByGroup($attributeGroup);
+        $attributes = $this->getAttributesByGroup($attributeGroup);
         foreach ($attributes as $attribute) {
             if (in_array($attribute->getType(), $this->notRenderableAttributeTypes, true)) {
                 continue;
@@ -88,22 +92,53 @@ class AttributeGroupType extends AbstractContainerType
                 continue;
             }
 
+            $blockOptions = [
+                'entity' => $entityValue,
+                'fieldName' => $attribute->getFieldName(),
+                'className' => $attribute->getEntity()->getClassName(),
+            ];
+
+            $fieldConfig = $attribute->toArray('attachment');
+            if (isset($fieldConfig['acl_protected']) && $fieldConfig['acl_protected']) {
+                // Hides fields which should not be displayed on current application.
+                $blockOptions['visible'] = sprintf(
+                    '=data["file_applications"].isValidForField("%s", "%s")',
+                    addslashes($attribute->getEntity()->getClassName()),
+                    $attribute->getFieldName()
+                );
+            }
+
             $fieldName = $attribute->getFieldName();
             $blockType = $this->blockTypeMapper->getBlockType($attribute);
             $layoutManipulator->add(
                 $this->getAttributeBlockName($fieldName, $blockType, $attributeGroupBlockId),
                 $attributeGroupBlockId,
                 $blockType,
-                array_merge(
-                    [
-                        'entity' => $entityValue,
-                        'fieldName' => $attribute->getFieldName(),
-                        'className' => $attribute->getEntity()->getClassName()
-                    ],
-                    $options['attribute_options']->toArray()
-                )
+                array_merge($blockOptions, $options['attribute_options']->toArray())
             );
         }
+    }
+
+    /**
+     * Fetches and sorts attributes for given attribute group.
+     * Sorts attributes according to how they are added to attribute relations collection of attribute group.
+     *
+     * @param AttributeGroup $attributeGroup
+     *
+     * @return array
+     */
+    private function getAttributesByGroup(AttributeGroup $attributeGroup): array
+    {
+        $attributes = $this->attributeManager->getAttributesByGroup($attributeGroup);
+
+        $sorted = [];
+        foreach ($attributeGroup->getAttributeRelations() as $relation) {
+            if (isset($attributes[$relation->getEntityConfigFieldId()])) {
+                $sorted[$relation->getEntityConfigFieldId()] = $attributes[$relation->getEntityConfigFieldId()];
+            }
+        }
+
+        return $sorted;
     }
 
     /**

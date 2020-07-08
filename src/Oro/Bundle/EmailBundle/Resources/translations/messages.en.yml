@@ -67,8 +67,10 @@ oro:
                     label: Username
                 password:
                     label: Password
+                check_saved_connection:
+                    label: Check Connection (Saved Settings)
                 check_connection:
-                  label: Check SMTP Connection
+                    label: Check Connection (New Settings)
 
             signature_configuration:
                 label: Signature
@@ -115,6 +117,11 @@ oro:
             show_recent_emails_in_user_bar:
                 label: Show recent emails
 
+            attachment:
+                max_size:
+                    label: Maximum Attachment Size, Mb
+                    tooltip: Maximum attachment size, Mb. Attachments with exceeding size will not be uploaded. To unlimit size set to 0.
+
             attachment_sync:
                 enable:
                     label: Enable attachment sync
@@ -130,6 +137,7 @@ oro:
         emailtemplate:
             entity_label:        Email Template
             entity_plural_label: Email Templates
+            entity_grid_all_view_label: All %entity_plural_label%
             edit_entity:         Edit email template "%name%"
             clone_entity:        Clone email template
             entity_description:  Represent email template
@@ -144,9 +152,13 @@ oro:
             entity_name.label:   Entity name
             entity_name.tooltip: Choose an entity this template is related to or keep it empty if this template is not related to any entity.
             type.label:          Type
-            translations.label:  Translations
+            translations.label: Email Template Translations
             organization.label:  Organization
             visible.label:       Visible
+
+            sections:
+                general: General
+                template_data: Template Data
 
             # sections for email template variables
             variables:
@@ -178,6 +190,24 @@ oro:
 
             # errors
             failed_to_compile: This email template can't be used
+
+        emailtemplatetranslation:
+            entity_label: 'Email Template Translations'
+            entity_plural_label: 'Email Template Translations'
+            entity_grid_all_view_label: 'All %entity_plural_label%'
+
+            id.label: 'Id'
+            subject.label: 'Subject'
+            subject_fallback.label: 'Fallback subject'
+            content.label: 'Content'
+            content_fallback.label: 'Fallback content'
+            localization.label: 'Localization'
+            template.label: 'Template'
+
+            form:
+                default_localization: 'Default'
+                use_parent_localization: 'Use %name% (Parent Localization)'
+                use_default_localization: 'Use Default Localization'
 
         attachment:
             copy_to_record: Copy to Record
@@ -264,6 +294,7 @@ oro:
         email_body.label:         Body
         entity_label:             Email
         entity_plural_label:      Emails
+        entity_grid_all_view_label: All %entity_plural_label%
         entity_description:       Email message
         id.label:                 Id
         importance.label:         Importance
@@ -328,7 +359,9 @@ oro:
         emailuser:
             entity_label:             Email-User Relation
             entity_plural_label:      Email-User Relations
+            entity_grid_all_view_label: All %entity_plural_label%
             email.label:              Email
+            email.aria_label:         "Opens a default email client to write an email to %email%"
             folder.label:             Folder
             id.label:                 Id
             organization.label:       Organization
@@ -342,6 +375,7 @@ oro:
         mailbox:
             entity_label:             Mailbox
             entity_plural_label:      Mailboxes
+            entity_grid_all_view_label: All %entity_plural_label%
             id.label:                 Id
             label.label:              Mailbox Label
             general.label:            General
@@ -365,6 +399,7 @@ oro:
             process_settings.label: Process Settings
         autoresponserule:
             entity_plural_label: Autoresponse Rules
+            entity_grid_all_view_label: All %entity_plural_label%
             name.label:          Name
             active.label:        Active
             status.label:        Status

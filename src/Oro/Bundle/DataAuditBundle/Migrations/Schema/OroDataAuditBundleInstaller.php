@@ -18,7 +18,7 @@ class OroDataAuditBundleInstaller implements Installation
      */
     public function getMigrationVersion()
     {
-        return 'v2_6';
+        return 'v2_8';
     }
 
     /**
@@ -42,7 +42,7 @@ class OroDataAuditBundleInstaller implements Installation
         $auditTable->addColumn('user_id', 'integer', ['notnull' => false]);
         $auditTable->addColumn('action', 'string', ['length' => 8, 'notnull' => false]);
         $auditTable->addColumn('logged_at', 'datetime', ['notnull' => false]);
-        $auditTable->addColumn('object_id', 'integer', ['notnull' => false]);
+        $auditTable->addColumn('object_id', 'string', ['length' => 255, 'notnull' => false]);
         $auditTable->addColumn('object_class', 'string', ['length' => 255]);
         $auditTable->addColumn(
             'object_name',
@@ -51,8 +51,8 @@ class OroDataAuditBundleInstaller implements Installation
         );
         $auditTable->addColumn('version', 'integer', ['notnull' => false]);
         $auditTable->addColumn('organization_id', 'integer', ['notnull' => false]);
-        $auditTable->addColumn('type', 'string', ['length' => 255]);
-        $auditTable->addColumn('transaction_id', 'string', ['length' => 255]);
+        $auditTable->addColumn('type', 'string', ['length' => 30]);
+        $auditTable->addColumn('transaction_id', 'string', ['length' => 36]);
         $auditTable->addColumn('owner_description', 'string', ['notnull' => false, 'length' => 255]);
         $auditTable->addColumn('additional_fields', 'array', ['notnull' => false]);
 
@@ -60,7 +60,14 @@ class OroDataAuditBundleInstaller implements Installation
 
         $auditTable->addIndex(['user_id'], 'IDX_5FBA427CA76ED395', []);
         $auditTable->addIndex(['type'], 'idx_oro_audit_type');
-        $auditTable->addUniqueIndex(['object_id', 'object_class', 'version'], 'idx_oro_audit_version');
+        $auditTable->addUniqueIndex(
+            ['object_id', 'object_class', 'version', 'type'],
+            'idx_oro_audit_version'
+        );
+        $auditTable->addUniqueIndex(
+            ['object_id', 'object_class', 'transaction_id', 'type'],
+            'idx_oro_audit_transaction'
+        );
 
         $auditTable->addForeignKeyConstraint(
             $schema->getTable('oro_user'),

@@ -27,7 +27,7 @@ class RemoveRelationshipMapperTest extends \PHPUnit\Framework\TestCase
     /** @var RemoveRelationshipMapper */
     private $mapper;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->dispatcher = $this->createMock(EventDispatcherInterface::class);
         $this->propertyAccessor = $this->createMock(PropertyAccessorInterface::class);
@@ -350,7 +350,7 @@ class RemoveRelationshipMapperTest extends \PHPUnit\Framework\TestCase
         $user->addGroup($group2);
         $propertyPath = new PropertyPath('groups');
 
-        $this->propertyAccessor->expects(self::once())
+        $this->propertyAccessor->expects(self::exactly(2))
             ->method('getValue')
             ->with($user, $propertyPath)
             ->willReturn($user->getGroups());

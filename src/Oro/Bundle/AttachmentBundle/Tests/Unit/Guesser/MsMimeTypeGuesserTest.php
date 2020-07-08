@@ -30,7 +30,7 @@ class MsMimeTypeGuesserTest extends \PHPUnit\Framework\TestCase
     /**
      * {@inheritdoc}
      */
-    public function setUp()
+    protected function setUp(): void
     {
         $this->guesser = new MsMimeTypeGuesser();
     }
@@ -38,11 +38,16 @@ class MsMimeTypeGuesserTest extends \PHPUnit\Framework\TestCase
     /**
      * {@inheritdoc}
      */
-    public function tearDown()
+    protected function tearDown(): void
     {
         foreach ($this->files as $file) {
             unlink($file);
         }
+    }
+
+    public function testIsGuesserSupported(): void
+    {
+        $this->assertTrue($this->guesser->isGuesserSupported());
     }
 
     /**
@@ -51,11 +56,13 @@ class MsMimeTypeGuesserTest extends \PHPUnit\Framework\TestCase
      * @param string      $path
      * @param array       $files
      * @param string|null $expectedMimeType
+     *
+     * @SuppressWarnings(PHPMD.Superglobals)
      */
-    public function testGuess($path, array $files, $expectedMimeType)
+    public function testGuessMimeType($path, array $files, $expectedMimeType): void
     {
         $GLOBALS['_FILES'] = $files;
-        $this->assertEquals($expectedMimeType, $this->guesser->guess($path));
+        $this->assertEquals($expectedMimeType, $this->guesser->guessMimeType($path));
     }
 
     /**

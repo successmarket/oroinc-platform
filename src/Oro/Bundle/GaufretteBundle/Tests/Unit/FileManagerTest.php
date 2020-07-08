@@ -4,10 +4,12 @@ namespace Oro\Bundle\GaufretteBundle\Tests\Unit;
 
 use Gaufrette\File;
 use Gaufrette\Filesystem;
+use Gaufrette\Stream;
 use Gaufrette\Stream\InMemoryBuffer;
 use Gaufrette\Stream\Local as LocalStream;
 use Gaufrette\StreamMode;
 use Knp\Bundle\GaufretteBundle\FilesystemMap;
+use Oro\Bundle\GaufretteBundle\Exception\FlushFailedException;
 use Oro\Bundle\GaufretteBundle\FileManager;
 use Symfony\Component\Filesystem\Exception\IOException;
 
@@ -22,7 +24,7 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
     /** @var FileManager */
     protected $fileManager;
 
-    public function setUp()
+    protected function setUp(): void
     {
         $this->filesystem = $this->getMockBuilder(Filesystem::class)
             ->disableOriginalConstructor()
@@ -53,11 +55,9 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    /**
-     * @expectedException \Oro\Bundle\GaufretteBundle\Exception\ProtocolConfigurationException
-     */
     public function testGetFilePathWhenProtocolIsNotConfigured()
     {
+        $this->expectException(\Oro\Bundle\GaufretteBundle\Exception\ProtocolConfigurationException::class);
         $this->fileManager->setProtocol('');
         $this->fileManager->getFilePath('test.txt');
     }
@@ -123,6 +123,30 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
         );
     }
 
+    public function testHasFileWhenFileExists()
+    {
+        $fileName = 'testFile.txt';
+
+        $this->filesystem->expects($this->once())
+            ->method('has')
+            ->with($fileName)
+            ->willReturn(true);
+
+        $this->assertTrue($this->fileManager->hasFile($fileName));
+    }
+
+    public function testHasFileWhenFileDoesNotExist()
+    {
+        $fileName = 'testFile.txt';
+
+        $this->filesystem->expects($this->once())
+            ->method('has')
+            ->with($fileName)
+            ->willReturn(false);
+
+        $this->assertFalse($this->fileManager->hasFile($fileName));
+    }
+
     public function testGetFileByFileName()
     {
         $fileName = 'testFile.txt';
@@ -175,12 +199,11 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
         $this->assertSame($file, $this->fileManager->getFile($fileName, false));
     }
 
-    /**
-     * @expectedException \Gaufrette\Exception\FileNotFound
-     * @expectedExceptionMessage  The file "testFile.txt" was not found.
-     */
     public function testGetStreamWhenFileDoesNotExist()
     {
+        $this->expectException(\Gaufrette\Exception\FileNotFound::class);
+        $this->expectExceptionMessage('The file "testFile.txt" was not found.');
+
         $fileName = 'testFile.txt';
 
         $this->filesystem->expects($this->once())
@@ -226,7 +249,7 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
 
         $stream = $this->fileManager->getStream($fileName, false);
 
-        $this->assertInternalType('resource', $stream);
+        $this->assertIsResource($stream);
         $this->assertSame($file, $stream);
 
         fclose($file);
@@ -342,12 +365,47 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
             ->method('createStream')
             ->with($fileName)
             ->willReturn($resultStream);
+        $this->filesystem->expects($this->once())
+            ->method('removeFromRegister')
+            ->with($fileName);
 
         $this->fileManager->writeToStorage($content, $fileName);
 
         $resultStream->open(new StreamMode('rb+'));
         $resultStream->seek(0);
         $this->assertEquals($content, $resultStream->read(100));
+    }
+
+    public function testWriteToStorageWhenFlushFailed()
+    {
+        $this->expectException(\Oro\Bundle\GaufretteBundle\Exception\FlushFailedException::class);
+        $this->expectExceptionMessage('Failed to flush data to the "test2.txt" file.');
+
+        $content = 'Test data';
+        $fileName = 'test2.txt';
+
+        $resultStream = $this->createMock(Stream::class);
+        $resultStream->expects($this->once())
+            ->method('open')
+            ->with(new StreamMode('wb+'));
+        $resultStream->expects($this->once())
+            ->method('write')
+            ->with($content);
+        $resultStream->expects($this->once())
+            ->method('flush')
+            ->willReturn(false);
+        $resultStream->expects($this->once())
+            ->method('close');
+
+        $this->filesystem->expects($this->once())
+            ->method('createStream')
+            ->with($fileName)
+            ->willReturn($resultStream);
+        $this->filesystem->expects($this->once())
+            ->method('removeFromRegister')
+            ->with($fileName);
+
+        $this->fileManager->writeToStorage($content, $fileName);
     }
 
     public function testWriteFileToStorage()
@@ -361,6 +419,9 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
             ->method('createStream')
             ->with($fileName)
             ->willReturn($resultStream);
+        $this->filesystem->expects($this->once())
+            ->method('removeFromRegister')
+            ->with($fileName);
 
         $this->fileManager->writeFileToStorage($localFilePath, $fileName);
 
@@ -381,6 +442,9 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
             ->method('createStream')
             ->with($fileName)
             ->willReturn($resultStream);
+        $this->filesystem->expects($this->once())
+            ->method('removeFromRegister')
+            ->with($fileName);
 
         $result = $this->fileManager->writeStreamToStorage($srcStream, $fileName);
 
@@ -388,8 +452,45 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
         $resultStream->seek(0);
         $this->assertStringEqualsFile($localFilePath, $resultStream->read(100));
         $this->assertTrue($result);
-        // double check if input stream is closed
+        // test that the input stream is closed
         $this->assertFalse($srcStream->cast(1));
+    }
+
+    public function testWriteStreamToStorageWhenFlushFailed()
+    {
+        $localFilePath = __DIR__ . '/Fixtures/test.txt';
+        $fileName = 'test2.txt';
+
+        $srcStream = new LocalStream($localFilePath);
+        $resultStream = $this->createMock(Stream::class);
+        $resultStream->expects($this->once())
+            ->method('open')
+            ->with(new StreamMode('wb+'));
+        $resultStream->expects($this->once())
+            ->method('write')
+            ->with(file_get_contents($localFilePath));
+        $resultStream->expects($this->once())
+            ->method('flush')
+            ->willReturn(false);
+        $resultStream->expects($this->once())
+            ->method('close');
+
+        $this->filesystem->expects($this->once())
+            ->method('createStream')
+            ->with($fileName)
+            ->willReturn($resultStream);
+        $this->filesystem->expects($this->once())
+            ->method('removeFromRegister')
+            ->with($fileName);
+
+        try {
+            $this->fileManager->writeStreamToStorage($srcStream, $fileName);
+            $this->fail('Expected FlushFailedException');
+        } catch (FlushFailedException $e) {
+            self::assertEquals('Failed to flush data to the "test2.txt" file.', $e->getMessage());
+            // test that the input stream is closed
+            $this->assertFalse($srcStream->cast(1));
+        }
     }
 
     public function testWriteStreamToStorageWithEmptyStreamAndAvoidWriteEmptyStream()
@@ -402,11 +503,14 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
         $this->filesystem->expects($this->never())
             ->method('createStream')
             ->with($fileName);
+        $this->filesystem->expects($this->never())
+            ->method('removeFromRegister')
+            ->with($fileName);
 
         $result = $this->fileManager->writeStreamToStorage($srcStream, $fileName, true);
 
         $this->assertFalse($result);
-        // double check if input stream is closed
+        // test that the input stream is closed
         $this->assertFalse($srcStream->cast(1));
     }
 
@@ -422,6 +526,9 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
             ->method('createStream')
             ->with($fileName)
             ->willReturn($resultStream);
+        $this->filesystem->expects($this->once())
+            ->method('removeFromRegister')
+            ->with($fileName);
 
         $result = $this->fileManager->writeStreamToStorage($srcStream, $fileName);
 
@@ -429,7 +536,7 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
         $resultStream->seek(0);
         $this->assertEmpty($resultStream->read(100));
         $this->assertTrue($result);
-        // double check if input stream is closed
+        // test that the input stream is closed
         $this->assertFalse($srcStream->cast(1));
     }
 
@@ -445,6 +552,9 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
             ->method('createStream')
             ->with($fileName)
             ->willReturn($resultStream);
+        $this->filesystem->expects($this->once())
+            ->method('removeFromRegister')
+            ->with($fileName);
 
         $result = $this->fileManager->writeStreamToStorage($srcStream, $fileName, true);
 
@@ -452,7 +562,7 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
         $resultStream->seek(0);
         $this->assertStringEqualsFile($localFilePath, $resultStream->read(100));
         $this->assertTrue($result);
-        // double check if input stream is closed
+        // test that the input stream is closed
         $this->assertFalse($srcStream->cast(1));
     }
 
@@ -473,7 +583,7 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
         }
     }
 
-    public function testStreamWriteToTemporaryFile()
+    public function testWriteStreamToTemporaryFile()
     {
         $content = 'Test data';
 
@@ -547,7 +657,7 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
                 $anotherTmpFileName = $this->fileManager->getTemporaryFileName($suggestedFileName);
                 self::assertNotEmpty($anotherTmpFileName);
                 self::assertNotEquals($tmpFileName, $anotherTmpFileName);
-                self::assertFileNotExists($anotherTmpFileName);
+                self::assertFileDoesNotExist($anotherTmpFileName);
             }
         } finally {
             @unlink($tmpFileName);
@@ -568,7 +678,7 @@ class FileManagerTest extends \PHPUnit\Framework\TestCase
                 self::assertNotEmpty($anotherTmpFileName);
                 self::assertNotEquals($tmpFileName, $anotherTmpFileName);
                 self::assertStringEndsWith($fileExtension, $anotherTmpFileName);
-                self::assertFileNotExists($anotherTmpFileName);
+                self::assertFileDoesNotExist($anotherTmpFileName);
             }
         } finally {
             @unlink($tmpFileName);

@@ -28,7 +28,7 @@ class FlushEntityTest extends \PHPUnit\Framework\TestCase
      */
     protected $action;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->contextAccessor = new ContextAccessor();
         $this->registry = $this->getMockBuilder('Doctrine\Common\Persistence\ManagerRegistry')
@@ -40,6 +40,16 @@ class FlushEntityTest extends \PHPUnit\Framework\TestCase
             ->disableOriginalConstructor()
             ->getMock();
         $this->action->setDispatcher($dispatcher);
+    }
+
+    public function testExecuteWithoutEntity()
+    {
+        $context = new ActionData(['data' => null]);
+        $this->registry->expects($this->never())
+            ->method($this->anything());
+
+        $this->action->initialize([]);
+        $this->action->execute($context);
     }
 
     /**
@@ -55,7 +65,7 @@ class FlushEntityTest extends \PHPUnit\Framework\TestCase
         $this->assertEntityManagerCalled($entity, $flushException);
 
         if ($flushException) {
-            $this->expectException('\Exception');
+            $this->expectException(\Exception::class);
             $this->expectExceptionMessage('Flush exception');
         }
 

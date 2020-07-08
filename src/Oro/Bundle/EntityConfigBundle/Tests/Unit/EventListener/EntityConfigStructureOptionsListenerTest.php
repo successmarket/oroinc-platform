@@ -23,7 +23,7 @@ class EntityConfigStructureOptionsListenerTest extends \PHPUnit\Framework\TestCa
     /**
      * {@inheritDoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->entityConfigProvider = $this->createMock(ConfigProvider::class);
         $this->listener = new EntityConfigStructureOptionsListener($this->entityConfigProvider);
@@ -31,7 +31,8 @@ class EntityConfigStructureOptionsListenerTest extends \PHPUnit\Framework\TestCa
 
     public function testOnOptionsRequest()
     {
-        $fieldStructure = (new EntityFieldStructure())->setName('field');
+        $fieldStructure = new EntityFieldStructure();
+        $fieldStructure->setName('field');
         $entityStructure = $this->getEntity(
             EntityStructure::class,
             [
@@ -50,7 +51,8 @@ class EntityConfigStructureOptionsListenerTest extends \PHPUnit\Framework\TestCa
             ->willReturn(true);
 
         $event = $this->getEntity(EntityStructureOptionsEvent::class, ['data' => [$entityStructure]]);
-        $expectedFieldStructure = (clone $fieldStructure)->addOption('configurable', true);
+        $expectedFieldStructure = clone $fieldStructure;
+        $expectedFieldStructure->addOption('configurable', true);
         $expectedEntityStructure = $this->getEntity(
             EntityStructure::class,
             [
@@ -66,7 +68,8 @@ class EntityConfigStructureOptionsListenerTest extends \PHPUnit\Framework\TestCa
     public function testOnOptionsRequestUnidirectional()
     {
         $fieldName = sprintf('class%sfield', UnidirectionalFieldHelper::DELIMITER);
-        $fieldStructure = (new EntityFieldStructure())->setName($fieldName);
+        $fieldStructure = new EntityFieldStructure();
+        $fieldStructure->setName($fieldName);
         $entityStructure = $this->getEntity(
             EntityStructure::class,
             [
@@ -82,7 +85,8 @@ class EntityConfigStructureOptionsListenerTest extends \PHPUnit\Framework\TestCa
             ->willReturn(true);
 
         $event = $this->getEntity(EntityStructureOptionsEvent::class, ['data' => [$entityStructure]]);
-        $expectedFieldStructure = (clone $fieldStructure)->addOption('configurable', true);
+        $expectedFieldStructure = clone $fieldStructure;
+        $expectedFieldStructure->addOption('configurable', true);
         $expectedEntityStructure = $this->getEntity(
             EntityStructure::class,
             [

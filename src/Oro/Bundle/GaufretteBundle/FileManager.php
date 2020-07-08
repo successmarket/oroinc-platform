@@ -9,6 +9,7 @@ use Gaufrette\Stream;
 use Gaufrette\Stream\Local as LocalStream;
 use Gaufrette\StreamMode;
 use Knp\Bundle\GaufretteBundle\FilesystemMap;
+use Oro\Bundle\GaufretteBundle\Exception\FlushFailedException;
 use Oro\Bundle\GaufretteBundle\Exception\ProtocolConfigurationException;
 use Symfony\Component\Filesystem\Exception\IOException;
 use Symfony\Component\HttpFoundation\File\File as ComponentFile;
@@ -20,7 +21,7 @@ use Symfony\Component\HttpFoundation\File\File as ComponentFile;
 class FileManager
 {
     /** The number of bytes to be read from a source stream at a time */
-    const READ_BATCH_SIZE = 100000;
+    protected const READ_BATCH_SIZE = 100000;
 
     /** @var Filesystem */
     protected $filesystem;
@@ -106,6 +107,18 @@ class FileManager
     }
 
     /**
+     * Checks if the given file exists in the Gaufrette file system.
+     *
+     * @param string $fileName
+     *
+     * @return bool
+     */
+    public function hasFile($fileName)
+    {
+        return $this->filesystem->has($fileName);
+    }
+
+    /**
      * Returns a File object for the file stored in the Gaufrette file system.
      *
      * @param string $fileName
@@ -181,6 +194,8 @@ class FileManager
      *
      * @param string $content
      * @param string $fileName
+     *
+     * @throws FlushFailedException if an error occurred during the flushing data to the destination stream
      */
     public function writeToStorage($content, $fileName)
     {
@@ -189,7 +204,8 @@ class FileManager
         try {
             $dstStream->write($content);
         } finally {
-            $dstStream->close();
+            $this->filesystem->removeFromRegister($fileName);
+            $this->flushAndClose($dstStream, $fileName);
         }
     }
 
@@ -212,6 +228,8 @@ class FileManager
      * @param bool   $avoidWriteEmptyStream
      *
      * @return bool returns false in case if $avoidWriteEmptyStream = true and input stream is empty.
+     *
+     * @throws FlushFailedException if an error occurred during the flushing data to the destination stream
      */
     public function writeStreamToStorage(Stream $srcStream, $fileName, $avoidWriteEmptyStream = false)
     {
@@ -236,13 +254,15 @@ class FileManager
                     // save the chunk that was used to check if input stream is empty
                     if ($firstChunk) {
                         $dstStream->write($firstChunk);
+                        $firstChunk = null;
                     }
 
                     while (!$srcStream->eof()) {
                         $dstStream->write($srcStream->read(static::READ_BATCH_SIZE));
                     }
                 } finally {
-                    $dstStream->close();
+                    $this->filesystem->removeFromRegister($fileName);
+                    $this->flushAndClose($dstStream, $fileName);
                 }
             }
         } finally {
@@ -279,6 +299,8 @@ class FileManager
      * @param string|null $originalFileName
      *
      * @return ComponentFile The created temporary file
+     *
+     * @throws FlushFailedException if an error occurred during the flushing data to the destination stream
      */
     public function writeStreamToTemporaryFile(Stream $srcStream, $originalFileName = null)
     {
@@ -292,7 +314,7 @@ class FileManager
                     $dstStream->write($srcStream->read(static::READ_BATCH_SIZE));
                 }
             } finally {
-                $dstStream->close();
+                $this->flushAndClose($dstStream, $tmpFileName);
             }
         } finally {
             $srcStream->close();
@@ -345,5 +367,20 @@ class FileManager
         }
 
         return $fileName;
+    }
+
+    /**
+     * @param Stream $stream
+     * @param string $fileName
+     *
+     * @throws FlushFailedException if an error occurred during the flushing data to the stream
+     */
+    protected function flushAndClose(Stream $stream, string $fileName): void
+    {
+        $success = $stream->flush();
+        $stream->close();
+        if (!$success) {
+            throw new FlushFailedException(sprintf('Failed to flush data to the "%s" file.', $fileName));
+        }
     }
 }

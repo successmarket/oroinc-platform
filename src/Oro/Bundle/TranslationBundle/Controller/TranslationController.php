@@ -6,11 +6,12 @@ use Oro\Bundle\DataGridBundle\Exception\LogicException;
 use Oro\Bundle\DataGridBundle\Extension\MassAction\MassActionDispatcher;
 use Oro\Bundle\SecurityBundle\Annotation\AclAncestor;
 use Oro\Bundle\SecurityBundle\Annotation\CsrfProtection;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
+use Oro\Bundle\TranslationBundle\Entity\Language;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Template;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller as BaseController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Annotation\Route;
 
 /**
  * Translation Controller
@@ -27,7 +28,7 @@ class TranslationController extends BaseController
     public function indexAction()
     {
         return [
-            'entity_class' => $this->container->getParameter('oro_translation.entity.language.class')
+            'entity_class' => Language::class
         ];
     }
 

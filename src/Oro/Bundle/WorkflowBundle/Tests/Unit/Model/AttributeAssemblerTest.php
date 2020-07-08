@@ -8,7 +8,6 @@ use Oro\Bundle\ActionBundle\Model\AttributeGuesser;
 use Oro\Bundle\WorkflowBundle\Entity\WorkflowDefinition;
 use Oro\Bundle\WorkflowBundle\Model\AttributeAssembler;
 use Oro\Component\Action\Exception\AssemblerException;
-use Symfony\Bundle\FrameworkBundle\Tests\Templating\Helper\Fixtures\StubTranslator;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 class AttributeAssemblerTest extends \PHPUnit\Framework\TestCase
@@ -16,9 +15,16 @@ class AttributeAssemblerTest extends \PHPUnit\Framework\TestCase
     /** @var TranslatorInterface */
     protected $translator;
 
-    protected function setUp()
+    protected function setUp(): void
     {
-        $this->translator = new StubTranslator();
+        $this->translator = $this->createMock(TranslatorInterface::class);
+        $this->translator->expects($this->any())
+            ->method('trans')
+            ->willReturnCallback(
+                static function (string $key) {
+                    return sprintf('[trans]%s[/trans]', $key);
+                }
+            );
     }
 
     /**

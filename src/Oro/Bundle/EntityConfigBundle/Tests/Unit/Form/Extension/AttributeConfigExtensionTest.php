@@ -31,7 +31,7 @@ class AttributeConfigExtensionTest extends TypeTestCase
     /** @var AttributeConfigExtension */
     protected $extension;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -99,18 +99,13 @@ class AttributeConfigExtensionTest extends TypeTestCase
 
         $attributeTypeBuilder = $this->createMock(FormBuilderInterface::class);
         $attributeTypeBuilder->expects($this->any())->method('getName')->willReturn('attribute');
-        $attributeTypeBuilder->expects($this->exactly(4))
-            ->method('remove')
-            ->withConsecutive(
-                ['searchable'],
-                ['filterable'],
-                ['filter_by'],
-                ['sortable']
-            );
 
         $this->builder->add($attributeTypeBuilder);
+        $this->assertTrue($this->builder->has('attribute'));
 
         $this->extension->buildForm($this->builder, ['config_model' => $fieldConfigModel]);
+
+        $this->assertFalse($this->builder->has('attribute'));
     }
 
     /**
@@ -189,9 +184,9 @@ class AttributeConfigExtensionTest extends TypeTestCase
         $this->assertFalse($this->builder->has('attribute'));
     }
 
-    public function testGetExtendedType()
+    public function testGetExtendedTypes()
     {
-        $this->assertEquals(ConfigType::class, $this->extension->getExtendedType());
+        $this->assertEquals([ConfigType::class], AttributeConfigExtension::getExtendedTypes());
     }
 
     public function testOnPostSetData()

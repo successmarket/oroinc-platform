@@ -25,14 +25,13 @@ class InlineEditColumnOptionsGuesserTest extends \PHPUnit\Framework\TestCase
     /** @var InlineEditColumnOptionsGuesser */
     private $guesser;
 
-    public function setUp()
+    protected function setUp(): void
     {
         $this->validator = $this->createMock(ValidatorInterface::class);
         $this->validatorMetaData = $this->createMock(ClassMetadataInterface::class);
         $this->innerGuesser = $this->createMock(GuesserInterface::class);
 
-        $this->guesser = new InlineEditColumnOptionsGuesser($this->validator);
-        $this->guesser->addGuesser($this->innerGuesser);
+        $this->guesser = new InlineEditColumnOptionsGuesser([$this->innerGuesser], $this->validator);
     }
 
     /**

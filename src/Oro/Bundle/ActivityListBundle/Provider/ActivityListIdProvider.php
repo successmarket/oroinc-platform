@@ -2,6 +2,7 @@
 
 namespace Oro\Bundle\ActivityListBundle\Provider;
 
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\QueryBuilder;
 use Oro\Bundle\ActivityListBundle\AccessRule\ActivityListAccessRule;
 use Oro\Bundle\ActivityListBundle\Filter\ActivityListFilterHelper;
@@ -11,12 +12,13 @@ use Oro\Bundle\ActivityListBundle\Tools\ActivityListEntityConfigDumperExtension;
 use Oro\Bundle\ConfigBundle\Config\ConfigManager;
 use Oro\Bundle\EntityExtendBundle\Tools\ExtendHelper;
 use Oro\Bundle\SecurityBundle\AccessRule\AclAccessRule;
+use Oro\Bundle\SecurityBundle\Acl\BasicPermission;
 use Oro\Bundle\SecurityBundle\ORM\Walker\AclHelper;
 use Oro\Component\DoctrineUtils\ORM\QueryBuilderUtil;
 
 /**
  * Provides a set of methods to get identifiers of activity list items to manage
- * a pagination and groupping of activity lists.
+ * a pagination and grouping of activity lists.
  */
 class ActivityListIdProvider
 {
@@ -107,7 +109,7 @@ class ActivityListIdProvider
 
         $query = $this->aclHelper->apply(
             $getIdsQb,
-            'VIEW',
+            BasicPermission::VIEW,
             [
                 AclAccessRule::DISABLE_RULE => true,
                 ActivityListAccessRule::ACTIVITY_OWNER_TABLE_ALIAS => 'ao'
@@ -153,7 +155,7 @@ class ActivityListIdProvider
         $this->activityListFilterHelper->addFiltersToQuery($getIdsQb, $filter);
         $query = $this->aclHelper->apply(
             $getIdsQb,
-            'VIEW',
+            BasicPermission::VIEW,
             [
                 AclAccessRule::DISABLE_RULE => true,
                 ActivityListAccessRule::ACTIVITY_OWNER_TABLE_ALIAS => 'ao'
@@ -184,7 +186,7 @@ class ActivityListIdProvider
                     $qb->andWhere($qb->expr()->lt($orderByPath, ':offsetDate'));
                 }
             }
-            $qb->setParameter('offsetDate', $offsetDate);
+            $qb->setParameter('offsetDate', $offsetDate, Types::DATETIME_MUTABLE);
             $rows = $this->loadListDataIds(
                 $qb,
                 $entityClass,
@@ -240,7 +242,7 @@ class ActivityListIdProvider
 
             $query = $this->aclHelper->apply(
                 $inheritanceQb,
-                'VIEW',
+                BasicPermission::VIEW,
                 [
                     AclAccessRule::DISABLE_RULE => true,
                     ActivityListAccessRule::ACTIVITY_OWNER_TABLE_ALIAS => 'ao'
@@ -278,7 +280,7 @@ class ActivityListIdProvider
 
             $query = $this->aclHelper->apply(
                 $inheritanceQb,
-                'VIEW',
+                BasicPermission::VIEW,
                 [
                     AclAccessRule::DISABLE_RULE => true,
                     ActivityListAccessRule::ACTIVITY_OWNER_TABLE_ALIAS => 'ao'

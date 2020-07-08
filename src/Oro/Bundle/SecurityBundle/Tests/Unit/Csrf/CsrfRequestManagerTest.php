@@ -15,7 +15,7 @@ class CsrfRequestManagerTest extends \PHPUnit\Framework\TestCase
     /** @var CsrfRequestManager */
     private $manager;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->csrfTokenManager = $this->createMock(CsrfTokenManagerInterface::class);
 
@@ -57,5 +57,25 @@ class CsrfRequestManagerTest extends \PHPUnit\Framework\TestCase
             ->willReturn(true);
 
         $this->assertTrue($this->manager->isRequestTokenValid($request));
+    }
+
+    public function testIsRequestTokenValidForEmptyRequestValue()
+    {
+        $request = Request::create('/');
+
+        $this->csrfTokenManager->expects($this->never())
+            ->method('isTokenValid');
+
+        $this->assertFalse($this->manager->isRequestTokenValid($request, true));
+    }
+
+    public function testIsRequestTokenValidForEmptyHeader()
+    {
+        $request = Request::create('/');
+
+        $this->csrfTokenManager->expects($this->never())
+            ->method('isTokenValid');
+
+        $this->assertFalse($this->manager->isRequestTokenValid($request));
     }
 }

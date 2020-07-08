@@ -63,7 +63,7 @@ class ConfigManagerTest extends \PHPUnit\Framework\TestCase
         ],
     ];
 
-    public function setUp()
+    protected function setUp(): void
     {
         $this->defaultValueProvider = $this->createMock(ValueProviderInterface::class);
 
@@ -487,8 +487,13 @@ class ConfigManagerTest extends \PHPUnit\Framework\TestCase
         $this->userScopeManager->expects($this->any())
             ->method('resolveIdentifier')
             ->willReturnMap([
-                [$entity1, 33],
+                [$entity1, null],
                 [$entity2, 55]
+            ]);
+        $this->globalScopeManager->expects($this->any())
+            ->method('resolveIdentifier')
+            ->willReturnMap([
+                [$entity1, 33],
             ]);
 
         $this->userScopeManager->expects($this->exactly(2))

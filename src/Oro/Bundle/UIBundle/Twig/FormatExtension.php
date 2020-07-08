@@ -3,9 +3,9 @@
 namespace Oro\Bundle\UIBundle\Twig;
 
 use Oro\Bundle\UIBundle\Formatter\FormatterManager;
+use Oro\Bundle\UIBundle\Provider\UrlWithoutFrontControllerProvider;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\DependencyInjection\ServiceSubscriberInterface;
-use Symfony\Component\Routing\RouterInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
@@ -48,6 +48,14 @@ class FormatExtension extends AbstractExtension implements ServiceSubscriberInte
     protected function getFormatterManager()
     {
         return $this->container->get('oro_ui.formatter');
+    }
+
+    /**
+     * @return UrlWithoutFrontControllerProvider
+     */
+    protected function getUrlWithoutFrontControllerProvider()
+    {
+        return $this->container->get('oro_ui.provider.url_without_front_controller');
     }
 
     /**
@@ -100,17 +108,7 @@ class FormatExtension extends AbstractExtension implements ServiceSubscriberInte
      */
     public function generateUrlWithoutFrontController($name, $parameters = [])
     {
-        $router = $this->container->get('router');
-
-        $prevBaseUrl = $router->getContext()->getBaseUrl();
-        $baseUrlWithoutFrontController = preg_replace('/\/[\w_]+\.php$/', '', $prevBaseUrl);
-        $router->getContext()->setBaseUrl($baseUrlWithoutFrontController);
-
-        $url = $router->generate($name, $parameters);
-
-        $router->getContext()->setBaseUrl($prevBaseUrl);
-
-        return $url;
+        return $this->getUrlWithoutFrontControllerProvider()->generate($name, $parameters);
     }
 
     /**
@@ -163,19 +161,19 @@ class FormatExtension extends AbstractExtension implements ServiceSubscriberInte
      *
      * @return string
      */
-    public function getAgeAsString($date, $options)
+    public function getAgeAsString($date, $options = [])
     {
         if (!$date) {
             return '';
         }
         $dateDiff = $this->getDateDiff($date, $options);
         if ($dateDiff->invert) {
-            return isset($options['default']) ? $options['default'] : '';
+            return $options['default'] ?? '';
         }
 
         $age = $dateDiff->y;
 
-        return $this->getTranslator()->transChoice('oro.age', $age, ['%count%' => $age], 'messages');
+        return $this->getTranslator()->trans('oro.age', ['%count%' => $age], 'messages');
     }
 
     /**
@@ -208,7 +206,7 @@ class FormatExtension extends AbstractExtension implements ServiceSubscriberInte
         return [
             'translator' => TranslatorInterface::class,
             'oro_ui.formatter' => FormatterManager::class,
-            'router' => RouterInterface::class,
+            'oro_ui.provider.url_without_front_controller' => UrlWithoutFrontControllerProvider::class,
         ];
     }
 }

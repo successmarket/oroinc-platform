@@ -3,6 +3,7 @@
 namespace Oro\Bundle\ApiBundle\Form\DataTransformer;
 
 use Doctrine\ORM\ORMException;
+use Oro\Bundle\ApiBundle\Form\FormUtil;
 use Oro\Bundle\ApiBundle\Metadata\AssociationMetadata;
 use Oro\Bundle\ApiBundle\Util\DoctrineHelper;
 use Oro\Bundle\ApiBundle\Util\EntityLoader;
@@ -63,29 +64,55 @@ abstract class AbstractEntityAssociationTransformer implements DataTransformerIn
         }
 
         if (empty($value['class'])) {
-            throw new TransformationFailedException('Expected an array with "class" element.');
-        }
-        if (empty($value['id'])) {
-            throw new TransformationFailedException('Expected an array with "id" element.');
+            throw FormUtil::createTransformationFailedException(
+                'Expected an array with "class" element.',
+                'oro.api.form.invalid_entity_type'
+            );
         }
 
         $entityClass = $value['class'];
         $acceptableClassNames = $this->metadata->getAcceptableTargetClassNames();
         if (empty($acceptableClassNames)) {
             if (!$this->metadata->isEmptyAcceptableTargetsAllowed()) {
-                throw new TransformationFailedException('There are no acceptable classes.');
+                throw FormUtil::createTransformationFailedException(
+                    'There are no acceptable classes.',
+                    'oro.api.form.no_acceptable_entities'
+                );
             }
         } elseif (!\in_array($entityClass, $acceptableClassNames, true)) {
-            throw new TransformationFailedException(
-                \sprintf(
+            throw FormUtil::createTransformationFailedException(
+                sprintf(
                     'The "%s" class is not acceptable. Acceptable classes: %s.',
                     $entityClass,
-                    \implode(',', $acceptableClassNames)
-                )
+                    implode(',', $acceptableClassNames)
+                ),
+                'oro.api.form.not_acceptable_entity'
+            );
+        }
+
+        if (!\array_key_exists('id', $value)) {
+            throw new TransformationFailedException('Expected an array with "id" element.');
+        }
+
+        if (!$this->isEntityIdAcceptable($value['id'])) {
+            throw FormUtil::createTransformationFailedException(
+                'The "id" element is expected to be an integer, non-empty string or non-empty array.',
+                'oro.api.form.invalid_entity_id'
             );
         }
 
         return $this->getEntity($entityClass, $value['id']);
+    }
+
+    /**
+     * @param mixed $entityId
+     * @return bool
+     */
+    protected function isEntityIdAcceptable($entityId): bool
+    {
+        return \is_int($entityId)
+            || (\is_string($entityId) && '' !== trim($entityId))
+            || (\is_array($entityId) && \count($entityId));
     }
 
     /**
@@ -105,11 +132,9 @@ abstract class AbstractEntityAssociationTransformer implements DataTransformerIn
     protected function loadEntity($entityClass, $entityId)
     {
         if (!$this->doctrineHelper->isManageableEntityClass($entityClass)) {
-            throw new TransformationFailedException(
-                \sprintf(
-                    'The "%s" class must be a managed Doctrine entity.',
-                    $entityClass
-                )
+            throw FormUtil::createTransformationFailedException(
+                sprintf('The "%s" class must be a managed Doctrine entity.', $entityClass),
+                'oro.api.form.not_manageable_entity'
             );
         }
         $entity = null;
@@ -117,22 +142,24 @@ abstract class AbstractEntityAssociationTransformer implements DataTransformerIn
             $entity = $this->entityLoader->findEntity($entityClass, $entityId, $this->metadata->getTargetMetadata());
         } catch (ORMException $e) {
             throw new TransformationFailedException(
-                \sprintf(
+                sprintf(
                     'An "%s" entity with "%s" identifier cannot be loaded.',
                     $entityClass,
                     $this->humanizeEntityId($entityId)
                 ),
                 0,
-                $e
+                $e,
+                'oro.api.form.load_entity_failed'
             );
         }
         if (null === $entity) {
-            throw new TransformationFailedException(
-                \sprintf(
+            throw FormUtil::createTransformationFailedException(
+                sprintf(
                     'An "%s" entity with "%s" identifier does not exist.',
                     $entityClass,
                     $this->humanizeEntityId($entityId)
-                )
+                ),
+                'oro.api.form.entity_does_not_exist'
             );
         }
 
@@ -161,10 +188,10 @@ abstract class AbstractEntityAssociationTransformer implements DataTransformerIn
         if (\is_array($entityId)) {
             $elements = [];
             foreach ($entityId as $fieldName => $fieldValue) {
-                $elements[] = \sprintf('%s = %s', $fieldName, $fieldValue);
+                $elements[] = sprintf('%s = %s', $fieldName, $fieldValue);
             }
 
-            return \sprintf('array(%s)', \implode(', ', $elements));
+            return sprintf('array(%s)', implode(', ', $elements));
         }
 
         return (string)$entityId;

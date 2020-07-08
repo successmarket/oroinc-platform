@@ -18,7 +18,7 @@ class AuditControllerTest extends WebTestCase
 {
     use ResponseExtension;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -71,7 +71,7 @@ class AuditControllerTest extends WebTestCase
 
         $result = $this->getLastResponseJsonContent();
 
-        $this->assertInternalType('array', $result);
+        $this->assertIsArray($result);
         $this->assertCount(2, $result);
 
         $actualAudit = $result[0];
@@ -122,7 +122,7 @@ class AuditControllerTest extends WebTestCase
 
         $result = $this->getLastResponseJsonContent();
 
-        $this->assertInternalType('array', $result);
+        $this->assertIsArray($result);
 
         $actualAudit = $result;
         $this->assertEquals($audit->getId(), $actualAudit['id']);
@@ -163,7 +163,7 @@ class AuditControllerTest extends WebTestCase
 
         $result = $this->getLastResponseJsonContent();
 
-        $this->assertInternalType('array', $result);
+        $this->assertIsArray($result);
 
         $this->assertEquals([
             'fooField' => ['old' => null, 'new' => 'foo'],
@@ -179,7 +179,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId1');
         $audit->setLoggedAt(new \DateTime('2012-10-10 00:01+0000'));
         $em->persist($audit);
 
@@ -187,7 +187,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId2');
         $audit->setLoggedAt(new \DateTime('2012-10-12 00:01+0000'));
         $em->persist($audit);
 
@@ -195,7 +195,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId3');
         $audit->setLoggedAt(new \DateTime('2012-10-14 00:01+0000'));
         $em->persist($audit);
 
@@ -210,7 +210,7 @@ class AuditControllerTest extends WebTestCase
 
         $result = $this->getLastResponseJsonContent();
 
-        $this->assertInternalType('array', $result);
+        $this->assertIsArray($result);
 
         $this->assertCount(2, $result);
     }
@@ -223,7 +223,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId1');
         $audit->setLoggedAt(new \DateTime('2012-10-10 00:01+0000'));
         $em->persist($audit);
 
@@ -231,7 +231,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId2');
         $audit->setLoggedAt(new \DateTime('2012-10-12 00:01+0000'));
         $em->persist($audit);
 
@@ -239,7 +239,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId3');
         $audit->setLoggedAt(new \DateTime('2012-10-14 00:01+0000'));
         $em->persist($audit);
 
@@ -254,7 +254,7 @@ class AuditControllerTest extends WebTestCase
 
         $result = $this->getLastResponseJsonContent();
 
-        $this->assertInternalType('array', $result);
+        $this->assertIsArray($result);
 
         $this->assertCount(1, $result);
     }
@@ -267,7 +267,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId1');
         $audit->setLoggedAt(new \DateTime('2012-10-10 00:01+0000'));
         $em->persist($audit);
 
@@ -275,7 +275,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId2');
         $audit->setLoggedAt(new \DateTime('2012-10-12 00:01+0000'));
         $em->persist($audit);
 
@@ -283,7 +283,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId3');
         $audit->setLoggedAt(new \DateTime('2012-10-14 00:01+0000'));
         $em->persist($audit);
 
@@ -298,7 +298,7 @@ class AuditControllerTest extends WebTestCase
 
         $result = $this->getLastResponseJsonContent();
 
-        $this->assertInternalType('array', $result);
+        $this->assertIsArray($result);
 
         $this->assertCount(2, $result);
     }
@@ -311,7 +311,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId1');
         $audit->setLoggedAt(new \DateTime('2012-10-10 00:01+0000'));
         $em->persist($audit);
 
@@ -319,7 +319,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId2');
         $audit->setLoggedAt(new \DateTime('2012-10-12 00:01+0000'));
         $em->persist($audit);
 
@@ -327,7 +327,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId3');
         $audit->setLoggedAt(new \DateTime('2012-10-14 00:01+0000'));
         $em->persist($audit);
 
@@ -342,7 +342,7 @@ class AuditControllerTest extends WebTestCase
 
         $result = $this->getLastResponseJsonContent();
 
-        $this->assertInternalType('array', $result);
+        $this->assertIsArray($result);
 
         $this->assertCount(1, $result);
     }
@@ -355,7 +355,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId1');
         $audit->setAction('create');
         $em->persist($audit);
 
@@ -363,7 +363,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId2');
         $audit->setAction('update');
         $em->persist($audit);
 
@@ -371,7 +371,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId3');
         $audit->setAction('remove');
         $em->persist($audit);
 
@@ -386,7 +386,7 @@ class AuditControllerTest extends WebTestCase
 
         $result = $this->getLastResponseJsonContent();
 
-        $this->assertInternalType('array', $result);
+        $this->assertIsArray($result);
 
         $this->assertCount(1, $result);
     }
@@ -399,7 +399,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId1');
         $audit->setAction('create');
         $em->persist($audit);
 
@@ -407,7 +407,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId2');
         $audit->setAction('update');
         $em->persist($audit);
 
@@ -415,7 +415,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId3');
         $audit->setAction('remove');
         $em->persist($audit);
 
@@ -430,7 +430,7 @@ class AuditControllerTest extends WebTestCase
 
         $result = $this->getLastResponseJsonContent();
 
-        $this->assertInternalType('array', $result);
+        $this->assertIsArray($result);
 
         $this->assertCount(2, $result);
     }
@@ -443,7 +443,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId1');
         $audit->setObjectClass(TestAuditDataChild::class);
         $em->persist($audit);
 
@@ -451,7 +451,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId2');
         $audit->setObjectClass(TestAuditDataChild::class);
         $em->persist($audit);
 
@@ -459,7 +459,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId3');
         $audit->setObjectClass(TestAuditDataOwner::class);
         $em->persist($audit);
 
@@ -474,7 +474,7 @@ class AuditControllerTest extends WebTestCase
 
         $result = $this->getLastResponseJsonContent();
 
-        $this->assertInternalType('array', $result);
+        $this->assertIsArray($result);
 
         $this->assertCount(1, $result);
     }
@@ -487,7 +487,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId1');
         $audit->setObjectClass(TestAuditDataChild::class);
         $em->persist($audit);
 
@@ -495,7 +495,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId2');
         $audit->setObjectClass(TestAuditDataChild::class);
         $em->persist($audit);
 
@@ -503,7 +503,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId3');
         $audit->setObjectClass(TestAuditDataOwner::class);
         $em->persist($audit);
 
@@ -518,7 +518,7 @@ class AuditControllerTest extends WebTestCase
 
         $result = $this->getLastResponseJsonContent();
 
-        $this->assertInternalType('array', $result);
+        $this->assertIsArray($result);
 
         $this->assertCount(2, $result);
     }
@@ -533,7 +533,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId1');
         $audit->setUser($user);
         $em->persist($audit);
 
@@ -541,7 +541,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId2');
         $audit->setUser(null);
         $em->persist($audit);
 
@@ -549,7 +549,7 @@ class AuditControllerTest extends WebTestCase
         $audit->setObjectName('aName');
         $audit->setObjectClass('aClass');
         $audit->setObjectId(123);
-        $audit->setTransactionId('aTransactionId');
+        $audit->setTransactionId('aTransactionId3');
         $audit->setUser(null);
         $em->persist($audit);
 
@@ -564,7 +564,7 @@ class AuditControllerTest extends WebTestCase
 
         $result = $this->getLastResponseJsonContent();
 
-        $this->assertInternalType('array', $result);
+        $this->assertIsArray($result);
 
         $this->assertCount(1, $result);
     }
@@ -594,7 +594,7 @@ class AuditControllerTest extends WebTestCase
 
         $result = $this->getLastResponseJsonContent();
 
-        $this->assertInternalType('array', $result);
+        $this->assertIsArray($result);
 
         $this->assertCount(0, $result);
     }

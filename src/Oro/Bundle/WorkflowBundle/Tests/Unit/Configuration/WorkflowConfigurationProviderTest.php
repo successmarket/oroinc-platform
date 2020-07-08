@@ -13,6 +13,7 @@ use Oro\Bundle\WorkflowBundle\Configuration\WorkflowConfigurationImportsProcesso
 use Oro\Bundle\WorkflowBundle\Configuration\WorkflowConfigurationProvider;
 use Oro\Bundle\WorkflowBundle\Configuration\WorkflowListConfiguration;
 use Oro\Bundle\WorkflowBundle\Exception\WorkflowConfigurationImportException;
+use Symfony\Component\Config\FileLocatorInterface;
 
 /**
  * Integration test
@@ -27,7 +28,7 @@ class WorkflowConfigurationProviderTest extends \PHPUnit\Framework\TestCase
      */
     protected $configuration;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->configuration = new WorkflowListConfiguration(new WorkflowConfiguration());
     }
@@ -45,9 +46,12 @@ class WorkflowConfigurationProviderTest extends \PHPUnit\Framework\TestCase
 
         $fileReader = new YamlFileCachedReader();
 
+        /** @var FileLocatorInterface $fileLocator */
+        $fileLocator = $this->createMock(FileLocatorInterface::class);
+
         $importsProcessor = new WorkflowConfigurationImportsProcessor();
-        $importsProcessor->addImportProcessorFactory(new ResourceFileImportProcessorFactory($fileReader, []));
-        $importsProcessor->addImportProcessorFactory(new WorkflowFileImportProcessorFactory($fileReader));
+        $importsProcessor->addImportProcessorFactory(new ResourceFileImportProcessorFactory($fileReader, $fileLocator));
+        $importsProcessor->addImportProcessorFactory(new WorkflowFileImportProcessorFactory($fileReader, $fileLocator));
         $importsProcessor->addImportProcessorFactory(
             new WorkflowImportProcessorSupervisorFactory($fileReader, $workflowFinderBuilder)
         );
@@ -60,32 +64,27 @@ class WorkflowConfigurationProviderTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    /**
-     * @expectedException \Symfony\Component\Config\Definition\Exception\InvalidConfigurationException
-     */
     public function testGetWorkflowDefinitionsIncorrectConfiguration()
     {
+        $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);
         $bundles = [new Stub\IncorrectConfiguration\IncorrectConfigurationBundle()];
         $configurationProvider = $this->buildProvider($bundles);
         $configurationProvider->getWorkflowDefinitionConfiguration();
     }
 
-    /**
-     * @expectedException \Symfony\Component\Config\Definition\Exception\InvalidConfigurationException
-     * @expectedExceptionMessage Resource "first_workflow.yml" is unreadable
-     */
     public function testGetWorkflowDefinitionsIncorrectSplitConfig()
     {
+        $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Resource "first_workflow.yml" is unreadable');
+
         $bundles = [new Stub\IncorrectSplitConfig\IncorrectSplitConfigBundle()];
         $configurationProvider = $this->buildProvider($bundles);
         $configurationProvider->getWorkflowDefinitionConfiguration();
     }
 
-    /**
-     * @expectedException \Symfony\Component\Config\Definition\Exception\InvalidConfigurationException
-     */
     public function testGetWorkflowDefinitionsDuplicateConfiguration()
     {
+        $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);
         $bundles = [
             new Stub\CorrectConfiguration\CorrectConfigurationBundle(),
             new Stub\DuplicateConfiguration\DuplicateConfigurationBundle()

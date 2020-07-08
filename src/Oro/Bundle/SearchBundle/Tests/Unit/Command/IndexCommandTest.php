@@ -2,15 +2,15 @@
 
 namespace Oro\Bundle\SearchBundle\Tests\Unit\Command;
 
+use Doctrine\Common\Persistence\ManagerRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use Oro\Bundle\SearchBundle\Command\IndexCommand;
 use Oro\Bundle\SearchBundle\Engine\IndexerInterface;
-use Symfony\Bridge\Doctrine\RegistryInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 
 class IndexCommandTest extends \PHPUnit\Framework\TestCase
 {
-    /** @var RegistryInterface|\PHPUnit\Framework\MockObject\MockObject */
+    /** @var ManagerRegistry|\PHPUnit\Framework\MockObject\MockObject */
     private $doctrine;
 
     /** @var IndexerInterface|\PHPUnit\Framework\MockObject\MockObject */
@@ -19,9 +19,9 @@ class IndexCommandTest extends \PHPUnit\Framework\TestCase
     /** @var IndexCommand */
     private $command;
 
-    protected function setUp()
+    protected function setUp(): void
     {
-        $this->doctrine = $this->createMock(RegistryInterface::class);
+        $this->doctrine = $this->createMock(ManagerRegistry::class);
         $this->indexer = $this->createMock(IndexerInterface::class);
 
         $this->command = new IndexCommand($this->doctrine, $this->indexer);
@@ -94,6 +94,6 @@ class IndexCommandTest extends \PHPUnit\Framework\TestCase
             'identifiers' => ['id'],
         ]);
 
-        $this->assertContains('Started index update for entities.', $tester->getDisplay());
+        static::assertStringContainsString('Started index update for entities.', $tester->getDisplay());
     }
 }

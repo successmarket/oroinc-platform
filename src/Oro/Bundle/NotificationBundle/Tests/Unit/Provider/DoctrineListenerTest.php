@@ -3,9 +3,8 @@
 namespace Oro\Bundle\NotificationBundle\Tests\Unit\Provider;
 
 use Oro\Bundle\NotificationBundle\Provider\DoctrineListener;
-use Symfony\Bundle\FrameworkBundle\Tests\TestCase;
 
-class DoctrineListenerTest extends TestCase
+class DoctrineListenerTest extends \PHPUnit\Framework\TestCase
 {
     /**
      * @var DoctrineListener
@@ -22,7 +21,7 @@ class DoctrineListenerTest extends TestCase
      */
     protected $eventDispatcher;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->entityPool = $this->createMock('Oro\Bundle\NotificationBundle\Doctrine\EntityPool');
         $this->eventDispatcher = $this->createMock('Symfony\Component\EventDispatcher\EventDispatcherInterface');

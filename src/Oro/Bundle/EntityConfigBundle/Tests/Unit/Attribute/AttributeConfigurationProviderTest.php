@@ -30,7 +30,7 @@ class AttributeConfigurationProviderTest extends \PHPUnit\Framework\TestCase
     /** @var FieldConfigModel */
     protected $attribute;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->entityConfig = $this->createMock(ConfigInterface::class);
         $this->extendConfig = $this->createMock(ConfigInterface::class);
@@ -112,16 +112,6 @@ class AttributeConfigurationProviderTest extends \PHPUnit\Framework\TestCase
             ->willReturn(true);
 
         $this->assertTrue($this->provider->isAttributeSortable($this->attribute));
-    }
-
-    public function testIsAttributeVisible()
-    {
-        $this->attributeConfig->expects($this->once())
-            ->method('is')
-            ->with('visible')
-            ->willReturn(true);
-
-        $this->assertTrue($this->provider->isAttributeVisible($this->attribute));
     }
 
     /**

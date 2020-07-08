@@ -5,6 +5,7 @@ namespace Oro\Bundle\SecurityBundle\Form\Extension;
 use Oro\Bundle\SecurityBundle\Form\FieldAclHelper;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Form\AbstractTypeExtension;
+use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\Form\Form;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormError;
@@ -15,6 +16,10 @@ use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
 
 /**
+ * Form extension that check access to fields.
+ * It cannot be registered with form.type_extension tag because
+ * this extension should be registered as first extension for all forms.
+ *
  * @SuppressWarnings(PHPMD.ExcessiveClassComplexity)
  */
 class AclProtectedFieldTypeExtension extends AbstractTypeExtension
@@ -28,7 +33,7 @@ class AclProtectedFieldTypeExtension extends AbstractTypeExtension
     /** @var bool */
     protected $showRestricted = true;
 
-    /** @var array List of non accessable fields with commited data */
+    /** @var array List of non accessible fields with committed data */
     protected $disabledFields = [];
 
     /**
@@ -44,11 +49,9 @@ class AclProtectedFieldTypeExtension extends AbstractTypeExtension
     /**
      * {@inheritdoc}
      */
-    public function getExtendedType()
+    public static function getExtendedTypes(): iterable
     {
-        return method_exists('Symfony\Component\Form\AbstractType', 'getBlockPrefix')
-            ? 'Symfony\Component\Form\Extension\Core\Type\FormType'
-            : 'form';
+        return [FormType::class];
     }
 
     /**
@@ -72,6 +75,13 @@ class AclProtectedFieldTypeExtension extends AbstractTypeExtension
     {
         if (!$this->isApplicable($options)) {
             return;
+        }
+
+        // removes 'trash' view fields that can be added to removed fields in finishView method of the form
+        foreach (array_keys($view->children) as $fieldName) {
+            if (!$form->has($fieldName) && !$view->children[$fieldName] instanceof FormView) {
+                unset($view->children[$fieldName]);
+            }
         }
 
         $entity = $this->getEntityByForm($form);
@@ -162,6 +172,8 @@ class AclProtectedFieldTypeExtension extends AbstractTypeExtension
                         }
                     }
                 }
+            } else {
+                $form->remove($fieldName);
             }
         }
 

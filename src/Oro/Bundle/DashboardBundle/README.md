@@ -122,7 +122,7 @@ datagrids:
                     - call.callDateTime as dateTime
                     - directionType.name as callDirection
                 from:
-                    - { table: %oro_call.call.entity.class%, alias: call }
+                    - { table: 'Oro\Bundle\CallBundle\Entity\Call', alias: call }
                 join:
                     left:
                         - { join: call.direction, alias: directionType }
@@ -170,7 +170,7 @@ Next you need to create a TWIG template renders your grid. This template should 
 {% block content %}
     {{ dataGrid.renderGrid('dashboard-recent-calls-grid') }}
     <script type="text/javascript">
-        require(['orocrm/call/info-opener']);
+        loadModules(['orocrm/call/info-opener']);
     </script>
 {% endblock %}
  

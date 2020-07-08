@@ -5,6 +5,7 @@ namespace Oro\Bundle\SearchBundle\Tests\Unit\Engine;
 use Doctrine\Common\Cache\Cache;
 use Oro\Bundle\SearchBundle\Configuration\MappingConfigurationProvider;
 use Oro\Bundle\SearchBundle\Engine\EngineInterface;
+use Oro\Bundle\SearchBundle\Engine\ExtendedEngineInterface;
 use Oro\Bundle\SearchBundle\Engine\Indexer;
 use Oro\Bundle\SearchBundle\Engine\ObjectMapper;
 use Oro\Bundle\SearchBundle\Provider\SearchMappingProvider;
@@ -35,10 +36,10 @@ class IndexerTest extends \PHPUnit\Framework\TestCase
     /** @var array */
     protected $config;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->config = require rtrim(__DIR__, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'searchConfig.php';
-        $this->engine = $this->createMock(EngineInterface::class);
+        $this->engine = $this->createMock(ExtendedEngineInterface::class);
 
         $configProvider = $this->createMock(MappingConfigurationProvider::class);
         $configProvider->expects($this->any())

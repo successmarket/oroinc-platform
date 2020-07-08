@@ -20,7 +20,7 @@ class ConnectorContextMediatorTest extends \PHPUnit\Framework\TestCase
     /** @var TypesRegistry|\PHPUnit\Framework\MockObject\MockObject */
     protected $registry;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $proxiedServiceID = 'registry';
 
@@ -36,7 +36,7 @@ class ConnectorContextMediatorTest extends \PHPUnit\Framework\TestCase
 
         $em->expects($this->any())->method('getRepository')->with('OroIntegrationBundle:Channel')
             ->will($this->returnValue($this->repo));
-        $registry = $this->createMock('Symfony\Bridge\Doctrine\RegistryInterface');
+        $registry = $this->createMock('Doctrine\Common\Persistence\ManagerRegistry');
         $registry->expects($this->any())->method('getManager')
             ->will($this->returnValue($em));
         $link = new ServiceLink($container, $proxiedServiceID);
@@ -44,7 +44,7 @@ class ConnectorContextMediatorTest extends \PHPUnit\Framework\TestCase
         $this->contextMediator = new ConnectorContextMediator($link, $registry);
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         unset($this->repo, $this->registry, $this->contextMediator);
     }

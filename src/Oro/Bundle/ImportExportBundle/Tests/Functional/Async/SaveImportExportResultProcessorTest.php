@@ -9,7 +9,7 @@ use Oro\Bundle\ImportExportBundle\Processor\ProcessorRegistry;
 use Oro\Bundle\MessageQueueBundle\Test\Functional\MessageQueueExtension;
 use Oro\Bundle\TestFrameworkBundle\Test\WebTestCase;
 use Oro\Component\MessageQueue\Job\JobProcessor;
-use Oro\Component\MessageQueue\Transport\Null\NullMessage;
+use Oro\Component\MessageQueue\Transport\Message;
 use Oro\Component\MessageQueue\Transport\SessionInterface;
 use Oro\Component\MessageQueue\Util\JSON;
 use Symfony\Bridge\Doctrine\ManagerRegistry;
@@ -21,7 +21,7 @@ class SaveImportExportResultProcessorTest extends WebTestCase
 {
     use MessageQueueExtension;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->initClient();
     }
@@ -43,7 +43,7 @@ class SaveImportExportResultProcessorTest extends WebTestCase
             'oro:export:test_export_result_message'
         );
 
-        $message = new NullMessage();
+        $message = new Message();
         $message->setMessageId('abc');
         $message->setBody(JSON::encode([
             'jobId' => $rootJob->getId(),
@@ -54,18 +54,18 @@ class SaveImportExportResultProcessorTest extends WebTestCase
         $processor = $this->getContainer()->get('oro_importexport.async.save_import_export_result_processor');
         $processorResult = $processor->process($message, $this->createSessionMock());
 
-        /** @var ImportExportResult $resultJob */
-        $rootJobResult = $importExportResultManager->findOneBy(['jobId' => $rootJob]);
+        /** @var ImportExportResult $rootJobResult */
+        $rootJobResult = $importExportResultManager->findOneBy(['jobId' => $rootJob->getId()]);
 
         self::assertEquals(ExportMessageProcessor::ACK, $processorResult);
-        self::assertAttributeEquals($rootJob->getId(), 'jobId', $rootJobResult);
-        self::assertAttributeEquals(ProcessorRegistry::TYPE_EXPORT, 'type', $rootJobResult);
-        self::assertAttributeEquals(ImportExportResult::class, 'entity', $rootJobResult);
+        self::assertEquals($rootJob->getId(), $rootJobResult->getJobId());
+        self::assertEquals(ProcessorRegistry::TYPE_EXPORT, $rootJobResult->getType());
+        self::assertEquals(ImportExportResult::class, $rootJobResult->getEntity());
     }
 
     public function testProcessSaveJobWithInvalidData():void
     {
-        $message = new NullMessage();
+        $message = new Message();
         $message->setMessageId('abc');
         $message->setBody(JSON::encode([]));
 

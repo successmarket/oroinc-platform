@@ -10,15 +10,17 @@ use Oro\Bundle\ApiBundle\Filter\FilterOperatorRegistry;
 use Oro\Bundle\ApiBundle\Provider\CombinedConfigBag;
 use Oro\Bundle\ApiBundle\Util\DependencyInjectionUtil;
 use Oro\Component\Config\CumulativeResourceManager;
+use Symfony\Component\DependencyInjection\Argument\ServiceClosureArgument;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\DependencyInjection\ServiceLocator;
 
 /**
  * @SuppressWarnings(PHPMD.ExcessiveClassLength)
  */
 class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
 {
-    protected function setUp()
+    protected function setUp(): void
     {
         $bundle1 = new Fixtures\BarBundle\BarBundle();
         $bundle2 = new Fixtures\BazBundle\BazBundle();
@@ -34,7 +36,7 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
             );
     }
 
-    protected function tearDown()
+    protected function tearDown(): void
     {
         CumulativeResourceManager::getInstance()->clear();
     }
@@ -59,6 +61,27 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
         if ($container->hasDefinition($serviceId)) {
             self::fail(sprintf('Service "%s" should not be defined', $serviceId));
         }
+    }
+
+    /**
+     * @param array            $serviceIds
+     * @param object           $serviceLocatorReference
+     * @param ContainerBuilder $container
+     */
+    private static function assertServiceLocator(
+        array $serviceIds,
+        $serviceLocatorReference,
+        ContainerBuilder $container
+    ) {
+        $services = [];
+        foreach ($serviceIds as $serviceId) {
+            $services[$serviceId] = new ServiceClosureArgument(new Reference($serviceId));
+        }
+
+        self::assertInstanceOf(Reference::class, $serviceLocatorReference);
+        $serviceLocatorDef = $container->getDefinition((string)$serviceLocatorReference);
+        self::assertEquals(ServiceLocator::class, $serviceLocatorDef->getClass());
+        self::assertEquals($services, $serviceLocatorDef->getArgument(0));
     }
 
     /**
@@ -114,9 +137,17 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
         self::assertServiceExists($container, 'oro_api.config_bag_registry');
         if ($devMode) {
             self::assertServiceExists($container, 'oro_api.config_cache_state_registry');
+            self::assertEquals(
+                [['addDependency', [new Reference('oro_entity.entity_configuration.provider')]]],
+                $container->getDefinition('oro_api.config_cache_factory')->getMethodCalls()
+            );
             self::assertServiceExists($container, 'oro_api.config_cache_state.default');
         } else {
             self::assertServiceNotExists($container, 'oro_api.config_cache_state_registry');
+            self::assertSame(
+                [],
+                $container->getDefinition('oro_api.config_cache_factory')->getMethodCalls()
+            );
             self::assertServiceNotExists($container, 'oro_api.config_cache_state.default');
         }
         self::assertServiceExists($container, 'oro_api.entity_exclusion_provider_registry');
@@ -138,6 +169,11 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
             ],
             $container->getDefinition('oro_api.config_bag_registry')->getArgument(0)
         );
+        self::assertServiceLocator(
+            ['oro_api.config_bag.default'],
+            $container->getDefinition('oro_api.config_bag_registry')->getArgument(1),
+            $container
+        );
         if ($devMode) {
             self::assertEquals(
                 [
@@ -151,6 +187,11 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
                 ['oro_api.chain_entity_exclusion_provider.default', '']
             ],
             $container->getDefinition('oro_api.entity_exclusion_provider_registry')->getArgument(0)
+        );
+        self::assertServiceLocator(
+            ['oro_api.chain_entity_exclusion_provider.default'],
+            $container->getDefinition('oro_api.entity_exclusion_provider_registry')->getArgument(1),
+            $container
         );
         self::assertEquals(
             ['api.yml'],
@@ -173,11 +214,21 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
             ],
             $container->getDefinition('oro_api.entity_alias_resolver_registry')->getArgument(0)
         );
+        self::assertServiceLocator(
+            ['oro_api.entity_alias_resolver.default'],
+            $container->getDefinition('oro_api.entity_alias_resolver_registry')->getArgument(1),
+            $container
+        );
         self::assertEquals(
             [
                 ['oro_api.entity_override_provider.default', '']
             ],
             $container->getDefinition('oro_api.entity_override_provider_registry')->getArgument(0)
+        );
+        self::assertServiceLocator(
+            ['oro_api.entity_override_provider.default'],
+            $container->getDefinition('oro_api.entity_override_provider_registry')->getArgument(1),
+            $container
         );
 
         self::assertEquals(
@@ -310,6 +361,11 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
             ],
             $container->getDefinition('oro_api.config_bag_registry')->getArgument(0)
         );
+        self::assertServiceLocator(
+            ['oro_api.config_bag.default', 'oro_api.config_bag.first', 'oro_api.config_bag.second'],
+            $container->getDefinition('oro_api.config_bag_registry')->getArgument(1),
+            $container
+        );
         if ($devMode) {
             self::assertEquals(
                 [
@@ -327,6 +383,15 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
                 ['oro_api.chain_entity_exclusion_provider.default', '']
             ],
             $container->getDefinition('oro_api.entity_exclusion_provider_registry')->getArgument(0)
+        );
+        self::assertServiceLocator(
+            [
+                'oro_api.chain_entity_exclusion_provider.default',
+                'oro_api.chain_entity_exclusion_provider.first',
+                'oro_api.chain_entity_exclusion_provider.second'
+            ],
+            $container->getDefinition('oro_api.entity_exclusion_provider_registry')->getArgument(1),
+            $container
         );
         self::assertEquals(
             ['api_first.yml'],
@@ -375,6 +440,15 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
             ],
             $container->getDefinition('oro_api.entity_alias_resolver_registry')->getArgument(0)
         );
+        self::assertServiceLocator(
+            [
+                'oro_api.entity_alias_resolver.default',
+                'oro_api.entity_alias_resolver.first',
+                'oro_api.entity_alias_resolver.second'
+            ],
+            $container->getDefinition('oro_api.entity_alias_resolver_registry')->getArgument(1),
+            $container
+        );
         self::assertEquals(
             [
                 ['oro_api.entity_override_provider.first', 'first'],
@@ -382,6 +456,15 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
                 ['oro_api.entity_override_provider.default', '']
             ],
             $container->getDefinition('oro_api.entity_override_provider_registry')->getArgument(0)
+        );
+        self::assertServiceLocator(
+            [
+                'oro_api.entity_override_provider.default',
+                'oro_api.entity_override_provider.first',
+                'oro_api.entity_override_provider.second'
+            ],
+            $container->getDefinition('oro_api.entity_override_provider_registry')->getArgument(1),
+            $container
         );
 
         self::assertEquals(
@@ -585,6 +668,16 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
             ],
             $container->getDefinition('oro_api.config_bag_registry')->getArgument(0)
         );
+        self::assertServiceLocator(
+            [
+                'oro_api.config_bag.default',
+                'oro_api.config_bag.test',
+                'oro_api.config_bag.several_request_types',
+                'oro_api.config_bag.another'
+            ],
+            $container->getDefinition('oro_api.config_bag_registry')->getArgument(1),
+            $container
+        );
         if ($devMode) {
             self::assertEquals(
                 [
@@ -604,6 +697,16 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
                 ['oro_api.chain_entity_exclusion_provider.default', '']
             ],
             $container->getDefinition('oro_api.entity_exclusion_provider_registry')->getArgument(0)
+        );
+        self::assertServiceLocator(
+            [
+                'oro_api.chain_entity_exclusion_provider.default',
+                'oro_api.chain_entity_exclusion_provider.test',
+                'oro_api.chain_entity_exclusion_provider.several_request_types',
+                'oro_api.chain_entity_exclusion_provider.another'
+            ],
+            $container->getDefinition('oro_api.entity_exclusion_provider_registry')->getArgument(1),
+            $container
         );
         self::assertEquals(
             ['api_several_request_types.yml'],
@@ -665,6 +768,16 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
             ],
             $container->getDefinition('oro_api.entity_alias_resolver_registry')->getArgument(0)
         );
+        self::assertServiceLocator(
+            [
+                'oro_api.entity_alias_resolver.default',
+                'oro_api.entity_alias_resolver.test',
+                'oro_api.entity_alias_resolver.several_request_types',
+                'oro_api.entity_alias_resolver.another'
+            ],
+            $container->getDefinition('oro_api.entity_alias_resolver_registry')->getArgument(1),
+            $container
+        );
         self::assertEquals(
             [
                 ['oro_api.entity_override_provider.several_request_types', 'test1&test2'],
@@ -673,6 +786,16 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
                 ['oro_api.entity_override_provider.default', '']
             ],
             $container->getDefinition('oro_api.entity_override_provider_registry')->getArgument(0)
+        );
+        self::assertServiceLocator(
+            [
+                'oro_api.entity_override_provider.default',
+                'oro_api.entity_override_provider.test',
+                'oro_api.entity_override_provider.several_request_types',
+                'oro_api.entity_override_provider.another'
+            ],
+            $container->getDefinition('oro_api.entity_override_provider_registry')->getArgument(1),
+            $container
         );
     }
 
@@ -757,6 +880,11 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
             ],
             $container->getDefinition('oro_api.config_bag_registry')->getArgument(0)
         );
+        self::assertServiceLocator(
+            ['oro_api.config_bag.default', 'oro_api.config_bag.first', 'oro_api.config_bag.second'],
+            $container->getDefinition('oro_api.config_bag_registry')->getArgument(1),
+            $container
+        );
         if ($devMode) {
             self::assertEquals(
                 [
@@ -774,6 +902,15 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
                 ['oro_api.chain_entity_exclusion_provider.default', '']
             ],
             $container->getDefinition('oro_api.entity_exclusion_provider_registry')->getArgument(0)
+        );
+        self::assertServiceLocator(
+            [
+                'oro_api.chain_entity_exclusion_provider.default',
+                'oro_api.chain_entity_exclusion_provider.first',
+                'oro_api.chain_entity_exclusion_provider.second'
+            ],
+            $container->getDefinition('oro_api.entity_exclusion_provider_registry')->getArgument(1),
+            $container
         );
         self::assertEquals(
             ['api_first.yml'],
@@ -822,6 +959,15 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
             ],
             $container->getDefinition('oro_api.entity_alias_resolver_registry')->getArgument(0)
         );
+        self::assertServiceLocator(
+            [
+                'oro_api.entity_alias_resolver.default',
+                'oro_api.entity_alias_resolver.first',
+                'oro_api.entity_alias_resolver.second'
+            ],
+            $container->getDefinition('oro_api.entity_alias_resolver_registry')->getArgument(1),
+            $container
+        );
         self::assertEquals(
             [
                 ['oro_api.entity_override_provider.first', 'first'],
@@ -829,6 +975,15 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
                 ['oro_api.entity_override_provider.default', '']
             ],
             $container->getDefinition('oro_api.entity_override_provider_registry')->getArgument(0)
+        );
+        self::assertServiceLocator(
+            [
+                'oro_api.entity_override_provider.default',
+                'oro_api.entity_override_provider.first',
+                'oro_api.entity_override_provider.second'
+            ],
+            $container->getDefinition('oro_api.entity_override_provider_registry')->getArgument(1),
+            $container
         );
 
         self::assertEquals(
@@ -987,14 +1142,14 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    // @codingStandardsIgnoreStart
-    /**
-     * @expectedException \Symfony\Component\Config\Definition\Exception\InvalidConfigurationException
-     * @expectedExceptionMessage Invalid configuration for path "oro_api.config_files": The "request_type" options for "test1" and "test2" are duplicated.
-     */
-    // @codingStandardsIgnoreEnd
     public function testLoadApiConfigurationShouldThrowExceptionIfExistSeveralConfigurationsWithSameRequestType()
     {
+        $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);
+        $this->expectExceptionMessage(
+            'Invalid configuration for path "oro_api.config_files":'
+            . ' The "request_type" options for "test1" and "test2" are duplicated.'
+        );
+
         $container = $this->getContainer();
 
         $config = [
@@ -1014,14 +1169,14 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
         $extension->load([$config], $container);
     }
 
-    // @codingStandardsIgnoreStart
-    /**
-     * @expectedException \Symfony\Component\Config\Definition\Exception\InvalidConfigurationException
-     * @expectedExceptionMessage Invalid configuration for path "oro_api.config_files": The "request_type" options for "test2" and "default" are duplicated.
-     */
-    // @codingStandardsIgnoreEnd
     public function testLoadApiConfigurationShouldThrowExceptionIfExistConfigurationsWithSameRequestTypeAsDefaultOne()
     {
+        $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);
+        $this->expectExceptionMessage(
+            'Invalid configuration for path "oro_api.config_files":'
+            . ' The "request_type" options for "test2" and "default" are duplicated.'
+        );
+
         $container = $this->getContainer();
 
         $config = [
@@ -1193,6 +1348,9 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
         );
     }
 
+    /**
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
+     */
     public function testConfigurationForApiDocViews()
     {
         $container = $this->getContainer();
@@ -1210,6 +1368,10 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
                             ['value' => 'totalCount', 'actions' => ['get_list']],
                             ['value' => 'forAllActions']
                         ]
+                    ],
+                    'data_types'   => [
+                        'guid'     => 'string',
+                        'currency' => 'string'
                     ]
                 ],
                 'view2' => [
@@ -1217,7 +1379,23 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
                     'html_formatter'     => 'another_html_formatter',
                     'sandbox'            => false
                 ],
-                'view3' => []
+                'view3' => [],
+                'view4' => [
+                    'label'           => 'View 4',
+                    'default'         => false,
+                    'request_type'    => ['rest', 'json_api', 'api4'],
+                    'underlying_view' => 'view1',
+                    'headers'         => [
+                        'X-Include' => [
+                            ['value' => 'totalCount', 'actions' => ['get_list', 'delete_list']],
+                            ['value' => 'another']
+                        ]
+                    ],
+                    'data_types'      => [
+                        'currency' => 'decimal',
+                        'percent'  => 'float'
+                    ]
+                ]
             ]
         ];
 
@@ -1242,6 +1420,10 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
                             ['value' => 'totalCount', 'actions' => ['get_list']],
                             ['value' => 'forAllActions', 'actions' => []]
                         ]
+                    ],
+                    'data_types'         => [
+                        'guid'     => 'string',
+                        'currency' => 'string'
                     ]
                 ],
                 'view2' => [
@@ -1259,9 +1441,307 @@ class OroApiExtensionTest extends \PHPUnit\Framework\TestCase
                     'html_formatter'     => 'oro_api.api_doc.formatter.html_formatter',
                     'sandbox'            => true,
                     'headers'            => []
+                ],
+                'view4' => [
+                    'label'              => 'View 4',
+                    'default'            => false,
+                    'request_type'       => ['rest', 'json_api', 'api4'],
+                    'underlying_view'    => 'view1',
+                    'documentation_path' => 'http://test.com/default_api_docs',
+                    'html_formatter'     => 'oro_api.api_doc.formatter.html_formatter',
+                    'sandbox'            => true,
+                    'headers'            => [
+                        'Content-Type' => [
+                            ['value' => 'application/vnd.api+json', 'actions' => []]
+                        ],
+                        'X-Include'    => [
+                            ['value' => 'totalCount', 'actions' => ['get_list', 'delete_list']],
+                            ['value' => 'another', 'actions' => []],
+                            ['value' => 'forAllActions', 'actions' => []]
+                        ]
+                    ],
+                    'data_types'         => [
+                        'guid'     => 'string',
+                        'currency' => 'decimal',
+                        'percent'  => 'float'
+                    ]
                 ]
             ],
             $apiConfig['api_doc_views']
         );
+    }
+
+    public function testConfigurationForDefaultApiDocCache()
+    {
+        $container = $this->getContainer();
+
+        $extension = new OroApiExtension();
+        $extension->load([], $container);
+
+        $apiConfig = DependencyInjectionUtil::getConfig($container);
+        self::assertEquals(
+            [
+                'excluded_features' => ['web_api']
+            ],
+            $apiConfig['api_doc_cache']
+        );
+    }
+
+    public function testConfigurationForApiDocCache()
+    {
+        $container = $this->getContainer();
+
+        $configs = [
+            [
+                'api_doc_cache' => [
+                    'excluded_features' => ['feature1']
+                ]
+            ],
+            [
+                'api_doc_cache' => [
+                    'excluded_features' => ['feature2']
+                ]
+            ]
+        ];
+
+        $extension = new OroApiExtension();
+        $extension->load($configs, $container);
+
+        $apiConfig = DependencyInjectionUtil::getConfig($container);
+        self::assertEquals(
+            [
+                'excluded_features' => ['feature1', 'feature2']
+            ],
+            $apiConfig['api_doc_cache']
+        );
+    }
+
+    public function testConfigurationForDefaultFeatureDependedFirewalls()
+    {
+        $container = $this->getContainer();
+
+        $extension = new OroApiExtension();
+        $extension->load([], $container);
+
+        $apiConfig = DependencyInjectionUtil::getConfig($container);
+        self::assertEquals([], $apiConfig['api_firewalls']);
+    }
+
+    public function testConfigurationForFeatureDependedFirewalls()
+    {
+        $container = $this->getContainer();
+
+        $configs = [
+            [
+                'api_firewalls' => [
+                    'firewall1' => [
+                        'feature_name' => 'feature1'
+                    ],
+                    'firewall2' => [
+                        'feature_name'               => 'feature2',
+                        'feature_firewall_listeners' => ['firewall2_listener1']
+                    ],
+                    'firewall3' => [
+                        'feature_name'               => 'feature3',
+                        'feature_firewall_listeners' => ['firewall3_listener1']
+                    ],
+                    'firewall4' => [
+                        'feature_name' => 'feature4'
+                    ]
+                ]
+            ],
+            [
+                'api_firewalls' => [
+                    'firewall2' => [
+                        'feature_firewall_listeners' => ['firewall2_listener2']
+                    ],
+                    'firewall4' => [
+                        'feature_firewall_listeners' => ['firewall4_listener1']
+                    ],
+                    'firewall5' => [
+                        'feature_name' => 'feature5'
+                    ]
+                ]
+            ]
+        ];
+
+        $extension = new OroApiExtension();
+        $extension->load($configs, $container);
+
+        $apiConfig = DependencyInjectionUtil::getConfig($container);
+        self::assertEquals(
+            [
+                'firewall1' => [
+                    'feature_name'               => 'feature1',
+                    'feature_firewall_listeners' => []
+                ],
+                'firewall2' => [
+                    'feature_name'               => 'feature2',
+                    'feature_firewall_listeners' => ['firewall2_listener1', 'firewall2_listener2']
+                ],
+                'firewall3' => [
+                    'feature_name'               => 'feature3',
+                    'feature_firewall_listeners' => ['firewall3_listener1']
+                ],
+                'firewall4' => [
+                    'feature_name'               => 'feature4',
+                    'feature_firewall_listeners' => ['firewall4_listener1']
+                ],
+                'firewall5' => [
+                    'feature_name'               => 'feature5',
+                    'feature_firewall_listeners' => []
+                ]
+            ],
+            $apiConfig['api_firewalls']
+        );
+    }
+
+    public function testDefaultBatchApiConfiguration()
+    {
+        $container = $this->getContainer();
+
+        $extension = new OroApiExtension();
+        $extension->load([], $container);
+
+        $apiConfig = DependencyInjectionUtil::getConfig($container);
+        self::assertEquals(
+            [
+                'async_operation'                     => [
+                    'lifetime'                => 30,
+                    'cleanup_process_timeout' => 3600
+                ],
+                'chunk_size'                          => 100,
+                'chunk_size_per_entity'               => [],
+                'included_data_chunk_size'            => 50,
+                'included_data_chunk_size_per_entity' => []
+            ],
+            $apiConfig['batch_api']
+        );
+    }
+
+    public function testBatchApiConfiguration()
+    {
+        $container = $this->getContainer();
+
+        $configs = [
+            [
+                'batch_api' => [
+                    'chunk_size'               => 200,
+                    'included_data_chunk_size' => 2000
+                ]
+            ],
+            [
+                'batch_api' => [
+                    'async_operation'                     => [
+                        'lifetime' => 40
+                    ],
+                    'chunk_size_per_entity'               => [
+                        'Test\Entity1' => 10,
+                        'Test\Entity2' => null,
+                        'Test\Entity3' => null,
+                        'Test\Entity4' => 40
+                    ],
+                    'included_data_chunk_size_per_entity' => [
+                        'Test\Entity1' => 100,
+                        'Test\Entity2' => null,
+                        'Test\Entity3' => null,
+                        'Test\Entity4' => 400
+                    ]
+                ]
+            ],
+            [
+                'batch_api' => [
+                    'async_operation'                     => [
+                        'cleanup_process_timeout' => 3800
+                    ],
+                    'chunk_size_per_entity'               => [
+                        'Test\Entity1' => 15,
+                        'Test\Entity3' => 35,
+                        'Test\Entity5' => 50
+                    ],
+                    'included_data_chunk_size_per_entity' => [
+                        'Test\Entity1' => 150,
+                        'Test\Entity3' => 350,
+                        'Test\Entity5' => 500
+                    ]
+                ]
+            ]
+        ];
+
+        $extension = new OroApiExtension();
+        $extension->load($configs, $container);
+
+        $apiConfig = DependencyInjectionUtil::getConfig($container);
+        self::assertEquals(
+            [
+                'async_operation'                     => [
+                    'lifetime'                => 40,
+                    'cleanup_process_timeout' => 3800
+                ],
+                'chunk_size'                          => 200,
+                'chunk_size_per_entity'               => [
+                    'Test\Entity1' => 15,
+                    'Test\Entity3' => 35,
+                    'Test\Entity4' => 40,
+                    'Test\Entity5' => 50
+                ],
+                'included_data_chunk_size'            => 2000,
+                'included_data_chunk_size_per_entity' => [
+                    'Test\Entity1' => 150,
+                    'Test\Entity3' => 350,
+                    'Test\Entity4' => 400,
+                    'Test\Entity5' => 500
+                ]
+            ],
+            $apiConfig['batch_api']
+        );
+    }
+
+    public function testBatchApiConfigurationWithNotIntegerValueForEntityChunkSize()
+    {
+        $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);
+        $this->expectExceptionMessage(
+            'Invalid configuration for path "oro_api.batch_api.chunk_size_per_entity.Test\Entity1":'
+            . ' Expected int or NULL.'
+        );
+
+        $container = $this->getContainer();
+
+        $configs = [
+            [
+                'batch_api' => [
+                    'chunk_size_per_entity' => [
+                        'Test\Entity1' => '123'
+                    ]
+                ]
+            ]
+        ];
+
+        $extension = new OroApiExtension();
+        $extension->load($configs, $container);
+    }
+
+    public function testBatchApiConfigurationWithNotIntegerValueForIncludedEntityChunkSize()
+    {
+        $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);
+        $this->expectExceptionMessage(
+            'Invalid configuration for path "oro_api.batch_api.included_data_chunk_size_per_entity.Test\Entity1":'
+            . ' Expected int or NULL.'
+        );
+
+        $container = $this->getContainer();
+
+        $configs = [
+            [
+                'batch_api' => [
+                    'included_data_chunk_size_per_entity' => [
+                        'Test\Entity1' => '123'
+                    ]
+                ]
+            ]
+        ];
+
+        $extension = new OroApiExtension();
+        $extension->load($configs, $container);
     }
 }

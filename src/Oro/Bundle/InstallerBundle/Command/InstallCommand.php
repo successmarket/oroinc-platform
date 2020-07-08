@@ -23,7 +23,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\Intl\Intl;
+use Symfony\Component\Intl\Locales;
 use Symfony\Component\Process\Process;
 
 /**
@@ -247,7 +247,8 @@ class InstallCommand extends AbstractCommand implements InstallCommandInterface
             'Use the <comment>oro:message-queue:consume</comment> ' .
             'command to launch a consumer service instance. See ' .
             '<comment>' .
-            'https://oroinc.com/orocrm/doc/current/install-upgrade/post-install-steps#activate-background-tasks' .
+            'https://doc.oroinc.com/backend/setup/dev-environment/manual-installation/crm-ce/' .
+            '#configure-and-run-required-background-processes' .
             '</comment> ' .
             'for more information.</info>'
         );
@@ -572,11 +573,6 @@ class InstallCommand extends AbstractCommand implements InstallCommandInterface
     ) {
         $output->writeln('<info>Preparing application.</info>');
 
-        $assetsOptions = [];
-        if ($input->hasOption('symlink') && $input->getOption('symlink')) {
-            $assetsOptions['--symlink'] = true;
-        }
-
         $this->processTranslations($input, $commandExecutor);
 
         // run installer scripts
@@ -745,7 +741,7 @@ class InstallCommand extends AbstractCommand implements InstallCommandInterface
      */
     private function validateFormattingCode(string $locale): void
     {
-        $locales = array_keys(Intl::getLocaleBundle()->getLocaleNames());
+        $locales = array_keys(Locales::getNames());
         if (!in_array($locale, $locales, true)) {
             throw new \InvalidArgumentException($this->getExceptionMessage('formatting', $locale, $locales));
         }
@@ -757,7 +753,7 @@ class InstallCommand extends AbstractCommand implements InstallCommandInterface
      */
     private function validateLanguage(string $language)
     {
-        $locales = Intl::getLocaleBundle()->getLocales();
+        $locales = Locales::getLocales();
         if (!in_array($language, $locales, true)) {
             throw new \InvalidArgumentException($this->getExceptionMessage('language', $language, $locales));
         }
@@ -837,6 +833,10 @@ class InstallCommand extends AbstractCommand implements InstallCommandInterface
 
         if ($input->getOption('env')) {
             $command[] = sprintf('--env=%s', $input->getOption('env'));
+        }
+
+        if ($input->hasOption('timeout')) {
+            $command[] = sprintf('--timeout=%d', $input->getOption('timeout'));
         }
 
         $this->assetsCommandProcess = new Process(

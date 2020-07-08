@@ -1,6 +1,6 @@
 <?php
 
-namespace Oro\Bundle\FormBundle\Tests\Unit\Extension;
+namespace Oro\Bundle\FormBundle\Tests\Unit\Form\Extension;
 
 use Oro\Bundle\FormBundle\Form\Extension\DataBlockExtension;
 use Symfony\Component\Form\FormView;
@@ -14,7 +14,7 @@ class DataBlockExtensionTest extends \PHPUnit\Framework\TestCase
     /** @var array */
     private $options = array('block' => 1, 'subblock' => 1, 'block_config' => 1, 'tooltip' => 1);
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->formExtension = new DataBlockExtension();
     }

@@ -2,6 +2,10 @@
 
 namespace Oro\Bundle\ApiBundle\Form;
 
+use Oro\Bundle\ApiBundle\Processor\CustomizeFormData\CustomizeFormDataHandler;
+use Oro\Bundle\ApiBundle\Processor\FormContext;
+use Oro\Bundle\FormBundle\Utils\FormUtils;
+use Symfony\Component\Form\Exception\TransformationFailedException;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Validator\Constraint;
@@ -12,6 +16,22 @@ use Symfony\Component\Validator\ConstraintViolation;
  */
 class FormUtil
 {
+    /**
+     * Gets API context within the given form is processed.
+     *
+     * @param FormInterface $form
+     *
+     * @return FormContext|null
+     */
+    public static function getApiContext(FormInterface $form): ?FormContext
+    {
+        $context = $form->getRoot()->getConfig()->getOption(CustomizeFormDataHandler::API_CONTEXT);
+
+        return $context instanceof FormContext
+            ? $context
+            : null;
+    }
+
     /**
      * Checks whether the form is submitted and does not have errors.
      *
@@ -34,6 +54,28 @@ class FormUtil
     public static function isNotSubmittedOrSubmittedAndValid(FormInterface $form): bool
     {
         return !$form->isSubmitted() || $form->isValid();
+    }
+
+    /**
+     * Creates an instance of TransformationFailedException.
+     *
+     * @param string      $message
+     * @param string|null $invalidMessage
+     * @param array|null  $invalidMessageParameters
+     *
+     * @return TransformationFailedException
+     */
+    public static function createTransformationFailedException(
+        string $message,
+        string $invalidMessage = null,
+        array $invalidMessageParameters = null
+    ): TransformationFailedException {
+        $result = new TransformationFailedException($message);
+        if ($invalidMessage) {
+            $result->setInvalidMessage($invalidMessage, $invalidMessageParameters ?? []);
+        }
+
+        return $result;
     }
 
     /**
@@ -64,16 +106,18 @@ class FormUtil
      * @param string        $errorType
      * @param string        $errorMessage
      * @param string|null   $propertyPath
+     * @param int|null      $statusCode
      */
     public static function addNamedFormError(
         FormInterface $form,
         string $errorType,
         string $errorMessage,
-        string $propertyPath = null
+        string $propertyPath = null,
+        int $statusCode = null
     ): void {
         self::addFormConstraintViolation(
             $form,
-            new NamedValidationConstraint($errorType),
+            new NamedValidationConstraint($errorType, $statusCode),
             $errorMessage,
             $propertyPath
         );
@@ -115,27 +159,7 @@ class FormUtil
      */
     public static function findFormFieldByPropertyPath(FormInterface $form, string $propertyPath): ?FormInterface
     {
-        if ($form->has($propertyPath)) {
-            $child = $form->get($propertyPath);
-            $childPropertyPath = $child->getPropertyPath();
-            if (null === $childPropertyPath || (string)$childPropertyPath === $propertyPath) {
-                return $child;
-            }
-        }
-
-        /** @var FormInterface $child */
-        foreach ($form as $child) {
-            $childPropertyPath = $child->getPropertyPath();
-            if (null === $childPropertyPath) {
-                if ($child->getName() === $propertyPath) {
-                    return $child;
-                }
-            } elseif ((string)$childPropertyPath === $propertyPath) {
-                return $child;
-            }
-        }
-
-        return null;
+        return FormUtils::findFormField($form, $propertyPath);
     }
 
     /**

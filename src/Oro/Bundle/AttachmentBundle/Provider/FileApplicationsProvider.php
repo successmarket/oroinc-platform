@@ -5,22 +5,23 @@ namespace Oro\Bundle\AttachmentBundle\Provider;
 use Oro\Bundle\ActionBundle\Provider\CurrentApplicationProviderInterface;
 use Oro\Bundle\AttachmentBundle\Entity\File;
 use Oro\Bundle\EntityConfigBundle\Config\ConfigInterface;
-use Oro\Bundle\EntityConfigBundle\Config\ConfigManager;
 
 /**
- * Resolves allowed applications from the given File entity.
+ * Resolves allowed applications for the given File entity or field name
  */
 class FileApplicationsProvider
 {
-    /** @var ConfigManager */
-    private $configManager;
+    private const DEFAULT_ALLOWED_APPLICATIONS = [CurrentApplicationProviderInterface::DEFAULT_APPLICATION];
+
+    /** @var AttachmentEntityConfigProviderInterface */
+    private $attachmentEntityConfigProvider;
 
     /**
-     * @param ConfigManager $configManager
+     * @param AttachmentEntityConfigProviderInterface $attachmentEntityConfigProvider
      */
-    public function __construct(ConfigManager $configManager)
+    public function __construct(AttachmentEntityConfigProviderInterface $attachmentEntityConfigProvider)
     {
-        $this->configManager = $configManager;
+        $this->attachmentEntityConfigProvider = $attachmentEntityConfigProvider;
     }
 
     /**
@@ -37,7 +38,21 @@ class FileApplicationsProvider
             return [CurrentApplicationProviderInterface::DEFAULT_APPLICATION];
         }
 
-        $config = $this->configManager->getFieldConfig('attachment', $parentEntityClass, $parentEntityFieldName);
+        return $this->getFileApplicationsForField($parentEntityClass, $parentEntityFieldName);
+    }
+
+    /**
+     * @param string $className
+     * @param string $fieldName
+     *
+     * @return array
+     */
+    public function getFileApplicationsForField(string $className, string $fieldName): array
+    {
+        $config = $this->attachmentEntityConfigProvider->getFieldConfig($className, $fieldName);
+        if (!$config) {
+            return self::DEFAULT_ALLOWED_APPLICATIONS;
+        }
 
         return $this->getAllowedApplications($config);
     }
@@ -49,7 +64,6 @@ class FileApplicationsProvider
      */
     private function getAllowedApplications(ConfigInterface $config): array
     {
-        return (array) $config
-            ->get('file_applications', false, [CurrentApplicationProviderInterface::DEFAULT_APPLICATION]);
+        return (array)$config->get('file_applications', false, self::DEFAULT_ALLOWED_APPLICATIONS);
     }
 }

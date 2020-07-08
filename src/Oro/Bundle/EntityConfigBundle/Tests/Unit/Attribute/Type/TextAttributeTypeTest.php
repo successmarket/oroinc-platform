@@ -15,11 +15,6 @@ class TextAttributeTypeTest extends AttributeTypeTestCase
         return new TextAttributeType();
     }
 
-    public function testGetType()
-    {
-        $this->assertEquals('text', $this->getAttributeType()->getType());
-    }
-
     /**
      * {@inheritdoc}
      */
@@ -54,12 +49,11 @@ class TextAttributeTypeTest extends AttributeTypeTestCase
         );
     }
 
-    /**
-     * @expectedException \RuntimeException
-     * @expectedExceptionMessage Not supported
-     */
     public function testGetSortableValue()
     {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Not supported');
+
         $this->getAttributeType()->getSortableValue($this->attribute, true, $this->localization);
     }
 }

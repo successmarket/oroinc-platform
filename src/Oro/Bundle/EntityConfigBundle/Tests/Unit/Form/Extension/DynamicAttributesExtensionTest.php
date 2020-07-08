@@ -18,6 +18,7 @@ use Oro\Bundle\EntityConfigBundle\Manager\AttributeManager;
 use Oro\Bundle\EntityConfigBundle\Provider\ConfigProvider;
 use Oro\Bundle\EntityExtendBundle\Form\Util\DynamicFieldsHelper;
 use Oro\Bundle\TestFrameworkBundle\Entity\TestActivityTarget;
+use Oro\Component\Testing\Unit\TestContainerBuilder;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormConfigInterface;
 use Symfony\Component\Form\FormEvent;
@@ -65,7 +66,7 @@ class DynamicAttributesExtensionTest extends TypeTestCase
      */
     private $extension;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -93,12 +94,16 @@ class DynamicAttributesExtensionTest extends TypeTestCase
             ->disableOriginalConstructor()
             ->getMock();
 
+        $container = TestContainerBuilder::create()
+            ->add('oro_entity_config.manager.attribute_manager', $this->attributeManager)
+            ->add('oro_entity_config.config.attributes_config_helper', $this->attributeConfigHelper)
+            ->add('oro_entity_extend.form.extension.dynamic_fields_helper', $this->dynamicFieldsHelper)
+            ->getContainer($this);
+
         $this->extension = new DynamicAttributesExtension(
             $this->configManager,
             $this->doctrineHelper,
-            $this->attributeManager,
-            $this->attributeConfigHelper,
-            $this->dynamicFieldsHelper
+            $container
         );
     }
 
@@ -148,7 +153,7 @@ class DynamicAttributesExtensionTest extends TypeTestCase
                 $formConfigProvider
             );
         $this->expectsApplicable();
-        
+
         $viewConfigProvider->expects($this->once())
             ->method('getConfig')
             ->with(self::DATA_CLASS, 'attribute')
@@ -280,7 +285,7 @@ class DynamicAttributesExtensionTest extends TypeTestCase
         $form = $this->getForm();
 
         $this->setSecurityValue($this->extension, 'fields', [get_class($entity) => $fields]);
-        
+
         $this->attributeManager->expects($this->once())
             ->method('getAttributesByFamily')
             ->with($entity->getAttributeFamily())
@@ -290,7 +295,7 @@ class DynamicAttributesExtensionTest extends TypeTestCase
             ->willReturn(false);
         $form->expects($this->exactly($expectAdds))
             ->method('add');
-        
+
         $event = new FormEvent($form, $entity);
         $this->extension->onPreSetData($event);
     }

@@ -15,7 +15,7 @@ oro_behat_extension:
 
     Add Grouping button:
       selector:
-        locator: '//div[@id="oro_report-grouping-form"]//a[@title="Add"]'
+        locator: '//div[@id="oro_report-grouping-form"]//a[normalize-space(text())="Add"]'
         type: xpath
 
     Show SQL Query:
@@ -31,6 +31,9 @@ oro_behat_extension:
     Clone Report Button:
       selector: 'a[title="Clone Report"]'
 
+    Column Names:
+      selector: 'div#select2-drop ul.select2-results'
+
   suites:
     OroReportBundle:
       contexts:
@@ -40,5 +43,6 @@ oro_behat_extension:
         - OroFilterBundle::FilterContext
         - OroFormBundle::FormContext
         - OroConfigBundle::FeatureContext
+        - OroLocaleBundle::LocalizationContext
       paths:
         - '@OroReportBundle/Tests/Behat/Features'

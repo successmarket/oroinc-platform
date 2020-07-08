@@ -6,6 +6,7 @@ use Oro\Bundle\ConfigBundle\Config\ConfigManager;
 use Oro\Bundle\EmailBundle\Provider\LoggedUserVariablesProvider;
 use Oro\Bundle\OrganizationBundle\Entity\Organization;
 use Oro\Bundle\SecurityBundle\Authentication\TokenAccessorInterface;
+use Oro\Bundle\UIBundle\Tools\HtmlTagHelper;
 use Oro\Bundle\UserBundle\Entity\User;
 
 class LoggedUserVariablesProviderTest extends \PHPUnit\Framework\TestCase
@@ -22,7 +23,10 @@ class LoggedUserVariablesProviderTest extends \PHPUnit\Framework\TestCase
     /** @var ConfigManager|\PHPUnit\Framework\MockObject\MockObject */
     protected $configManager;
 
-    protected function setUp()
+    /** @var HtmlTagHelper|\PHPUnit\Framework\MockObject\MockObject */
+    private $htmlTagHelper;
+
+    protected function setUp(): void
     {
         $translator = $this->getMockBuilder('Symfony\Component\Translation\Translator')
             ->disableOriginalConstructor()
@@ -41,11 +45,14 @@ class LoggedUserVariablesProviderTest extends \PHPUnit\Framework\TestCase
             ->disableOriginalConstructor()
             ->getMock();
 
+        $this->htmlTagHelper = $this->createMock(HtmlTagHelper::class);
+
         $this->provider = new LoggedUserVariablesProvider(
             $translator,
             $this->tokenAccessor,
             $this->entityNameResolver,
-            $this->configManager
+            $this->configManager,
+            $this->htmlTagHelper
         );
     }
 
@@ -194,6 +201,10 @@ class LoggedUserVariablesProviderTest extends \PHPUnit\Framework\TestCase
             ->method('get')
             ->with('oro_email.signature')
             ->will($this->returnValue('Signature'));
+        $this->htmlTagHelper->expects($this->once())
+            ->method('sanitize')
+            ->with('Signature')
+            ->willReturn('Sanitized Signature');
 
         $result = $this->provider->getVariableValues();
         $this->assertEquals(
@@ -203,7 +214,7 @@ class LoggedUserVariablesProviderTest extends \PHPUnit\Framework\TestCase
                 'userLastName'     => 'LastName',
                 'userFullName'     => 'FullName',
                 'organizationName' => 'TestOrg',
-                'userSignature'    => 'Signature',
+                'userSignature'    => 'Sanitized Signature',
             ],
             $result
         );

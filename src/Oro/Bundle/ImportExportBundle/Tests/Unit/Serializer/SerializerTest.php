@@ -11,7 +11,7 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
      */
     protected $serializer;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->serializer = new Serializer();
     }
@@ -77,7 +77,7 @@ class SerializerTest extends \PHPUnit\Framework\TestCase
         $this->serializer->supportsDenormalization(new \stdClass(), 'test');
     }
 
-    public function testGetNrmalizerFailed()
+    public function testGetNormalizerFailed()
     {
         $this->serializer = new Serializer();
 

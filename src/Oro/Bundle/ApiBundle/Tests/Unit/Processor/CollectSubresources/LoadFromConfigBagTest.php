@@ -46,7 +46,7 @@ class LoadFromConfigBagTest extends \PHPUnit\Framework\TestCase
     /** @var LoadFromConfigBag */
     private $processor;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->configProvider = $this->createMock(ConfigProvider::class);
         $this->metadataProvider = $this->createMock(MetadataProvider::class);
@@ -494,7 +494,11 @@ class LoadFromConfigBagTest extends \PHPUnit\Framework\TestCase
                             'subresource1' => [
                                 'target_class' => $targetEntityClass,
                                 'target_type'  => 'to-one',
-                                'actions'      => [ApiAction::UPDATE_SUBRESOURCE => ['exclude' => false]]
+                                'actions'      => [
+                                    ApiAction::ADD_SUBRESOURCE    => ['description' => 'test'],
+                                    ApiAction::UPDATE_SUBRESOURCE => ['exclude' => false],
+                                    ApiAction::DELETE_SUBRESOURCE => ['exclude' => true]
+                                ]
                             ]
                         ]
                     ]
@@ -515,8 +519,6 @@ class LoadFromConfigBagTest extends \PHPUnit\Framework\TestCase
         $expectedSubresource->setIsCollection(false);
         $expectedSubresource->setExcludedActions([
             ApiAction::GET_SUBRESOURCE,
-            ApiAction::UPDATE_SUBRESOURCE,
-            ApiAction::ADD_SUBRESOURCE,
             ApiAction::DELETE_SUBRESOURCE,
             ApiAction::GET_RELATIONSHIP,
             ApiAction::UPDATE_RELATIONSHIP,
@@ -531,14 +533,14 @@ class LoadFromConfigBagTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    // @codingStandardsIgnoreStart
-    /**
-     * @expectedException \RuntimeException
-     * @expectedExceptionMessage Invalid configuration for "subresource1" subresource of "Test\Class" entity. The target class should be specified in config.
-     */
-    // @codingStandardsIgnoreEnd
     public function testProcessCustomSubresourceWithoutTargetClass()
     {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage(
+            'Invalid configuration for "subresource1" subresource of "Test\Class" entity'
+            . '. The target class should be specified in config.'
+        );
+
         $entityClass = 'Test\Class';
         $resource = new ApiResource($entityClass);
         $subresources = $this->getApiResourceSubresources($resource);

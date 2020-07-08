@@ -17,39 +17,33 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             ->setParameter('ids', [123, 456]);
 
         $conn = $this->getDriverConnectionMock($this->em);
-
         $this->setQueryExpectationAt(
             $conn,
             0,
-            'SELECT u0_.id AS id_0, u0_.name AS name_1, u0_.category_name AS category_name_2'
+            'SELECT u0_.id AS id_0, u0_.name AS name_1'
             . ' FROM user_table u0_'
             . ' WHERE u0_.id IN (?, ?)',
             [
                 [
-                    'id_0'            => 123,
-                    'name_1'          => 'user_name1',
-                    'category_name_2' => 'category_name1',
+                    'id_0'   => 123,
+                    'name_1' => 'user_name1'
                 ],
                 [
-                    'id_0'            => 456,
-                    'name_1'          => 'user_name2',
-                    'category_name_2' => 'category_name2',
+                    'id_0'   => 456,
+                    'name_1' => 'user_name2'
                 ]
             ],
             [1 => 123, 2 => 456],
             [1 => \PDO::PARAM_INT, 2 => \PDO::PARAM_INT]
         );
-
         $this->setQueryExpectationAt(
             $conn,
             1,
             'SELECT u0_.id AS id_0,'
             . ' g1_.id AS id_1, g1_.name AS name_2, g1_.label AS label_3, g1_.public AS public_4'
-            . ' FROM group_table g1_'
-            . ' INNER JOIN user_table u0_ ON (EXISTS ('
-            . 'SELECT 1 FROM rel_user_to_group_table r2_'
-            . ' INNER JOIN group_table g3_ ON r2_.user_group_id = g3_.id'
-            . ' WHERE r2_.user_id = u0_.id AND g3_.id IN (g1_.id)))'
+            . ' FROM user_table u0_'
+            . ' INNER JOIN rel_user_to_group_table r2_ ON u0_.id = r2_.user_id'
+            . ' INNER JOIN group_table g1_ ON g1_.id = r2_.user_group_id'
             . ' WHERE u0_.id IN (?, ?)',
             [
                 [
@@ -57,15 +51,15 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
                     'id_1'     => 10,
                     'name_2'   => 'group_name1',
                     'label_3'  => 'group_label1',
-                    'public_4' => 0,
+                    'public_4' => 0
                 ],
                 [
                     'id_0'     => 123,
                     'id_1'     => 20,
                     'name_2'   => 'group_name2',
                     'label_3'  => 'group_label2',
-                    'public_4' => true,
-                ],
+                    'public_4' => true
+                ]
             ],
             [1 => 123, 2 => 456],
             [1 => \PDO::PARAM_INT, 2 => \PDO::PARAM_INT]
@@ -84,8 +78,8 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
                                 'exclude' => true
                             ]
                         ]
-                    ],
-                ],
+                    ]
+                ]
             ]
         );
 
@@ -99,20 +93,20 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
                             'id'     => 10,
                             'name'   => 'group_name1',
                             'label'  => 'group_label1',
-                            'public' => false,
+                            'public' => false
                         ],
                         [
                             'id'     => 20,
                             'name'   => 'group_name2',
                             'label'  => 'group_label2',
-                            'public' => true,
-                        ],
-                    ],
+                            'public' => true
+                        ]
+                    ]
                 ],
                 [
                     'id'     => 456,
                     'name'   => 'user_name2',
-                    'groups' => [],
+                    'groups' => []
                 ]
             ],
             $result
@@ -129,64 +123,53 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             ->setParameter('ids', [123, 456]);
 
         $conn = $this->getDriverConnectionMock($this->em);
-
         $this->setQueryExpectationAt(
             $conn,
             0,
-            'SELECT u0_.id AS id_0, u0_.name AS name_1, u0_.category_name AS category_name_2'
+            'SELECT u0_.id AS id_0, u0_.name AS name_1'
             . ' FROM user_table u0_'
             . ' WHERE u0_.id IN (?, ?)',
             [
                 [
-                    'id_0'            => 123,
-                    'name_1'          => 'user_name1',
-                    'category_name_2' => 'category_name1',
+                    'id_0'   => 123,
+                    'name_1' => 'user_name1'
                 ],
                 [
-                    'id_0'            => 456,
-                    'name_1'          => 'user_name2',
-                    'category_name_2' => 'category_name2',
+                    'id_0'   => 456,
+                    'name_1' => 'user_name2'
                 ]
             ],
             [1 => 123, 2 => 456],
             [1 => \PDO::PARAM_INT, 2 => \PDO::PARAM_INT]
         );
-
         $this->setQueryExpectationAt(
             $conn,
             1,
             'SELECT entity.id_0 AS entityId, entity.id_1 AS relatedEntityId'
-            . ' FROM ('
-            . '(SELECT u0_.id AS id_0, g1_.id AS id_1'
-            . ' FROM group_table g1_'
-            . ' INNER JOIN user_table u0_ ON (EXISTS ('
-            . 'SELECT 1 FROM rel_user_to_group_table r2_'
-            . ' INNER JOIN group_table g3_ ON r2_.user_group_id = g3_.id'
-            . ' WHERE r2_.user_id = u0_.id AND g3_.id IN (g1_.id)'
-            . '))'
-            . ' WHERE u0_.id = 123 LIMIT 10)'
-            . ' UNION ALL'
-            . ' (SELECT u0_.id AS id_0, g1_.id AS id_1'
-            . ' FROM group_table g1_'
-            . ' INNER JOIN user_table u0_ ON (EXISTS ('
-            . 'SELECT 1 FROM rel_user_to_group_table r2_'
-            . ' INNER JOIN group_table g3_ ON r2_.user_group_id = g3_.id'
-            . ' WHERE r2_.user_id = u0_.id AND g3_.id IN (g1_.id)'
-            . '))'
-            . ' WHERE u0_.id = 456 LIMIT 10)'
-            . ') entity',
+            . ' FROM (('
+            . 'SELECT u0_.id AS id_0, g1_.id AS id_1'
+            . ' FROM user_table u0_'
+            . ' INNER JOIN rel_user_to_group_table r2_ ON u0_.id = r2_.user_id'
+            . ' INNER JOIN group_table g1_ ON g1_.id = r2_.user_group_id'
+            . ' WHERE u0_.id = 123 LIMIT 10'
+            . ') UNION ALL ('
+            . 'SELECT u0_.id AS id_0, g1_.id AS id_1'
+            . ' FROM user_table u0_'
+            . ' INNER JOIN rel_user_to_group_table r2_ ON u0_.id = r2_.user_id'
+            . ' INNER JOIN group_table g1_ ON g1_.id = r2_.user_group_id'
+            . ' WHERE u0_.id = 456 LIMIT 10'
+            . ')) entity',
             [
                 [
                     'entityId'        => '123',
-                    'relatedEntityId' => '10',
+                    'relatedEntityId' => '10'
                 ],
                 [
                     'entityId'        => '123',
-                    'relatedEntityId' => '20',
-                ],
+                    'relatedEntityId' => '20'
+                ]
             ]
         );
-
         $this->setQueryExpectationAt(
             $conn,
             2,
@@ -198,14 +181,14 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
                     'id_0'     => 10,
                     'name_1'   => 'group_name1',
                     'label_2'  => 'group_label1',
-                    'public_3' => 0,
+                    'public_3' => 0
                 ],
                 [
                     'id_0'     => 20,
                     'name_1'   => 'group_name2',
                     'label_2'  => 'group_label2',
-                    'public_3' => true,
-                ],
+                    'public_3' => true
+                ]
             ],
             [1 => 10, 2 => 20],
             [1 => \PDO::PARAM_INT, 2 => \PDO::PARAM_INT]
@@ -225,8 +208,8 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
                                 'exclude' => true
                             ]
                         ]
-                    ],
-                ],
+                    ]
+                ]
             ]
         );
 
@@ -240,20 +223,20 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
                             'id'     => 10,
                             'name'   => 'group_name1',
                             'label'  => 'group_label1',
-                            'public' => false,
+                            'public' => false
                         ],
                         [
                             'id'     => 20,
                             'name'   => 'group_name2',
                             'label'  => 'group_label2',
-                            'public' => true,
-                        ],
-                    ],
+                            'public' => true
+                        ]
+                    ]
                 ],
                 [
                     'id'     => 456,
                     'name'   => 'user_name2',
-                    'groups' => [],
+                    'groups' => []
                 ]
             ],
             $result
@@ -267,62 +250,52 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             ->setParameter('ids', ['id1', 'id2']);
 
         $conn = $this->getDriverConnectionMock($this->em);
-
         $this->setQueryExpectationAt(
             $conn,
             0,
-            'SELECT r0_.code AS code_0, c1_.name AS name_1, r0_.category_name AS category_name_2'
+            'SELECT r0_.code AS code_0, c1_.name AS name_1'
             . ' FROM role_table r0_'
             . ' LEFT JOIN category_table c1_ ON r0_.category_name = c1_.name'
             . ' WHERE r0_.code IN (?, ?)',
             [
                 [
-                    'code_0'          => 'id1',
-                    'name_1'          => 'category_1',
-                    'category_name_2' => 'category_1',
+                    'code_0' => 'id1',
+                    'name_1' => 'category_1'
                 ],
                 [
-                    'code_0'          => 'id2',
-                    'name_1'          => null,
-                    'category_name_2' => null,
+                    'code_0' => 'id2',
+                    'name_1' => null
                 ]
             ],
             [1 => 'id1', 2 => 'id2'],
             [1 => \PDO::PARAM_STR, 2 => \PDO::PARAM_STR]
         );
-
         $this->setQueryExpectationAt(
             $conn,
             1,
             'SELECT entity.code_0 AS entityId, entity.id_1 AS relatedEntityId'
-            . ' FROM ('
-            . '(SELECT r0_.code AS code_0, g1_.id AS id_1'
-            . ' FROM group_table g1_'
-            . ' INNER JOIN role_table r0_ ON (EXISTS ('
-            . 'SELECT 1 FROM rel_role_to_group_table r2_'
-            . ' INNER JOIN group_table g3_ ON r2_.role_group_id = g3_.id'
-            . ' WHERE r2_.role_code = r0_.code AND g3_.id IN (g1_.id)'
-            . '))'
-            . ' WHERE r0_.code = \'id1\' LIMIT 10)'
-            . ' UNION ALL'
-            . ' (SELECT r0_.code AS code_0, g1_.id AS id_1'
-            . ' FROM group_table g1_'
-            . ' INNER JOIN role_table r0_ ON (EXISTS ('
-            . 'SELECT 1 FROM rel_role_to_group_table r2_'
-            . ' INNER JOIN group_table g3_ ON r2_.role_group_id = g3_.id'
-            . ' WHERE r2_.role_code = r0_.code AND g3_.id IN (g1_.id)'
-            . '))'
-            . ' WHERE r0_.code = \'id2\' LIMIT 10)'
-            . ') entity',
+            . ' FROM (('
+            . 'SELECT r0_.code AS code_0, g1_.id AS id_1'
+            . ' FROM role_table r0_'
+            . ' INNER JOIN rel_role_to_group_table r2_ ON r0_.code = r2_.role_code'
+            . ' INNER JOIN group_table g1_ ON g1_.id = r2_.role_group_id'
+            . ' WHERE r0_.code = \'id1\' LIMIT 10'
+            . ') UNION ALL ('
+            . 'SELECT r0_.code AS code_0, g1_.id AS id_1'
+            . ' FROM role_table r0_'
+            . ' INNER JOIN rel_role_to_group_table r2_ ON r0_.code = r2_.role_code'
+            . ' INNER JOIN group_table g1_ ON g1_.id = r2_.role_group_id'
+            . ' WHERE r0_.code = \'id2\' LIMIT 10'
+            . ')) entity',
             [
                 [
                     'entityId'        => 'id1',
-                    'relatedEntityId' => 10,
+                    'relatedEntityId' => 10
                 ],
                 [
                     'entityId'        => 'id1',
-                    'relatedEntityId' => 20,
-                ],
+                    'relatedEntityId' => 20
+                ]
             ]
         );
 
@@ -331,15 +304,15 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             [
                 'exclusion_policy' => 'all',
                 'fields'           => [
-                    'code'   => null,
+                    'code'     => null,
                     'category' => [
                         'fields' => 'name'
                     ],
-                    'groups' => [
+                    'groups'   => [
                         'max_results' => 10,
                         'fields'      => 'id'
-                    ],
-                ],
+                    ]
+                ]
             ]
         );
 
@@ -353,7 +326,7 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
                 [
                     'code'     => 'id2',
                     'category' => null,
-                    'groups'   => [],
+                    'groups'   => []
                 ]
             ],
             $result
@@ -367,18 +340,16 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             ->setParameter('id', 1);
 
         $conn = $this->getDriverConnectionMock($this->em);
-
         $this->setQueryExpectationAt(
             $conn,
             0,
-            'SELECT u0_.id AS id_0, u0_.name AS name_1, u0_.category_name AS category_name_2'
+            'SELECT u0_.id AS id_0, u0_.name AS name_1'
             . ' FROM user_table u0_'
             . ' WHERE u0_.id = ?',
             [
                 [
-                    'id_0'            => 1,
-                    'name_1'          => 'user_name',
-                    'category_name_2' => 'category_name',
+                    'id_0'   => 1,
+                    'name_1' => 'user_name'
                 ]
             ],
             [1 => 1],
@@ -387,23 +358,20 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
         $this->setQueryExpectationAt(
             $conn,
             1,
-            'SELECT u0_.id AS id_0,'
-            . ' g1_.id AS id_1'
-            . ' FROM group_table g1_'
-            . ' INNER JOIN user_table u0_ ON (EXISTS ('
-            . 'SELECT 1 FROM rel_user_to_group_table r2_'
-            . ' INNER JOIN group_table g3_ ON r2_.user_group_id = g3_.id'
-            . ' WHERE r2_.user_id = u0_.id AND g3_.id IN (g1_.id)))'
+            'SELECT u0_.id AS id_0, g1_.id AS id_1'
+            . ' FROM user_table u0_'
+            . ' INNER JOIN rel_user_to_group_table r2_ ON u0_.id = r2_.user_id'
+            . ' INNER JOIN group_table g1_ ON g1_.id = r2_.user_group_id'
             . ' WHERE u0_.id = ?',
             [
                 [
                     'id_0' => 1,
-                    'id_1' => 10,
+                    'id_1' => 10
                 ],
                 [
                     'id_0' => 1,
-                    'id_1' => 20,
-                ],
+                    'id_1' => 20
+                ]
             ],
             [1 => 1],
             [1 => \PDO::PARAM_INT]
@@ -418,8 +386,8 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
                     'name'   => null,
                     'groups' => [
                         'fields' => 'id'
-                    ],
-                ],
+                    ]
+                ]
             ]
         );
 
@@ -442,18 +410,16 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             ->setParameter('id', 1);
 
         $conn = $this->getDriverConnectionMock($this->em);
-
         $this->setQueryExpectationAt(
             $conn,
             0,
-            'SELECT u0_.id AS id_0, u0_.name AS name_1, u0_.category_name AS category_name_2'
+            'SELECT u0_.id AS id_0, u0_.name AS name_1'
             . ' FROM user_table u0_'
             . ' WHERE u0_.id = ?',
             [
                 [
-                    'id_0'            => 1,
-                    'name_1'          => 'user_name',
-                    'category_name_2' => 'category_name',
+                    'id_0'   => 1,
+                    'name_1' => 'user_name'
                 ]
             ],
             [1 => 1],
@@ -465,18 +431,18 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             'SELECT u0_.id AS id_0,'
             . ' p1_.id AS id_1'
             . ' FROM product_table p1_'
-            . ' INNER JOIN user_table u0_ ON (p1_.owner_id = u0_.id)'
+            . ' INNER JOIN user_table u0_ ON p1_.owner_id = u0_.id'
             . ' WHERE u0_.id = ?'
             . ' ORDER BY p1_.id DESC',
             [
                 [
                     'id_0' => 1,
-                    'id_1' => 20,
+                    'id_1' => 20
                 ],
                 [
                     'id_0' => 1,
-                    'id_1' => 10,
-                ],
+                    'id_1' => 10
+                ]
             ],
             [1 => 1],
             [1 => \PDO::PARAM_INT]
@@ -492,8 +458,8 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
                     'products' => [
                         'fields'   => 'id',
                         'order_by' => ['id' => 'DESC']
-                    ],
-                ],
+                    ]
+                ]
             ]
         );
 
@@ -519,18 +485,16 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             ->setParameter('id', 1);
 
         $conn = $this->getDriverConnectionMock($this->em);
-
         $this->setQueryExpectationAt(
             $conn,
             0,
-            'SELECT u0_.id AS id_0, u0_.name AS name_1, u0_.category_name AS category_name_2'
+            'SELECT u0_.id AS id_0, u0_.name AS name_1'
             . ' FROM user_table u0_'
             . ' WHERE u0_.id = ?',
             [
                 [
-                    'id_0'            => 1,
-                    'name_1'          => 'user_name',
-                    'category_name_2' => 'category_name',
+                    'id_0'   => 1,
+                    'name_1' => 'user_name'
                 ]
             ],
             [1 => 1],
@@ -542,17 +506,17 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             'SELECT u0_.id AS id_0,'
             . ' p1_.id AS id_1'
             . ' FROM product_table p1_'
-            . ' INNER JOIN user_table u0_ ON (p1_.owner_id = u0_.id)'
+            . ' INNER JOIN user_table u0_ ON p1_.owner_id = u0_.id'
             . ' WHERE u0_.id = ?',
             [
                 [
                     'id_0' => 1,
-                    'id_1' => 10,
+                    'id_1' => 10
                 ],
                 [
                     'id_0' => 1,
-                    'id_1' => 20,
-                ],
+                    'id_1' => 20
+                ]
             ],
             [1 => 1],
             [1 => \PDO::PARAM_INT]
@@ -561,26 +525,21 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             $conn,
             2,
             'SELECT p0_.id AS id_0, p0_.name AS name_1,'
-            . ' c1_.name AS name_2,'
-            . ' p0_.category_name AS category_name_3, p0_.owner_id AS owner_id_4'
+            . ' c1_.name AS name_2'
             . ' FROM product_table p0_'
             . ' LEFT JOIN category_table c1_ ON p0_.category_name = c1_.name'
             . ' WHERE p0_.id IN (?, ?)',
             [
                 [
-                    'id_0'            => 10,
-                    'name_1'          => 'product_name1',
-                    'name_2'          => 'category_name1',
-                    'category_name_3' => 'category_name1',
-                    'owner_id_4'      => 1,
+                    'id_0'   => 10,
+                    'name_1' => 'product_name1',
+                    'name_2' => 'category_name1'
                 ],
                 [
-                    'id_0'            => 20,
-                    'name_1'          => 'product_name2',
-                    'name_2'          => 'category_name2',
-                    'category_name_3' => 'category_name2',
-                    'owner_id_4'      => 1,
-                ],
+                    'id_0'   => 20,
+                    'name_1' => 'product_name2',
+                    'name_2' => 'category_name2'
+                ]
             ],
             [1 => 10, 2 => 20],
             [1 => \PDO::PARAM_INT, 2 => \PDO::PARAM_INT]
@@ -599,11 +558,11 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
                             'id'       => null,
                             'name'     => null,
                             'category' => [
-                                'fields' => 'name',
+                                'fields' => 'name'
                             ]
                         ]
-                    ],
-                ],
+                    ]
+                ]
             ]
         );
 
@@ -616,13 +575,13 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
                         [
                             'id'       => 10,
                             'name'     => 'product_name1',
-                            'category' => 'category_name1',
+                            'category' => 'category_name1'
                         ],
                         [
                             'id'       => 20,
                             'name'     => 'product_name2',
-                            'category' => 'category_name2',
-                        ],
+                            'category' => 'category_name2'
+                        ]
                     ]
                 ]
             ],
@@ -640,18 +599,16 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             ->setParameter('id', 1);
 
         $conn = $this->getDriverConnectionMock($this->em);
-
         $this->setQueryExpectationAt(
             $conn,
             0,
-            'SELECT u0_.id AS id_0, u0_.name AS name_1, u0_.category_name AS category_name_2'
+            'SELECT u0_.id AS id_0, u0_.name AS name_1'
             . ' FROM user_table u0_'
             . ' WHERE u0_.id = ?',
             [
                 [
-                    'id_0'            => 1,
-                    'name_1'          => 'user_name',
-                    'category_name_2' => 'category_name',
+                    'id_0'   => 1,
+                    'name_1' => 'user_name'
                 ]
             ],
             [1 => 1],
@@ -663,17 +620,17 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             'SELECT u0_.id AS id_0,'
             . ' p1_.id AS id_1'
             . ' FROM product_table p1_'
-            . ' INNER JOIN user_table u0_ ON (p1_.owner_id = u0_.id)'
+            . ' INNER JOIN user_table u0_ ON p1_.owner_id = u0_.id'
             . ' WHERE u0_.id = ?',
             [
                 [
                     'id_0' => 1,
-                    'id_1' => 10,
+                    'id_1' => 10
                 ],
                 [
                     'id_0' => 1,
-                    'id_1' => 20,
-                ],
+                    'id_1' => 20
+                ]
             ],
             [1 => 1],
             [1 => \PDO::PARAM_INT]
@@ -681,54 +638,43 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
         $this->setQueryExpectationAt(
             $conn,
             2,
-            'SELECT p0_.id AS id_0, p0_.name AS name_1,'
-            . ' p0_.category_name AS category_name_2, p0_.owner_id AS owner_id_3'
+            'SELECT p0_.id AS id_0, p0_.name AS name_1'
             . ' FROM product_table p0_'
             . ' WHERE p0_.id IN (?, ?)',
             [
                 [
-                    'id_0'            => 10,
-                    'name_1'          => 'product_name1',
-                    'name_2'          => 'category_name1',
-                    'category_name_3' => 'category_name1',
-                    'owner_id_4'      => 1,
+                    'id_0'   => 10,
+                    'name_1' => 'product_name1'
                 ],
                 [
-                    'id_0'            => 20,
-                    'name_1'          => 'product_name2',
-                    'name_2'          => 'category_name2',
-                    'category_name_3' => 'category_name2',
-                    'owner_id_4'      => 1,
-                ],
+                    'id_0'   => 20,
+                    'name_1' => 'product_name2'
+                ]
             ],
             [1 => 10, 2 => 20],
             [1 => \PDO::PARAM_INT, 2 => \PDO::PARAM_INT]
         );
-
         $this->setQueryExpectationAt(
             $conn,
             3,
             'SELECT p0_.id AS id_0, g1_.id AS id_1'
-            . ' FROM group_table g1_'
-            . ' INNER JOIN product_table p0_ ON (EXISTS ('
-            . 'SELECT 1 FROM rel_product_to_group_table r2_'
-            . ' INNER JOIN group_table g3_ ON r2_.product_group_id = g3_.id'
-            . ' WHERE r2_.product_id = p0_.id AND g3_.id IN (g1_.id)'
-            . '))'
+            . ' FROM product_table p0_'
+            . ' INNER JOIN rel_product_to_group_table r2_ ON p0_.id = r2_.product_id'
+            . ' INNER JOIN group_table g1_ ON g1_.id = r2_.product_group_id'
             . ' WHERE p0_.id IN (?, ?)',
             [
                 [
                     'id_0' => 10,
-                    'id_1' => 100,
+                    'id_1' => 100
                 ],
                 [
                     'id_0' => 20,
-                    'id_1' => 200,
+                    'id_1' => 200
                 ],
                 [
                     'id_0' => 20,
-                    'id_1' => 201,
-                ],
+                    'id_1' => 201
+                ]
             ],
             [1 => 10, 2 => 20],
             [1 => \PDO::PARAM_INT, 2 => \PDO::PARAM_INT]
@@ -747,11 +693,11 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
                             'id'     => null,
                             'name'   => null,
                             'groups' => [
-                                'fields' => 'id',
+                                'fields' => 'id'
                             ]
                         ]
-                    ],
-                ],
+                    ]
+                ]
             ]
         );
 
@@ -764,13 +710,13 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
                         [
                             'id'     => 10,
                             'name'   => 'product_name1',
-                            'groups' => [100],
+                            'groups' => [100]
                         ],
                         [
                             'id'     => 20,
                             'name'   => 'product_name2',
-                            'groups' => [200, 201],
-                        ],
+                            'groups' => [200, 201]
+                        ]
                     ]
                 ]
             ],
@@ -786,25 +732,19 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             ->setParameter('id', 1);
 
         $conn = $this->getDriverConnectionMock($this->em);
-
         $this->setQueryExpectationAt(
             $conn,
             0,
             'SELECT p0_.id AS id_0, p0_.name AS name_1,'
-            . ' u1_.id AS id_2,'
-            . ' p0_.category_name AS category_name_3, p0_.owner_id AS owner_id_4,'
-            . ' u1_.category_name AS category_name_5'
+            . ' u1_.id AS id_2'
             . ' FROM product_table p0_'
             . ' LEFT JOIN user_table u1_ ON p0_.owner_id = u1_.id'
             . ' WHERE p0_.id = ?',
             [
                 [
-                    'id_0'            => 1,
-                    'name_1'          => 'product_name',
-                    'id_2'            => 10,
-                    'category_name_3' => 'category_name',
-                    'owner_id_4'      => 10,
-                    'category_name_5' => 'owner_category_name',
+                    'id_0'   => 1,
+                    'name_1' => 'product_name',
+                    'id_2'   => 10
                 ]
             ],
             [1 => 1],
@@ -815,18 +755,18 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             $conn,
             1,
             'SELECT p0_.id AS id_0, g1_.id AS id_1'
-                . ' FROM group_table g1_ INNER JOIN product_table p0_ ON'
-                . ' (EXISTS (SELECT 1 FROM rel_product_to_group_table r2_'
-                . ' INNER JOIN group_table g3_ ON r2_.product_group_id = g3_.id'
-                . ' WHERE r2_.product_id = p0_.id AND g3_.id IN (g1_.id))) WHERE p0_.id = ?',
+            . ' FROM product_table p0_'
+            . ' INNER JOIN rel_product_to_group_table r2_ ON p0_.id = r2_.product_id'
+            . ' INNER JOIN group_table g1_ ON g1_.id = r2_.product_group_id'
+            . ' WHERE p0_.id = ?',
             [
                 [
-                    'id_0'            => 1,
-                    'id_1'            => 1,
+                    'id_0' => 1,
+                    'id_1' => 1
                 ],
                 [
-                    'id_0'            => 1,
-                    'id_1'            => 2,
+                    'id_0' => 1,
+                    'id_1' => 2
                 ]
             ],
             [1 => 1],
@@ -843,15 +783,15 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             [
                 'exclusion_policy' => 'all',
                 'fields'           => [
-                    'id'    => null,
-                    'name'  => null,
-                    'owner' => [
-                        'fields' => 'id',
+                    'id'     => null,
+                    'name'   => null,
+                    'owner'  => [
+                        'fields' => 'id'
                     ],
                     'groups' => [
                         'exclusion_policy' => 'all',
                         'fields'           => [
-                            'id'     => null
+                            'id' => null
                         ]
                     ]
                 ]
@@ -863,10 +803,10 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
                 [
                     'groups' => [
                         ['id' => 1],
-                        ['id' => 2],
+                        ['id' => 2]
                     ],
-                    'id'    => 1,
-                    'name'  => null,
+                    'id'     => 1,
+                    'name'   => null
                 ]
             ],
             $result
@@ -885,20 +825,15 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
         $this->setQueryExpectation(
             $conn,
             'SELECT p0_.id AS id_0, p0_.name AS name_1,'
-            . ' u1_.id AS id_2,'
-            . ' p0_.category_name AS category_name_3, p0_.owner_id AS owner_id_4,'
-            . ' u1_.category_name AS category_name_5'
+            . ' u1_.id AS id_2'
             . ' FROM product_table p0_'
             . ' LEFT JOIN user_table u1_ ON p0_.owner_id = u1_.id'
             . ' WHERE p0_.id = ?',
             [
                 [
-                    'id_0'            => 1,
-                    'name_1'          => 'product_name',
-                    'id_2'            => 10,
-                    'category_name_3' => 'category_name',
-                    'owner_id_4'      => 10,
-                    'category_name_5' => 'owner_category_name',
+                    'id_0'   => 1,
+                    'name_1' => 'product_name',
+                    'id_2'   => 10
                 ]
             ],
             [1 => 1],
@@ -916,15 +851,15 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
             [
                 'exclusion_policy' => 'all',
                 'fields'           => [
-                    'id'    => null,
-                    'name'  => null,
-                    'owner' => [
-                        'fields' => 'id',
+                    'id'     => null,
+                    'name'   => null,
+                    'owner'  => [
+                        'fields' => 'id'
                     ],
                     'groups' => [
                         'exclusion_policy' => 'all',
                         'fields'           => [
-                            'id'     => null
+                            'id' => null
                         ]
                     ]
                 ]
@@ -934,8 +869,8 @@ class ToManyEntitySerializerTest extends EntitySerializerTestCase
         $this->assertArrayEquals(
             [
                 [
-                    'id'    => 1,
-                    'name'  => null,
+                    'id'   => 1,
+                    'name' => null
                 ]
             ],
             $result

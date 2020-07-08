@@ -32,7 +32,7 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
     /**
      * {@inheritdoc}
      */
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->jobProcessor = $this->createMock(JobProcessor::class);
         $this->jobExtension = $this->createMock(ExtensionInterface::class);
@@ -55,10 +55,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
         $this->jobProcessor
             ->expects($this->never())
             ->method('findOrCreateChildJob');
-
-        $this->jobProcessor
-            ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
 
         $this->jobProcessor
             ->expects($this->never())
@@ -108,10 +104,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
 
         $this->jobProcessor
             ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
-
-        $this->jobProcessor
-            ->expects($this->never())
             ->method('startChildJob');
 
         $this->jobProcessor
@@ -141,15 +133,15 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
         });
     }
 
-    public function testRunUniqueRootJobIsInterrupted()
+    public function testRunUniqueCanceled(): void
     {
         $ownerId = uniqid('test', false);
         $jobName = 'job_name';
         $rootJob = $this->getEntity(Job::class, ['id' => 1, 'interrupted' => true]);
-        $childJob = $this->getEntity(Job::class, [
-            'id' => 2,
-            'rootJob' => $rootJob,
-        ]);
+        $childJob = $this->getEntity(
+            Job::class,
+            ['id' => 2, 'rootJob' => $rootJob, 'status' => Job::STATUS_CANCELLED]
+        );
 
         $this->jobProcessor
             ->expects($this->once())
@@ -162,11 +154,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
             ->method('findOrCreateChildJob')
             ->with($jobName, $rootJob)
             ->willReturn($childJob);
-
-        $this->jobProcessor
-            ->expects($this->once())
-            ->method('cancelAllActiveChildJobs')
-            ->with($rootJob);
 
         $this->jobProcessor
             ->expects($this->never())
@@ -193,7 +180,8 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
             ->expects($this->never())
             ->method('onPostRunUnique');
 
-        $result = $this->jobRunner->runUnique($ownerId, $jobName, function () {
+        $result = $this->jobRunner->runUnique($ownerId, $jobName, static function ($callback, Job $job) {
+            $callback($job);
         });
 
         $this->assertNull($result);
@@ -223,10 +211,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
             ->willReturn($childJob);
 
         $this->jobProcessor
-            ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
-
-        $this->jobProcessor
             ->expects($this->once())
             ->method('startChildJob')
             ->with($childJob);
@@ -236,8 +220,9 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
             ->method('successChildJob');
 
         $this->jobProcessor
-            ->expects($this->never())
-            ->method('failChildJob');
+            ->expects($this->once())
+            ->method('failChildJob')
+            ->with($childJob);
 
         $this->jobExtension
             ->expects($this->never())
@@ -286,10 +271,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
             ->method('findOrCreateChildJob')
             ->with($jobName, $rootJob)
             ->willReturn($childJob);
-
-        $this->jobProcessor
-            ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
 
         $this->jobProcessor
             ->expects($this->never())
@@ -352,10 +333,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
             ->method('findOrCreateChildJob')
             ->with($jobName, $rootJob)
             ->willReturn($childJob);
-
-        $this->jobProcessor
-            ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
 
         $this->jobProcessor
             ->expects($this->never())
@@ -422,10 +399,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
             ->willReturn($childJob);
 
         $this->jobProcessor
-            ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
-
-        $this->jobProcessor
             ->expects($this->once())
             ->method('startChildJob')
             ->with($childJob);
@@ -490,10 +463,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
             ->willReturn($childJob);
 
         $this->jobProcessor
-            ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
-
-        $this->jobProcessor
             ->expects($this->once())
             ->method('startChildJob')
             ->with($childJob);
@@ -554,10 +523,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
 
         $this->jobProcessor
             ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
-
-        $this->jobProcessor
-            ->expects($this->never())
             ->method('startChildJob');
 
         $this->jobProcessor
@@ -612,10 +577,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
             ->method('findOrCreateChildJob')
             ->with($jobName, $rootJob)
             ->willReturn($childJob);
-
-        $this->jobProcessor
-            ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
 
         $this->jobProcessor
             ->expects($this->never())
@@ -774,10 +735,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
 
         $this->jobProcessor
             ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
-
-        $this->jobProcessor
-            ->expects($this->never())
             ->method('startChildJob');
 
         $this->jobProcessor
@@ -823,10 +780,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
 
         $this->jobProcessor
             ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
-
-        $this->jobProcessor
-            ->expects($this->never())
             ->method('startChildJob');
 
         $this->jobProcessor
@@ -856,25 +809,20 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
         });
     }
 
-    public function testRunDelayedRootJobIsInterrupted()
+    public function testRunDelayedCanceled(): void
     {
         $jobId = 2;
         $rootJob = $this->getEntity(Job::class, ['id' => 1, 'interrupted' => true]);
-        $childJob = $this->getEntity(Job::class, [
-            'id' => $jobId,
-            'rootJob' => $rootJob,
-        ]);
+        $childJob = $this->getEntity(
+            Job::class,
+            ['id' => $jobId, 'rootJob' => $rootJob, 'status' => Job::STATUS_CANCELLED]
+        );
 
         $this->jobProcessor
             ->expects($this->once())
             ->method('findJobById')
             ->with($jobId)
             ->willReturn($childJob);
-
-        $this->jobProcessor
-            ->expects($this->once())
-            ->method('cancelAllActiveChildJobs')
-            ->with($rootJob);
 
         $this->jobProcessor
             ->expects($this->never())
@@ -901,7 +849,8 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
             ->expects($this->never())
             ->method('onPostRunDelayed');
 
-        $result = $this->jobRunner->runDelayed($jobId, function () {
+        $result = $this->jobRunner->runDelayed($jobId, static function ($callback, Job $job) {
+            $callback($job);
         });
 
         $this->assertNull($result);
@@ -924,10 +873,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
             ->willReturn($childJob);
 
         $this->jobProcessor
-            ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
-
-        $this->jobProcessor
             ->expects($this->once())
             ->method('startChildJob')
             ->with($childJob);
@@ -937,8 +882,9 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
             ->method('successChildJob');
 
         $this->jobProcessor
-            ->expects($this->never())
-            ->method('failChildJob');
+            ->expects($this->once())
+            ->method('failChildJob')
+            ->with($childJob);
 
         $this->jobExtension
             ->expects($this->never())
@@ -980,10 +926,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
             ->method('findJobById')
             ->with($jobId)
             ->willReturn($childJob);
-
-        $this->jobProcessor
-            ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
 
         $this->jobProcessor
             ->expects($this->never())
@@ -1042,10 +984,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
 
         $this->jobProcessor
             ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
-
-        $this->jobProcessor
-            ->expects($this->never())
             ->method('startChildJob');
 
         $this->jobProcessor
@@ -1100,10 +1038,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
             ->method('findJobById')
             ->with($jobId)
             ->willReturn($childJob);
-
-        $this->jobProcessor
-            ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
 
         $this->jobProcessor
             ->expects($this->once())
@@ -1164,10 +1098,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
             ->willReturn($childJob);
 
         $this->jobProcessor
-            ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
-
-        $this->jobProcessor
             ->expects($this->once())
             ->method('startChildJob')
             ->with($childJob);
@@ -1221,10 +1151,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
 
         $this->jobProcessor
             ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
-
-        $this->jobProcessor
-            ->expects($this->never())
             ->method('startChildJob');
 
         $this->jobProcessor
@@ -1275,10 +1201,6 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
 
         $this->jobProcessor
             ->expects($this->never())
-            ->method('cancelAllActiveChildJobs');
-
-        $this->jobProcessor
-            ->expects($this->never())
             ->method('startChildJob');
 
         $this->jobProcessor
@@ -1311,6 +1233,14 @@ class JobRunnerTest extends \PHPUnit\Framework\TestCase
 
             call_user_func($func, 1);
         });
+    }
+
+    public function testGetJobRunnerForChildJob()
+    {
+        $rootJob = $this->getEntity(Job::class, ['id' => 1]);
+        $jobRunnerForChildJob = $this->jobRunner->getJobRunnerForChildJob($rootJob);
+        $this->assertInstanceOf(JobRunner::class, $jobRunnerForChildJob);
+        $this->assertNotSame($this->jobRunner, $jobRunnerForChildJob);
     }
 
     /**

@@ -11,7 +11,6 @@ use Oro\Bundle\QueryDesignerBundle\Model\AbstractQueryDesigner;
 /**
  * Provides a core functionality to convert a query definition created by the query designer to another format.
  *
- * @todo: need to think how to reduce the complexity of this class
  * @SuppressWarnings(PHPMD.ExcessiveClassComplexity)
  * @SuppressWarnings(PHPMD.ExcessiveClassLength)
  * @SuppressWarnings(PHPMD.TooManyMethods)
@@ -479,7 +478,7 @@ abstract class AbstractQueryConverter
         foreach ($this->definition['columns'] as $column) {
             $columnName         = $column['name'];
             $fieldName          = $this->getFieldName($columnName);
-            list($functionExpr, $functionReturnType) = $this->createColumnFunction($column);
+            [$functionExpr, $functionReturnType] = $this->createColumnFunction($column);
             $isDistinct = !empty($column['distinct']);
             $tableAlias = $this->getTableAliasForColumn($columnName);
             $columnLabel = isset($column['label'])
@@ -666,7 +665,7 @@ abstract class AbstractQueryConverter
         if (isset($filter['func'])) {
             $column['func'] = $filter['func'];
         }
-        list($functionExpr) = $this->createColumnFunction($column);
+        [$functionExpr] = $this->createColumnFunction($column);
 
         $this->addWhereCondition(
             $this->getEntityClassName($columnName),
@@ -1170,11 +1169,15 @@ abstract class AbstractQueryConverter
                     return $join['alias'] === $parentJoinAlias;
                 }
             );
-            $parentItem = reset($parentItems);
-            $parentAlias = $parentItem['alias'];
-            if ($parentItem && empty($this->joins[$parentAlias])) {
-                $this->registerVirtualColumnTableAlias($joins, $parentItem, $mainEntityJoinId);
+
+            if ($parentItems) {
+                $parentItem = reset($parentItems);
+                $parentAlias = $parentItem['alias'];
+                if ($parentItem && empty($this->joins[$parentAlias])) {
+                    $this->registerVirtualColumnTableAlias($joins, $parentItem, $mainEntityJoinId);
+                }
             }
+
             if (!empty($this->joins[$parentJoinAlias])) {
                 $parentJoinId = $this->joins[$parentJoinAlias];
             }
@@ -1740,7 +1743,7 @@ abstract class AbstractQueryConverter
         ];
 
         return preg_replace_callback(
-            '/\$([\w_]+)/',
+            '/\$([\w\_]+)/',
             function ($matches) use (&$variables) {
                 return $variables[$matches[1]];
             },

@@ -20,7 +20,7 @@ class EmailTemplateRepositoryTest extends WebTestCase
     const SYSTEM_TEMPLATE_EMAIL_WITH_ENTITY = 'user_reset_password';
     const USER_ENTITY_TEMPLATE_NAME = 'user_reset_password';
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->initClient();
     }
@@ -272,7 +272,22 @@ class EmailTemplateRepositoryTest extends WebTestCase
         ];
     }
 
-    public function testGetDistinctByEntityNameQueryBuilder(): void
+    public function testGetDistinctByEntityNameQueryBuilderWithoutFilters(): void
+    {
+        $this->loadFixtures([LoadEmailTemplateData::class]);
+
+        $actualResult = $this->getRepository()->getDistinctByEntityNameQueryBuilder()
+            ->getQuery()
+            ->getArrayResult();
+
+        foreach ($actualResult as $row) {
+            if (empty($row['entityName'])) {
+                $this->fail('Failed asserting that there are no records with empty value in "entityName" column.');
+            }
+        }
+    }
+
+    public function testGetDistinctByEntityNameQueryBuilderWithFilterByName(): void
     {
         $this->loadFixtures([LoadEmailTemplateData::class]);
 
@@ -331,34 +346,21 @@ class EmailTemplateRepositoryTest extends WebTestCase
 
     public function testFindOneLocalizedWhenNoResult(): void
     {
+        $this->expectException(\Doctrine\ORM\NoResultException::class);
+
         $this->loadFixtures([LoadLocalizedEmailTemplateData::class]);
 
-        self::assertNull($this->getRepository()->findOneLocalized(
-            new EmailTemplateCriteria('not_existing_template_name'),
-            'en'
+        self::assertNull($this->getRepository()->findWithLocalizations(
+            new EmailTemplateCriteria('not_existing_template_name')
         ));
-    }
-
-    public function testFindOneLocalizedWithEnglishAsCurrentLanguage(): void
-    {
-        $this->loadFixtures([LoadLocalizedEmailTemplateData::class]);
-
-        $emailTemplate = $this->getRepository()->findOneLocalized(
-            new EmailTemplateCriteria('french_localized_template'),
-            'en'
-        );
-
-        self::assertEquals(LoadLocalizedEmailTemplateData::DEFAULT_SUBJECT, $emailTemplate->getSubject());
-        self::assertEquals(LoadLocalizedEmailTemplateData::DEFAULT_CONTENT, $emailTemplate->getContent());
     }
 
     public function testFindOneLocalizedWithFrenchAsCurrentLanguage(): void
     {
         $this->loadFixtures([LoadLocalizedEmailTemplateData::class]);
 
-        $emailTemplate = $this->getRepository()->findOneLocalized(
-            new EmailTemplateCriteria('french_localized_template', User::class),
-            'fr_FR'
+        $emailTemplate = $this->getRepository()->findWithLocalizations(
+            new EmailTemplateCriteria('french_localized_template', User::class)
         );
 
         self::assertEquals(LoadLocalizedEmailTemplateData::FRENCH_LOCALIZED_SUBJECT, $emailTemplate->getSubject());
@@ -369,9 +371,8 @@ class EmailTemplateRepositoryTest extends WebTestCase
     {
         $this->loadFixtures([LoadLocalizedEmailTemplateData::class]);
 
-        $emailTemplate = $this->getRepository()->findOneLocalized(
-            new EmailTemplateCriteria('no_entity_localized_template', null),
-            'fr_FR'
+        $emailTemplate = $this->getRepository()->findWithLocalizations(
+            new EmailTemplateCriteria('no_entity_localized_template', null)
         );
 
         self::assertEquals(LoadLocalizedEmailTemplateData::FRENCH_LOCALIZED_SUBJECT, $emailTemplate->getSubject());
