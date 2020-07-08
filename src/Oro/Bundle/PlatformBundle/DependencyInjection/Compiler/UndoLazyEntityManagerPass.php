@@ -19,8 +19,6 @@ class UndoLazyEntityManagerPass implements CompilerPassInterface
      */
     public function process(ContainerBuilder $container)
     {
-        if ('test' === $container->getParameter('kernel.environment')) {
-            $container->getDefinition('doctrine.orm.entity_manager.abstract')->setLazy(false);
-        }
+        $container->getDefinition('doctrine.orm.entity_manager.abstract')->setLazy(false);
     }
 }
